@@ -1,0 +1,4 @@
+cadquery>=2.8,<3
+numpy>=1.26,<3
+trimesh>=4,<5
+shapely>=2,<3
