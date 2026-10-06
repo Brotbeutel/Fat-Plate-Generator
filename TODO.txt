@@ -1,15 +1,12 @@
 TODO
 
-
-- make GitHub repo
-- options for spacing
+- uniform stabilizer orientation
 - options for stabilizer orientation - horizontal and vertical ones seperate
 - option for F1-F12 row in one mesh
 - option for rounded/beveled corners
 - option for standoffs/spacer
 - option for rectangular arrow box shape (filled corners)
 - add more stabilizer sizes
-
 
 
 
@@ -22,3 +19,4 @@ DONE
 - upload all files
 - give ChatGPT new key_socket.stl - turned 90° around z-axis code stays the same
 - give ChatGPT stabilizer_spacebar.stl
+- create GitHub repo
