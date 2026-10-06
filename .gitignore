@@ -1,2 +1,8 @@
 .venv
-.blender
+
+*.blend1
+
+TODO.txt
+TODO.md
+TO-DO.txt
+TO-DO.md

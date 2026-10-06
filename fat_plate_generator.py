@@ -27,7 +27,7 @@ from shapely.ops import polygonize, unary_union
 UNIT = 19.05
 DEFAULT_MARGIN = 1
 DEFAULT_JSON = "keyboard-layout.json"
-DEFAULT_SOCKET = "key_socket.stl"
+DEFAULT_SOCKET = "switch_socket.stl"
 DEFAULT_STABILIZER = "stabilizer.stl"
 DEFAULT_SPACEBAR_CENTERED = "stabilzer_spacebar.stl"
 DEFAULT_SPACEBAR_OFF_CENTERED = "stabilzer_spacebar_off-center.stl"

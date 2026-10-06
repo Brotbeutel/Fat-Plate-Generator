@@ -1,4 +1,4 @@
-# Fat Plate Generator
+# Fat Plate Generator V.0.11
 
 The Fat Plate Generator creates a 3D-printable keyboard "fat" plate as an STL from a **KLE Raw Data JSON**.
 
@@ -6,12 +6,18 @@ You can export your keyboard layout from [https://www.keyboard-layout-editor.com
 
 This is still a WIP, but with some 3D editing (for example Blender) you can already make use of it.
 
+
+
 ## !! Disclaimer !!
 
 This is not a finished product!
 
 It has not yet been tested, if the generated plate fits a real keyboard and switches in 3D-printed form. 
-Spacebar stabilizer cutouts are now supported with centered and off-centered switch-position options.
+Spacebar stabilizer cutouts are now supported with centered and off-centered switch-position options, which is needed for a classic Cherry G80-3000.
+
+
+
+
 
 ## Content
 
@@ -23,8 +29,6 @@ Spacebar stabilizer cutouts are now supported with centered and off-centered swi
 - `stabilzer_spacebar_off-center.stl` – off-centered spacebar template
 - `keyboard-layout.json` – example layout
 - `README.md` – this guide
-
-The geometry is generated CAD-based. **No voxelization is used.**
 
 ---
 
@@ -47,6 +51,12 @@ python --version
 ```
 
 If e.g. `Python 3.13.x` appears, everything is set up correctly.
+
+## Blender To Edit 3D-Files
+
+Download Blender at: https://www.blender.org/download/ 
+
+(Only, if you want to edit the source 3D-files)
 
 ---
 
@@ -228,8 +238,6 @@ This file defines the cutout for a standard key or switch.
 
 This file contains the **switch socket + stabilizer cutout**.
 
-By default, the geometry of this file is **not stretched**. Therefore, the geometry you model is the definitive geometry.
-
 ## `stabilzer_spacebar.stl` and `stabilzer_spacebar_off-center.stl`
 
 These files define the dedicated 6.25u spacebar cutout. The two templates contain the same overall spacebar geometry, but place the switch position differently.
@@ -254,26 +262,7 @@ Caps Lock is intentionally **not** treated as a stabilized key. It always receiv
 
 ---
 
-# 11. Full-Size / 100% Layouts
-
-The generator is not limited to 60% keyboards.
-
-Layouts with:
-
-- F1–F12
-- Arrow keys
-- Insert/Delete/Home/End
-- Navigation Cluster
-- Numpad
-- Larger spacing between key groups
-
-are also supported.
-
-**Spacing between switches is not a reason to ignore a switch.**
-
----
-
-# 12. Important Options
+# 11. Important Options
 
 ### JSON File
 
@@ -333,7 +322,7 @@ Default: `1.75u`
 
 ---
 
-# 13. Most Important Commands
+# 12. Most Important Commands
 
 ### Create environment (once)
 
@@ -367,7 +356,7 @@ python .\fat_plate_generator.py --json my_layout.json --output my_plate.stl
 
 ---
 
-# 14. Common Errors
+# 13. Common Errors
 
 ## `python is not recognized`
 
@@ -441,7 +430,7 @@ python .\fat_plate_generator.py --json my_layout.json --socket my_socket.stl --s
 
 ---
 
-# 15. What Happens During Generation?
+# 14. What Happens During Generation?
 
 Simplified:
 
@@ -468,7 +457,7 @@ Individual keys are not simply placed side-by-side as independent STL files. The
 
 ---
 
-# 16. Checking the STL
+# 15. Checking the STL
 
 After successful generation, the STL file will be located in the specified output folder.
 
@@ -482,7 +471,7 @@ Before printing, you should verify:
 
 ---
 
-# 17. Current Project Status
+# 16. Current Project Status
 
 Currently, the generator supports in particular:
 
@@ -504,7 +493,7 @@ Planned or currently in development:
 
 ---
 
-# 18. In Case of an Error
+# 17. In Case of an Error
 
 If something does not work, copy the **entire error message from PowerShell**.
 
