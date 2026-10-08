@@ -13,8 +13,8 @@ EXPECTED = {
     "2u": (fpg.KIND_STABILIZED, 180),               # horizontal
     "2.25u": (fpg.KIND_STABILIZED, 180),
     "2.75u": (fpg.KIND_STABILIZED, 180),
-    "2u vertical": (fpg.KIND_STABILIZED, 90),       # vertical
-    "ISO Enter": (fpg.KIND_STABILIZED, 90),         # 1.25 x 2 -> vertical
+    "2u vertical": (fpg.KIND_STABILIZED, 270),      # vertical
+    "ISO Enter": (fpg.KIND_STABILIZED, 270),        # 1.25 x 2 -> vertical
     "": (fpg.KIND_SPACEBAR, 180),                   # 6.25u spacebar (empty label)
 }
 
@@ -58,14 +58,16 @@ def test_horizontal_vs_vertical_rule():
     assert fpg.stabilizer_rotation(key("A"), cfg) is None
 
 
-def test_defaults_match_old_todo_corrections():
-    """Old generator: horizontal 90, vertical 0, spacebar 0.  TODO.txt asked for
-    +90 for all other stabilizers and +180 for the spacebar stabilizer."""
+def test_documented_defaults():
+    """The defaults the project owner settled on after checking the exported
+    plate (the first version followed TODO.txt: vertical 90, plate 90 + mirror)."""
     cfg = OrientationConfig()
-    assert cfg.stab_rotation_horizontal == (90 + 90) % 360
-    assert cfg.stab_rotation_vertical == (0 + 90) % 360
-    assert cfg.stab_rotation_spacebar == (0 + 180) % 360
+    assert cfg.stab_rotation_horizontal == 180
+    assert cfg.stab_rotation_vertical == 270
+    assert cfg.stab_rotation_spacebar == 180
     assert cfg.global_transform
+    assert cfg.global_rotation == 180
+    assert cfg.global_mirror_x
 
 
 @pytest.mark.parametrize("field", ["stab_rotation_horizontal", "stab_rotation_vertical",
@@ -76,14 +78,20 @@ def test_invalid_rotation_is_rejected(field, value):
         OrientationConfig(**{field: value})
 
 
-def test_global_matrix_is_transposition_and_cause_level_equivalent():
-    default = fpg.global_matrix(OrientationConfig())
-    # "rotate 90 deg about Z, then mirror X" as in TODO.txt: (x, y) -> (y, x)
-    assert default == (0, 1, 1, 0)
-    # Same map as "KLE y-flip (y down -> y up), then rotate 90 deg".
+def test_default_global_matrix_is_the_plain_kle_y_flip():
+    """Rotate 180 deg + mirror X is exactly KLE y (down) -> CAD y (up): the
+    cause-level fix, with no extra turn of the plate."""
     y_flip = (1, 0, 0, -1)
-    assert fpg.matrix_multiply(fpg.rotation_matrix(90), y_flip) == default
+    assert fpg.global_matrix(OrientationConfig()) == y_flip
     assert fpg.global_matrix(OrientationConfig(global_transform=False)) == fpg.IDENTITY_MATRIX
+
+
+def test_old_todo_transform_is_still_available():
+    """The original TODO.txt transform (rotate 90 deg, mirror X) is a transposition,
+    (x, y) -> (y, x), i.e. the y-flip followed by a 90 deg turn."""
+    old = fpg.global_matrix(OrientationConfig(global_rotation=90))
+    assert old == (0, 1, 1, 0)
+    assert fpg.matrix_multiply(fpg.rotation_matrix(90), (1, 0, 0, -1)) == old
 
 
 def test_preview_uses_the_same_global_matrix():

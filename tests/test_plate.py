@@ -102,17 +102,22 @@ def test_cavities_are_centred_on_their_switch(orientation_model):
             assert (y0 + y1) / 2 == pytest.approx(cy, abs=tol)
 
 
-def test_stabilizer_cutouts_follow_the_key_direction(orientation_model):
-    """Plate frame (rotate 90 + mirror): KLE-horizontal keys run along Y,
-    KLE-vertical keys run along X.  The cutout must run the same way."""
-    for key, kind, cavity in zip(orientation_model.keys, orientation_model.kinds,
-                                 orientation_model.cavities):
+@pytest.mark.parametrize("global_rotation", [0, 90, 180, 270])
+def test_stabilizer_cutouts_follow_the_key_direction(global_rotation):
+    """Whatever the whole-plate rotation is, a stabilizer cutout must run the
+    same way as its key.  The key direction in the plate frame is the KLE
+    direction (1, 0) / (0, 1) pushed through the whole-plate matrix."""
+    model = build_model(ORIENTATION_LAYOUT,
+                        orientation=OrientationConfig(global_rotation=global_rotation))
+    a, b, d, e = model.matrix
+    for key, kind, cavity in zip(model.keys, model.kinds, model.cavities):
         if kind == fpg.KIND_NORMAL:
             continue
+        dx, dy = (1, 0) if key["w"] > key["h"] else (0, 1)
+        key_runs_along_y = abs(d * dx + e * dy) > abs(a * dx + b * dy)
         x0, y0, x1, y1 = projected_outline(cavity).bounds
         cutout_runs_along_y = (y1 - y0) > (x1 - x0)
-        key_is_horizontal = key["w"] > key["h"]
-        assert cutout_runs_along_y == key_is_horizontal, key["label"]
+        assert cutout_runs_along_y == key_runs_along_y, (global_rotation, key["label"])
 
 
 # --------------------------------------------------------------------------
@@ -128,15 +133,20 @@ def test_plate_bounding_box_starts_at_origin(orientation_model, full_model):
         assert model.footprint.bounds[:2] == pytest.approx((0.0, 0.0), abs=1e-9)
 
 
-def test_global_transform_swaps_the_axes(orientation_model):
+@pytest.mark.parametrize("global_rotation", [90, 180])
+def test_global_transform_changes_the_extents_like_its_matrix(global_rotation):
     plain = build_model(ORIENTATION_LAYOUT, orientation=OrientationConfig(global_transform=False))
     assert plain.matrix == fpg.IDENTITY_MATRIX
+    model = build_model(ORIENTATION_LAYOUT,
+                        orientation=OrientationConfig(global_rotation=global_rotation))
     w_plain = plain.footprint.bounds[2] - plain.footprint.bounds[0]
     h_plain = plain.footprint.bounds[3] - plain.footprint.bounds[1]
-    w, h = (orientation_model.footprint.bounds[2] - orientation_model.footprint.bounds[0],
-            orientation_model.footprint.bounds[3] - orientation_model.footprint.bounds[1])
-    assert (w, h) == pytest.approx((h_plain, w_plain))
-    assert orientation_model.footprint.area == pytest.approx(plain.footprint.area)
+    w = model.footprint.bounds[2] - model.footprint.bounds[0]
+    h = model.footprint.bounds[3] - model.footprint.bounds[1]
+    swaps_axes = model.matrix[0] == 0          # (x, y) -> (y, x) style matrices
+    expected = (h_plain, w_plain) if swaps_axes else (w_plain, h_plain)
+    assert (w, h) == pytest.approx(expected)
+    assert model.footprint.area == pytest.approx(plain.footprint.area)
 
 
 def test_switch_centres_match_the_preview_placement(orientation_model):

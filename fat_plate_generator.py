@@ -74,34 +74,35 @@ class OrientationConfig:
        (counter-clockwise, in the KLE frame).
     2. Whole plate (footprint, switch centres, cutouts): rotated by
        ``global_rotation`` degrees about the origin, then mirrored along X if
-       ``global_mirror_x``.  With the defaults (90 deg + mirror X) this is a
-       transposition, (x, y) -> (y, x).
+       ``global_mirror_x``.  With the defaults (180 deg + mirror X) this is
+       exactly the KLE -> CAD conversion (y down -> y up), (x, y) -> (x, -y),
+       without any further turn of the plate.
     3. Everything is shifted so the plate's bounding box (including margin)
        starts at (0, 0).
 
     Defaults
     --------
-    They reproduce the manual Blender corrections of the old TODO.txt:
-    whole plate "rotate 90 deg about Z, mirror X", spacebar stabilizer
-    "+180 deg", all other stabilizers "+90 deg".  The old generator rotated
-    horizontal keys by 90 deg and vertical keys by 0 deg, so the corrected
-    values are horizontal 90+90 = 180, vertical 0+90 = 90, spacebar 0+180 = 180.
-    In the KLE frame this means: horizontal and spacebar cutouts have their
-    long axis along X and the wider side of the cutout (the template is about
-    0.7 mm wider towards -Y) ends up towards +Y, the typist; vertical cutouts
-    have their long axis along Y.
+    horizontal 180, vertical 270, spacebar 180, whole plate 180 deg + mirror X.
+    The stabilizer rotations are measured in the KLE frame, about the switch
+    centre.  Horizontal and spacebar cutouts have their long axis along X and
+    the wider side of the cutout (the template is about 0.7 mm wider towards
+    -Y) ends up towards +Y, the typist; vertical cutouts have their long axis
+    along Y.  The first version of these defaults followed the manual Blender
+    corrections of the old TODO.txt (whole plate "rotate 90 deg, mirror X",
+    vertical 90); the project owner then adjusted them after checking the
+    exported plate.  The old whole-plate transform is still available as
+    ``global_rotation=90`` (a transposition, (x, y) -> (y, x)).
 
-    "Rotate 90 deg, then mirror X" equals "flip KLE y (y down -> y up), then
-    rotate 90 deg" (both are (x, y) -> (y, x)).  The mirror is therefore the
-    KLE -> CAD handedness fix, and the 90 deg turn is the only part that is a
-    pure orientation choice (typist side towards +X).
+    "Rotate 180 deg, then mirror X" equals "flip KLE y".  That is the
+    KLE -> CAD handedness fix and nothing else; any other ``global_rotation``
+    just turns the finished plate by a further multiple of 90 deg.
     """
 
     stab_rotation_horizontal: int = 180
     stab_rotation_vertical: int = 270
     stab_rotation_spacebar: int = 180
     global_transform: bool = True
-    global_rotation: int = 180         
+    global_rotation: int = 180
     global_mirror_x: bool = True
 
     def __post_init__(self):
@@ -761,7 +762,7 @@ def main():
                         default=defaults.stab_rotation_spacebar,
                         help="rotation of the spacebar cutout in degrees (default: %(default)s)")
     parser.add_argument("--no-global-transform", action="store_true",
-                        help="skip the whole-plate transform (rotate 90 deg + mirror X); "
+                        help="skip the whole-plate transform (KLE y flip); "
                              "mainly for comparison with older output")
     args = parser.parse_args()
     orientation = OrientationConfig(

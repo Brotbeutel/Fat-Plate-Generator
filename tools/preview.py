@@ -42,10 +42,10 @@ import fat_plate_generator as fpg  # noqa: E402  (needs the sys.path entry above
 
 # Linear part (a, b, d, e) of the generator's default whole-plate transform:
 #   x' = a*x + b*y,  y' = d*x + e*y
-# "rotate 90 deg about Z, then mirror along X" is a transposition: (x, y) -> (y, x).
-# Keep in sync with fat_plate_generator.global_matrix(); a test checks this.
-GLOBAL_MATRIX = (0, 1, 1, 0)
-IDENTITY_MATRIX = (1, 0, 0, 1)
+# Taken from the generator so that preview and plate cannot drift apart.  If you
+# generate with a non-default global_rotation in code, change it here as well.
+GLOBAL_MATRIX = fpg.global_matrix(fpg.OrientationConfig())
+IDENTITY_MATRIX = fpg.IDENTITY_MATRIX
 SNAP_GRID = 1e-3  # mm, noding tolerance for the section
 
 
