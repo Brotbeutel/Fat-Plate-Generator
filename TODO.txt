@@ -1,6 +1,5 @@
 TODO
 
-- push
 - code mesh transformations:
    - whole plate: rotate 90° along Z-axis, scale -1 along X-axis (mirror).
    - spacebar-stabilizer: rotate 180° along Z-axis
@@ -30,3 +29,4 @@ DONE
 - create GitHub repo
 - make STLs orientation uniform
 - run test for current status
+- push

@@ -1,248 +1,89 @@
-# Fat Plate Generator V.0.11
+# Fat Plate Generator v0.12
 
-The Fat Plate Generator creates a 3D-printable keyboard "fat" plate as an STL from a **KLE Raw Data JSON**.
+The Fat Plate Generator creates a 3D-printable keyboard plate as an STL from **KLE Raw Data JSON**.
 
-You can export your keyboard layout from [https://www.keyboard-layout-editor.com/]() and use Fat Plate Generator to generate a keyboard switch plate for 3D printing.
+The generator uses the supplied STL templates as the source geometry for switch and stabilizer cutouts and reconstructs them as clean CAD geometry.
 
-This is still a WIP, but with some 3D editing (for example Blender) you can already make use of it.
+## Disclaimer
 
+This is still a WIP. The generated plate should be checked in a CAD viewer and slicer before printing.
 
+## Contents
 
-## !! Disclaimer !!
-
-This is not a finished product!
-
-It has not yet been tested, if the generated plate fits a real keyboard and switches in 3D-printed form. 
-Spacebar stabilizer cutouts are now supported with centered and off-centered switch-position options, which is needed for a classic Cherry G80-3000.
-
-
-
-
-
-## Content
-
-- `fat_plate_generator.py` – the application
+- `fat_plate_generator.py` – the generator
 - `requirements.txt` – required Python packages
-- `key_socket.stl` – template for standard switch sockets
-- `stabilizer.stl` – template for standard stabilized keys
+- `switch_socket.stl` – standard switch/socket template
+- `stabilizer.stl` – standard stabilizer template
 - `stabilzer_spacebar.stl` – centered spacebar template
+- `stabilzer_spacebar_centered.stl` – centered spacebar template variant
 - `stabilzer_spacebar_off-center.stl` – off-centered spacebar template
-- `keyboard-layout.json` – example layout
+- `keyboard-layout.json` – example KLE layout
 - `README.md` – this guide
 
 ---
 
-# 1. Prerequisites
+# 1. Requirements
 
-You need Windows and Python.
+You need Windows and Python 3.
 
-## Installing Python
-
-1. Open https://www.python.org/downloads/
-2. Download a current Python 3 version.
-3. Run the installer.
-4. In the first window, make sure to check **Add python.exe to PATH**.
-5. Click **Install Now**.
-
-Afterward, reopen PowerShell and test it:
-
-```powershell
-python --version
-```
-
-If e.g. `Python 3.13.x` appears, everything is set up correctly.
-
-## Blender To Edit 3D-Files
-
-Download Blender at: https://www.blender.org/download/ 
-
-(Only, if you want to edit the source 3D-files)
-
----
-
-# 2. Extracting the Program
-
-Extract the ZIP file, for example, to:
-
-```text
-C:\GitHub\Fat Plate Generator\fat_plate_generator_v10
-```
-
-The folder should look roughly like this:
-
-```text
-fat_plate_generator_v10
-├── fat_plate_generator.py
-├── requirements.txt
-├── README.md
-├── key_socket.stl
-├── stabilizer.stl
-└── g80_3000_kle.json
-```
-
----
-
-# 3. Opening PowerShell in the Program Folder
-
-Open the folder in File Explorer.
-
-Click on the address bar, type:
-
-```text
-powershell
-```
-
-and press Enter.
-
-Test with:
-
-```powershell
-dir
-```
-
-You should see `fat_plate_generator.py` and `requirements.txt`.
-
----
-
-# 4. Creating a Virtual Python Environment
-
-Execute once:
+Install the dependencies with:
 
 ```powershell
 python -m venv .venv
-```
-
-This creates the `.venv` folder.
-
----
-
-# 5. Activating the Virtual Environment
-
-```powershell
 .\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
 ```
 
-If it works, the command prompt will start with:
-
-```text
-(.venv) PS C:\...
-```
-
-## If PowerShell Blocks Activation
-
-Execute once:
+If PowerShell blocks activation, run once:
 
 ```powershell
 Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ```
 
-Confirm with `Y` (or `J` depending on system language) and activate again:
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-```
+Blender is useful if you want to inspect or edit the STL template files, but it is not required for generation.
 
 ---
 
-# 6. Installing Required Packages
+# 2. Basic usage
 
-As long as `(.venv)` is displayed:
-
-```powershell
-python -m pip install -r requirements.txt
-```
-
-Wait until the command completes without error messages.
-
-You do not need to install the packages individually.
-
----
-
-# 7. Running the First Test
-
-An example is included in the package:
-
-```text
-keyboard-layout.json
-```
-
-Simply run it with:
+The included example can be generated with:
 
 ```powershell
 python .\fat_plate_generator.py
 ```
 
-The generator automatically uses:
+This uses:
 
-```text
-keyboard-layout.json
-key_socket.stl
-stabilizer.stl
-```
+- `keyboard-layout.json`
+- `switch_socket.stl`
+- `stabilizer.stl`
+- the centered spacebar template
 
-and generates:
+and creates `fat_plate_export.stl`.
 
-```text
-fat_plate_export.stl
-```
-
-You can then open this STL in Blender, Fusion 360, PrusaSlicer, OrcaSlicer, Cura, etc.
-
----
-
-# 8. Using Your Own KLE Layout
-
-Create your keyboard at:
-
-[https://www.keyboard-layout-editor.com/]()
-
-Export the **Raw Data** as JSON.
-
-Assuming your file is named:
-
-```text
-my_keyboard.json
-```
-
-and is located in the generator folder.
-
-Then run:
+For your own KLE Raw Data JSON:
 
 ```powershell
 python .\fat_plate_generator.py --json my_keyboard.json --output my_keyboard.stl
 ```
 
-Important: Use the KLE **Raw Data JSON**, not another JSON export format.
+Use KLE **Raw Data JSON**, not another KLE export format.
 
 ---
 
-# 9. Using Custom STL Files
+# 3. STL templates
 
-You can explicitly specify the socket and stabilizer files:
+### `switch_socket.stl`
 
-```powershell
-python .\fat_plate_generator.py --json my_keyboard.json --socket key_socket.stl --stabilizer stabilizer.stl --output my_keyboard.stl
-```
+Defines the standard switch/socket cutout.
 
-This explicitly defines which files are being used.
+### `stabilizer.stl`
 
----
+Defines the combined switch socket and stabilizer cutout for normal stabilized keys. The template geometry is used as supplied.
 
-# 10. What Are the STL Templates?
+### Spacebar templates
 
-## `key_socket.stl`
-
-This file defines the cutout for a standard key or switch.
-
-## `stabilizer.stl`
-
-This file contains the **switch socket + stabilizer cutout**.
-
-## `stabilzer_spacebar.stl` and `stabilzer_spacebar_off-center.stl`
-
-These files define the dedicated 6.25u spacebar cutout. The two templates contain the same overall spacebar geometry, but place the switch position differently.
-
-Select the desired variant with:
+The spacebar has its own dedicated geometry because the switch position can differ between keyboard designs. Select it with:
 
 ```powershell
 --spacebar-position centered
@@ -254,37 +95,56 @@ or:
 --spacebar-position off-centered
 ```
 
-The default is **centered**. The supplied spacebar geometry is used without stretching.
+The default is `centered`. The selected template is used directly; its internal switch position and stabilizer geometry are preserved.
 
 ### Caps Lock
 
-Caps Lock is intentionally **not** treated as a stabilized key. It always receives the normal `key_socket.stl` switch cutout, even though it is 1.75u wide.
+Caps Lock intentionally uses the normal `switch_socket.stl` cutout. It does not receive a stabilizer cutout.
 
 ---
 
-# 11. Important Options
+# 4. Model orientation
 
-### JSON File
+The supplied 3D templates use a common local orientation. The generator applies the project coordinate transforms in code.
+
+### Final plate transform
+
+After the CAD plate has been built, the complete plate is:
+
+1. rotated **90° around Z**
+2. mirrored along **X** (equivalent to an X scale of `-1`)
+
+### Stabilizers
+
+Normal stabilizers receive a **90° Z rotation**.
+
+Spacebar stabilizers receive a **180° Z rotation**.
+
+You can independently flip the two stabilizer orientations with the command-line options below. A flip is an additional **180° rotation around Z** for that orientation.
+
+---
+
+# 5. Command-line options
+
+### Layout
 
 ```powershell
 --json my_layout.json
 ```
 
-### Socket
+### Switch template
 
 ```powershell
---socket key_socket.stl
+--socket switch_socket.stl
 ```
 
-### Stabilizer
+### Stabilizer template
 
 ```powershell
 --stabilizer stabilizer.stl
 ```
 
-### Spacebar switch position
-
-Default: `centered`
+### Spacebar position
 
 ```powershell
 --spacebar-position centered
@@ -295,8 +155,6 @@ or:
 ```powershell
 --spacebar-position off-centered
 ```
-
-The two options select `stabilzer_spacebar.stl` or `stabilzer_spacebar_off-center.stl`.
 
 ### Output
 
@@ -304,7 +162,7 @@ The two options select `stabilzer_spacebar.stl` or `stabilzer_spacebar_off-cente
 --output my_plate.stl
 ```
 
-### Margin
+### Plate margin
 
 Default: `1 mm`
 
@@ -312,196 +170,102 @@ Default: `1 mm`
 --margin 2
 ```
 
-### Minimum Size for Stabilizer Keys
+### Stabilizer detection threshold
 
-Default: `1.75u`
+Default: `1.75u`. This controls which key sizes are treated as stabilized keys.
 
 ```powershell
 --stabilizer-min-unit 2
 ```
 
+### Flip horizontal stabilizers
+
+```powershell
+--flip-horizontal-stabilizers
+```
+
+### Flip vertical stabilizers
+
+```powershell
+--flip-vertical-stabilizers
+```
+
+Both options can be used together.
+
 ---
 
-# 12. Most Important Commands
+# 6. Example commands
 
-### Create environment (once)
-
-```powershell
-python -m venv .venv
-```
-
-### Activate environment
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-```
-
-### Install packages
-
-```powershell
-python -m pip install -r requirements.txt
-```
-
-### Generate example
+Standard generation:
 
 ```powershell
 python .\fat_plate_generator.py
 ```
 
-### Generate custom layout
+Off-centered spacebar:
 
 ```powershell
-python .\fat_plate_generator.py --json my_layout.json --output my_plate.stl
+python .\fat_plate_generator.py --spacebar-position off-centered
+```
+
+Flip horizontal stabilizers:
+
+```powershell
+python .\fat_plate_generator.py --flip-horizontal-stabilizers
+```
+
+Flip vertical stabilizers:
+
+```powershell
+python .\fat_plate_generator.py --flip-vertical-stabilizers
+```
+
+Flip both:
+
+```powershell
+python .\fat_plate_generator.py --flip-horizontal-stabilizers --flip-vertical-stabilizers
 ```
 
 ---
 
-# 13. Common Errors
-
-## `python is not recognized`
-
-Python was not found.
-
-Solution:
-
-1. Install Python.
-2. Enable **Add python.exe to PATH** during installation.
-3. Close PowerShell.
-4. Open a new PowerShell window.
-5. Check:
-
-```powershell
-python --version
-```
-
----
-
-## `No module named ...`
-
-The required packages are not installed, or the virtual environment is not active.
-
-Activate:
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-```
-
-Then:
-
-```powershell
-python -m pip install -r requirements.txt
-```
-
----
-
-## `Activate.ps1 cannot be loaded`
-
-PowerShell is blocking execution.
-
-Execute once:
-
-```powershell
-Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-```
-
-Then:
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-```
-
----
-
-## Missing F-Row or Numpad
-
-Ensure that you are using a current version of the generator.
-
-For 100% layouts, spatially separated key groups are also processed. The F-row, arrow keys, and numpad must not be removed due to their spacing.
-
----
-
-## Which file was used?
-
-If multiple JSON or STL files are in the folder, specify them explicitly:
-
-```powershell
-python .\fat_plate_generator.py --json my_layout.json --socket my_socket.stl --stabilizer my_stabilizer.stl --output my_plate.stl
-```
-
----
-
-# 14. What Happens During Generation?
-
-Simplified:
+# 7. Generation flow
 
 ```text
-KLE JSON
-   |
-   v
-KLE Key Positions
-   |
-   +--> Standard Key ------> key_socket.stl
-   |
-   +--> Stabilizer Key ----> stabilizer.stl
-   |
-   +--> Spacebar ---------> dedicated spacebar STL
-   |
-   v
-CAD Plate
-   |
-   v
-STL File
+KLE Raw JSON
+    |
+    v
+KLE key positions
+    |
+    +--> normal key --------> switch_socket.stl
+    |
+    +--> stabilized key ----> stabilizer.stl
+    |
+    +--> spacebar ----------> selected spacebar STL
+    |
+    v
+CAD plate + cutouts
+    |
+    v
+90° Z rotation + X mirror
+    |
+    v
+STL export
 ```
 
-Individual keys are not simply placed side-by-side as independent STL files. The goal is a clean, contiguous plate geometry.
+Spatially separated groups such as an F-row, navigation cluster, or numpad are retained. The generator does not reduce the result to a single connected component.
 
 ---
 
-# 15. Checking the STL
+# 8. Checking the result
 
-After successful generation, the STL file will be located in the specified output folder.
+Before printing, inspect the exported STL in Blender, Fusion 360, PrusaSlicer, OrcaSlicer, Cura, or another suitable tool. Check:
 
-Before printing, you should verify:
+- all keys are present
+- the final orientation is correct
+- stabilizer cutouts are oriented correctly
+- the spacebar variant matches your keyboard
+- Caps Lock has the normal switch cutout
+- outer dimensions are correct
+- there are no unexpected holes or disconnected artifacts
 
-- Are all keys present?
-- Are the stabilizer cutouts correct?
-- Are the outer dimensions correct?
-- Are there any unexpected holes?
-- Does your slicer recognize the geometry correctly?
-
----
-
-# 16. Current Project Status
-
-Currently, the generator supports in particular:
-
-- KLE Raw Data JSON
-- Standard switch sockets
-- Stabilizer sockets
-- Various key sizes
-- 60% layouts
-- Full-size / 100% layouts
-- Spatially separated key groups
-- CAD-based geometry
-- STL export
-
-Planned or currently in development:
-
-- Additional stabilizer variants
-- Further KLE edge cases
-- Additional convenience features
-
----
-
-# 17. In Case of an Error
-
-If something does not work, copy the **entire error message from PowerShell**.
-
-The complete section is particularly helpful:
-
-```text
-Traceback (most recent call last):
-...
-```
-
-Not just the last line. The complete traceback shows where the problem occurs.
+If something fails, copy the complete PowerShell traceback rather than only the final error line.

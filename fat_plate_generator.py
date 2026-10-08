@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-"""Fat Plate Generator v10
+"""Fat Plate Generator v0.16
 
-KLE raw JSON -> clean CAD/STL plate, without voxelization.
+KLE raw JSON -> clean CAD/STL plate.
 
 The normal switch socket is reconstructed from the supplied socket STL.
 Stabilized keys use the supplied stabilizer STL as ONE combined cavity
-(stabilizer cutout + switch socket).  The stabilizer cross-section is taken
-from the actual STL section and preserved as straight CAD geometry; no
-resampling/loft smoothing is used.
+(stabilizer cutout + switch socket). The stabilizer cross-section is taken
+from the actual STL section and preserved as straight CAD geometry.
 """
 from __future__ import annotations
 
@@ -16,6 +15,16 @@ import json
 import math
 import sys
 from pathlib import Path
+
+from orientation_config import (
+    DEFAULT_STABILIZER_ORIENTATION,
+    FLIP_HORIZONTAL_STABILIZERS,
+    FLIP_VERTICAL_STABILIZERS,
+    Orientation,
+    PLATE_ORIENTATION,
+    SPACEBAR_ORIENTATIONS,
+    STABILIZER_ORIENTATIONS,
+)
 
 import cadquery as cq
 import numpy as np
@@ -34,6 +43,7 @@ DEFAULT_SPACEBAR_OFF_CENTERED = "stabilzer_spacebar_off-center.stl"
 DEFAULT_OUTPUT = "fat_plate_export.stl"
 EPS = 0.02
 SIZE_TOL = 0.08
+
 
 
 def parse_kle(data):
@@ -117,7 +127,6 @@ def section_size(mesh, z):
         return None
     if len(sec.entities) == 0:
         return None
-    # For the socket STL there is one clean section loop.
     entity = max(sec.entities, key=lambda e: len(e.points))
     pts = sec.vertices[entity.points]
     if len(pts) < 4:
@@ -255,25 +264,13 @@ def stabilizer_template(path: Path):
     if not intervals:
         raise ValueError("Could not reconstruct stabilizer Z profile.")
 
-    base = intervals[0]["poly"]
-    ext = np.asarray(base.bounds[2:4]) - np.asarray(base.bounds[0:2])
-    all_ext = [np.asarray(i["poly"].bounds[2:4]) -
-               np.asarray(i["poly"].bounds[0:2]) for i in intervals]
-    long_axis = 1 if ext[1] >= ext[0] else 0
-    template_long = max(float(e[long_axis]) for e in all_ext)
-
     return {
         "zmin": zmin,
         "zmax": zmax,
         "thickness": zmax - zmin,
         "intervals": intervals,
-        "long_axis": long_axis,
-        "central_half": 8.0,
-        "template_long": template_long,
-        "template_half": template_long / 2.0,
         "vertices": sum(len(i["poly"].exterior.coords) - 1 for i in intervals),
     }
-
 
 def polygon_wires(poly):
     outer = (cq.Workplane("XY")
@@ -349,54 +346,9 @@ def cavity_for_center(profile, cx, cy):
     return result
 
 
-def transform_stabilizer_polygon(poly, template, key_length_units, mode="auto"):
-    if mode == "none":
-        return poly
-
-    target_long = template["template_long"] * (key_length_units / 2.0)
-    if abs(target_long - template["template_long"]) < 1e-7:
-        return poly
-
-    s = ((target_long / 2.0) - template["central_half"]) / \
-        (template["template_half"] - template["central_half"])
-    if s <= 0:
-        raise ValueError("Requested stabilizer size is too small for the template.")
-
-    def tx(x, y):
-        v = y if template["long_axis"] == 1 else x
-        sign = 1.0 if v >= 0 else -1.0
-        av = abs(v)
-        if av <= template["central_half"]:
-            nv = v
-        else:
-            nv = sign * (template["central_half"] +
-                         (av - template["central_half"]) * s)
-        return (x, nv) if template["long_axis"] == 1 else (nv, y)
-
-    coords = [tx(x, y) for x, y in list(poly.exterior.coords)]
-    holes = []
-    for ring in poly.interiors:
-        holes.append([tx(x, y) for x, y in list(ring.coords)])
-    return Polygon(coords, holes)
-
-
-def wire_at(poly, z):
-    return (cq.Workplane("XY")
-            .workplane(offset=z)
-            .polyline(list(poly.exterior.coords)[:-1])
-            .close().wire().val())
-
-
-def stabilizer_cavity(template, cx, cy, key_length_units, rotation_deg, scale_mode):
+def stabilizer_cavity(template, cx, cy, orientation):
     intervals = template["intervals"]
-    transformed = [transform_stabilizer_polygon(i["poly"], template,
-                                                  key_length_units,
-                                                  scale_mode)
-                   for i in intervals]
 
-    # Preserve each measured STL section as a clean prismatic CAD segment.
-    # This avoids fragile high-order boolean lofts while retaining the actual
-    # stabilizer profile and its upper collar.
     solids = []
     for i, interval in enumerate(intervals):
         z0 = interval["z0"]
@@ -406,36 +358,86 @@ def stabilizer_cavity(template, cx, cy, key_length_units, rotation_deg, scale_mo
         if i == len(intervals) - 1:
             z1 += EPS
         solids.append(cq.Solid.extrudeLinear(
-            face(transformed[i]), cq.Vector(0, 0, z1 - z0)
+            face(interval["poly"]), cq.Vector(0, 0, z1 - z0)
         ).located(cq.Location(cq.Vector(0, 0, z0))))
 
     result = solids[0]
     for solid in solids[1:]:
         result = result.fuse(solid)
 
-    if abs(rotation_deg) > 1e-12:
-        result = result.rotate((0, 0, 0), (0, 0, 1), rotation_deg)
+    result = apply_orientation(result, orientation)
     return result.located(cq.Location(cq.Vector(cx, cy, 0)))
 
-
 def is_spacebar_key(k):
-    # In KLE Raw Data the supplied spacebar is represented by an empty label.
     return k.get("label", "") == "" and max(float(k["w"]), float(k["h"])) >= 6.0
 
 
 def is_stabilized_key(k, min_units):
     label = k.get("label", "")
-    # Caps Lock uses a normal switch cutout.
     if label == "Caps Lock" or is_spacebar_key(k):
         return False
     return max(float(k["w"]), float(k["h"])) >= min_units
 
 
-def generate(kle_path: Path, socket_path: Path, stabilizer_path: Path,
-             spacebar_centered_path: Path, spacebar_off_centered_path: Path,
-             spacebar_position="centered",
-             output: Path = Path(DEFAULT_OUTPUT), margin=DEFAULT_MARGIN,
-             stabilizer_min_unit=1.75, stabilizer_scale_mode="auto"):
+def stabilizer_orientation(label):
+    """Return the configured orientation for one stabilizer label."""
+    return STABILIZER_ORIENTATIONS.get(label, DEFAULT_STABILIZER_ORIENTATION)
+
+
+def flip_orientation(is_horizontal, flip_horizontal, flip_vertical):
+    """Return the optional 180-degree orientation flip for a stabilizer."""
+    if (is_horizontal and flip_horizontal) or (
+        not is_horizontal and flip_vertical
+    ):
+        return Orientation(rotation_z=180.0)
+    return Orientation()
+
+
+def apply_orientation(shape, orientation):
+    """Apply an orientation around the shape's local XY center."""
+    if abs(orientation.rotation_z) > 1e-12:
+        center = shape.Center()
+        shape = shape.rotate(
+            (center.x, center.y, center.z),
+            (center.x, center.y, center.z + 1.0),
+            orientation.rotation_z,
+        )
+
+    if orientation.mirror_x or orientation.mirror_y:
+        center = shape.Center()
+        if orientation.mirror_x:
+            shape = shape.mirror(
+                "YZ",
+                basePointVector=(center.x, center.y, center.z),
+            )
+        if orientation.mirror_y:
+            center = shape.Center()
+            shape = shape.mirror(
+                "XZ",
+                basePointVector=(center.x, center.y, center.z),
+            )
+
+    return shape
+
+
+def generate(
+    kle_path: Path,
+    socket_path: Path,
+    stabilizer_path: Path,
+    spacebar_centered_path: Path,
+    spacebar_off_centered_path: Path,
+    spacebar_position="centered",
+    output: Path = Path(DEFAULT_OUTPUT),
+    margin=DEFAULT_MARGIN,
+    stabilizer_min_unit=1.75,
+    flip_horizontal_stabilizers=None,
+    flip_vertical_stabilizers=None,
+):
+    if flip_horizontal_stabilizers is None:
+        flip_horizontal_stabilizers = FLIP_HORIZONTAL_STABILIZERS
+    if flip_vertical_stabilizers is None:
+        flip_vertical_stabilizers = FLIP_VERTICAL_STABILIZERS
+
     data = json.loads(kle_path.read_text(encoding="utf-8"))
     keys = parse_kle(data)
     if not keys:
@@ -443,8 +445,11 @@ def generate(kle_path: Path, socket_path: Path, stabilizer_path: Path,
 
     profile = socket_profile(socket_path)
     stab = stabilizer_template(stabilizer_path)
-    spacebar_path = (spacebar_centered_path if spacebar_position == "centered"
-                     else spacebar_off_centered_path)
+    spacebar_path = (
+        spacebar_centered_path
+        if spacebar_position == "centered"
+        else spacebar_off_centered_path
+    )
     spacebar_stab = stabilizer_template(spacebar_path)
 
     shapes = []
@@ -474,20 +479,27 @@ def generate(kle_path: Path, socket_path: Path, stabilizer_path: Path,
     for k, (cx, cy) in zip(keys, centers):
         if is_spacebar_key(k):
             spacebar_keys.append(k)
-            # The supplied spacebar templates are already horizontal. Their
-            # internal switch position (centered/off-centered) is preserved
-            # exactly; no length scaling is applied.
+            spacebar_orientation = SPACEBAR_ORIENTATIONS[spacebar_position]
             spacebar_cavities.append(
-                stabilizer_cavity(spacebar_stab, cx, cy, 6.25,
-                                  0.0, "none"))
+                stabilizer_cavity(spacebar_stab, cx, cy, spacebar_orientation)
+            )
         elif is_stabilized_key(k, stabilizer_min_unit):
             stab_keys.append(k)
-            length_units = max(float(k["w"]), float(k["h"]))
-            # Template is vertical (long axis Y). Rotate for horizontal keys.
-            rotation = 90.0 if k["w"] > k["h"] else 0.0
+            is_horizontal = k["w"] > k["h"]
+            orientation = stabilizer_orientation(k["label"])
+            flip = flip_orientation(
+                is_horizontal,
+                flip_horizontal_stabilizers,
+                flip_vertical_stabilizers,
+            )
+            orientation = Orientation(
+                rotation_z=orientation.rotation_z + flip.rotation_z,
+                mirror_x=orientation.mirror_x,
+                mirror_y=orientation.mirror_y,
+            )
             stabilizer_cavities.append(
-                stabilizer_cavity(stab, cx, cy, length_units,
-                                  rotation, stabilizer_scale_mode))
+                stabilizer_cavity(stab, cx, cy, orientation)
+            )
         else:
             normal_cavities.append(cavity_for_center(profile, cx, cy))
 
@@ -500,28 +512,36 @@ def generate(kle_path: Path, socket_path: Path, stabilizer_path: Path,
 
     result = plate.cut(cavity)
     if not result.isValid():
-        raise RuntimeError("Generated CAD solid is invalid.")
+        raise RuntimeError("Generated CAD solid is invalid after cutting cavities.")
+
+    result = apply_orientation(result, PLATE_ORIENTATION)
     result = result.clean()
 
-    output.parent.mkdir(parents=True, exist_ok=True)
-    cq.exporters.export(result, str(output), exportType="STL",
-                        tolerance=0.001, angularTolerance=0.1)
+    if not result.isValid():
+        raise RuntimeError("Generated CAD solid became invalid after cleanup.")
 
-    # IMPORTANT: never keep only the largest connected component here. KLE
-    # layouts such as 100% / Full Size can contain separated regions (F-row,
-    # navigation cluster, numpad). Filtering by largest component silently
-    # deletes those regions. CadQuery has already validated the BRep above, so
-    # the STL is deliberately left exactly as OCC exported it.
-    #
-    # We only inspect the STL for a basic sanity check; no trimesh.split(),
-    # repair or component filtering is performed. This also removes the
-    # networkx dependency that caused the previous runtime error.
+    print(
+        "Plate orientation: "
+        f"rotation_z={PLATE_ORIENTATION.rotation_z:g}°, "
+        f"mirror_x={PLATE_ORIENTATION.mirror_x}, "
+        f"mirror_y={PLATE_ORIENTATION.mirror_y}"
+    )
+    output.parent.mkdir(parents=True, exist_ok=True)
+    cq.exporters.export(
+        result,
+        str(output),
+        exportType="STL",
+        tolerance=0.001,
+        angularTolerance=0.1,
+    )
+
+    # Validate the exported mesh without changing its topology.
     exported = trimesh.load_mesh(output, force="mesh")
     if exported.is_empty or len(exported.faces) == 0:
         raise RuntimeError("STL export produced an empty mesh.")
     exported.export(output)
 
-    print("\nFat Plate Generator v10")
+    print("\nFat Plate Generator v0.16")
     print("----------------------")
     print(f"KLE:             {kle_path}")
     print(f"Socket:          {socket_path}")
@@ -533,11 +553,9 @@ def generate(kle_path: Path, socket_path: Path, stabilizer_path: Path,
     print(f"Spacebar keys:   {len(spacebar_keys)}")
     print(f"Plate thickness: {profile['thickness']:.4f} mm")
     print(f"Normal narrow:   {profile['min_size']:.4f} mm")
-    print(f"Stab section:    {stab['vertices']} vertices, {stab['template_long']:.4f} mm long")
-    print(f"Stab scale:      {stabilizer_scale_mode} (default: no stretching)")
-    print("Stab switch:     central 16 mm opening kept unscaled")
+    print(f"Stab section:    {stab['vertices']} section vertices")
+    print(f"Stabilizer flip: horizontal={flip_horizontal_stabilizers}, vertical={flip_vertical_stabilizers}")
     print("Caps Lock:       normal switch cutout")
-    print("Voxelization:    NONE")
     print("\nDone.")
 
 
@@ -554,7 +572,18 @@ def main():
     parser.add_argument("--output", type=Path, default=base / DEFAULT_OUTPUT)
     parser.add_argument("--margin", type=float, default=DEFAULT_MARGIN)
     parser.add_argument("--stabilizer-min-unit", type=float, default=1.75)
-    parser.add_argument("--stabilizer-scale", choices=["auto", "none"], default="none")
+    parser.add_argument(
+        "--flip-horizontal-stabilizers",
+        action="store_true",
+        default=None,
+        help="Add 180° to horizontal stabilizers for this run.",
+    )
+    parser.add_argument(
+        "--flip-vertical-stabilizers",
+        action="store_true",
+        default=None,
+        help="Add 180° to vertical stabilizers for this run.",
+    )
     args = parser.parse_args()
 
     try:
@@ -563,7 +592,8 @@ def main():
                   spacebar_position=args.spacebar_position,
                   output=args.output, margin=args.margin,
                   stabilizer_min_unit=args.stabilizer_min_unit,
-                  stabilizer_scale_mode=args.stabilizer_scale)
+                  flip_horizontal_stabilizers=args.flip_horizontal_stabilizers,
+                  flip_vertical_stabilizers=args.flip_vertical_stabilizers)
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         raise
