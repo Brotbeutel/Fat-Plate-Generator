@@ -98,10 +98,10 @@ class OrientationConfig:
     """
 
     stab_rotation_horizontal: int = 180
-    stab_rotation_vertical: int = 90
+    stab_rotation_vertical: int = 270
     stab_rotation_spacebar: int = 180
     global_transform: bool = True
-    global_rotation: int = 90
+    global_rotation: int = 180         
     global_mirror_x: bool = True
 
     def __post_init__(self):
