@@ -12,6 +12,6 @@ All notable changes to this project are documented in this file.
 - Workflow files `AGENTS.md`, `ROADMAP.md`; `TODO.txt` was folded into `ROADMAP.md`.
 
 ### Changed
-- Stabilizer cutouts now follow the key direction. The templates were made horizontal in an earlier commit, but the generator still turned horizontal keys by 90° and left vertical keys at 0°. New defaults: horizontal 180°, vertical 90°, spacebar 180°.
-- The plate is rotated by 90° around Z, mirrored along X and moved so its bounding box starts at (0, 0), which replaces the manual Blender corrections. Existing plates are therefore turned and mirrored compared to earlier output.
+- Stabilizer cutouts now follow the key direction. The templates were made horizontal in an earlier commit, but the generator still turned horizontal keys by 90° and left vertical keys at 0°. Defaults: horizontal 180°, vertical 270°, spacebar 180°.
+- The plate is rotated by 180° around Z, mirrored along X (together this is the KLE Y flip) and moved so its bounding box starts at (0, 0), which replaces the manual Blender corrections. Existing plates are therefore mirrored compared to earlier output.
 - `generate()` is split into `build_plate_model()` and the STL export; key classification lives in `classify_key()`.

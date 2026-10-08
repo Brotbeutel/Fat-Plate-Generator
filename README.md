@@ -326,7 +326,7 @@ The stabilizer cutouts are asymmetric, so each of them can be turned in 90° ste
 
 ```powershell
 --stab-rotation-horizontal 180
---stab-rotation-vertical 90
+--stab-rotation-vertical 270
 --stab-rotation-spacebar 180
 ```
 
@@ -334,7 +334,9 @@ Allowed values are `0`, `90`, `180` and `270`. The values above are the defaults
 
 ### Whole-Plate Transform
 
-The generated plate is rotated by 90° around Z and mirrored along X, which gives the plate the same orientation as the layout seen from above (the KLE Y axis points down, CAD Y points up). The plate is then moved so that its bounding box starts at X = 0, Y = 0. The order is: stabilizer rotation first, then the whole-plate transform, then the move.
+KLE counts Y downwards (towards the typist), CAD counts Y upwards. The generated plate is therefore turned by 180° around Z and mirrored along X, which is the same as flipping the KLE Y axis: the plate is the layout as seen from above, with the typist side at low Y. The plate is then moved so that its bounding box starts at X = 0, Y = 0. The order is: stabilizer rotation first, then the whole-plate transform, then the move.
+
+The whole-plate rotation is `global_rotation` in `OrientationConfig` (`fat_plate_generator.py`). If you want the plate turned further, change it to `90` or `270`; `90` gives the transform used in the first version of this tool.
 
 To switch the transform off, for example to compare with older plates:
 
