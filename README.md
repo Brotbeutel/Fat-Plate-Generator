@@ -474,7 +474,7 @@ python .\fat_plate_generator.py --json my_layout.json --socket my_socket.stl --s
 
 ---
 
-# 14. What Happens During Generation?
+# 15. What Happens During Generation?
 
 Simplified:
 
@@ -501,7 +501,7 @@ Individual keys are not simply placed side-by-side as independent STL files. The
 
 ---
 
-# 15. Checking the STL
+# 16. Checking the STL
 
 After successful generation, the STL file will be located in the specified output folder.
 
@@ -515,7 +515,7 @@ Before printing, you should verify:
 
 ---
 
-# 16. Current Project Status
+# 17. Current Project Status
 
 Currently, the generator supports in particular:
 
@@ -537,7 +537,7 @@ Planned or currently in development:
 
 ---
 
-# 17. In Case of an Error
+# 18. In Case of an Error
 
 If something does not work, copy the **entire error message from PowerShell**.
 
