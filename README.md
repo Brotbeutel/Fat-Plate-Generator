@@ -320,9 +320,53 @@ Default: `1.75u`
 --stabilizer-min-unit 2
 ```
 
+### Stabilizer Orientation
+
+The stabilizer cutouts are asymmetric, so each of them can be turned in 90° steps (counter-clockwise, around the switch center). Horizontal keys, vertical keys (for example numpad `+` / `Enter`, ISO Enter) and the spacebar are set separately:
+
+```powershell
+--stab-rotation-horizontal 180
+--stab-rotation-vertical 90
+--stab-rotation-spacebar 180
+```
+
+Allowed values are `0`, `90`, `180` and `270`. The values above are the defaults. If a stabilizer faces the wrong way in your plate, change only the option of that key class.
+
+### Whole-Plate Transform
+
+The generated plate is rotated by 90° around Z and mirrored along X, which gives the plate the same orientation as the layout seen from above (the KLE Y axis points down, CAD Y points up). The plate is then moved so that its bounding box starts at X = 0, Y = 0. The order is: stabilizer rotation first, then the whole-plate transform, then the move.
+
+To switch the transform off, for example to compare with older plates:
+
+```powershell
+--no-global-transform
+```
+
 ---
 
-# 12. Most Important Commands
+# 12. Preview Tool
+
+`tools/preview.py` renders a top view of a generated STL as PNG: a horizontal section at half plate height with material in gray, cutouts in white, an axis cross at the origin, a scale bar and the key labels from your KLE JSON. It is meant for checking the orientation of the asymmetric stabilizer cutouts.
+
+It needs matplotlib, which is only a development dependency:
+
+```powershell
+python -m pip install -r requirements-dev.txt
+python .\tools\preview.py my_plate.stl --layout my_layout.json --output my_plate.png
+```
+
+Use `--no-global-transform` here as well if the STL was generated with that option. `docs/preview_before.png` and `docs/preview_after.png` show the test layout `tests/layouts/stabilizer_orientation.json` before and after the orientation fix.
+
+The tests run with:
+
+```powershell
+python -m pip install -r requirements-dev.txt
+python -m pytest
+```
+
+---
+
+# 13. Most Important Commands
 
 ### Create environment (once)
 
@@ -356,7 +400,7 @@ python .\fat_plate_generator.py --json my_layout.json --output my_plate.stl
 
 ---
 
-# 13. Common Errors
+# 14. Common Errors
 
 ## `python is not recognized`
 
