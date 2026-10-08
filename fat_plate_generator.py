@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Fat Plate Generator v0.16
+"""Fat Plate Generator v10
 
-KLE raw JSON -> clean CAD/STL plate.
+KLE raw JSON -> clean CAD/STL plate, without voxelization.
 
 The normal switch socket is reconstructed from the supplied socket STL.
 Stabilized keys use the supplied stabilizer STL as ONE combined cavity
-(stabilizer cutout + switch socket). The stabilizer cross-section is taken
-from the actual STL section and preserved as straight CAD geometry.
+(stabilizer cutout + switch socket).  The stabilizer cross-section is taken
+from the actual STL section and preserved as straight CAD geometry; no
+resampling/loft smoothing is used.
 """
 from __future__ import annotations
 
@@ -14,23 +15,15 @@ import argparse
 import json
 import math
 import sys
+from dataclasses import dataclass
 from pathlib import Path
-
-from orientation_config import (
-    DEFAULT_STABILIZER_ORIENTATION,
-    FLIP_HORIZONTAL_STABILIZERS,
-    FLIP_VERTICAL_STABILIZERS,
-    Orientation,
-    PLATE_ORIENTATION,
-    SPACEBAR_ORIENTATIONS,
-    STABILIZER_ORIENTATIONS,
-)
 
 import cadquery as cq
 import numpy as np
 import trimesh
-from shapely.affinity import rotate, scale, translate
+from shapely.affinity import affine_transform, rotate, scale, translate
 from shapely.geometry import LineString, Polygon, box
+from shapely.geometry.polygon import orient
 from shapely.ops import polygonize, unary_union
 
 UNIT = 19.05
@@ -44,6 +37,108 @@ DEFAULT_OUTPUT = "fat_plate_export.stl"
 EPS = 0.02
 SIZE_TOL = 0.08
 
+# ---------------------------------------------------------------------------
+# Orientation of stabilizer cutouts and of the whole plate
+# ---------------------------------------------------------------------------
+# 2D linear maps are kept as exact integer tuples (a, b, d, e) meaning
+#     x' = a*x + b*y
+#     y' = d*x + e*y
+# so that rotations by multiples of 90 degrees never introduce float noise.
+ROTATION_CHOICES = (0, 90, 180, 270)
+ROTATION_MATRICES = {
+    0: (1, 0, 0, 1),
+    90: (0, -1, 1, 0),      # counter-clockwise, as in math (x right, y up)
+    180: (-1, 0, 0, -1),
+    270: (0, 1, -1, 0),
+}
+IDENTITY_MATRIX = ROTATION_MATRICES[0]
+MIRROR_X_MATRIX = (-1, 0, 0, 1)  # x -> -x (mirror at the YZ plane)
+
+
+@dataclass(frozen=True)
+class OrientationConfig:
+    """Central configuration of all orientation-related transformations.
+
+    Frames
+    ------
+    * KLE frame: x to the right, y DOWN (= towards the typist), as stored in
+      the KLE JSON, scaled to mm.  KLE y is not flipped anywhere; instead the
+      whole-plate transform below contains the mirror that fixes handedness.
+    * Plate frame: KLE frame after the whole-plate transform, shifted so that
+      the plate's XY bounding box starts at (0, 0).
+
+    Order of operations (see ``build_plate_model``)
+    ----------------------------------------------
+    1. Per stabilizer: the cutout template (long axis X, wide notches towards
+       -Y) is rotated about its switch centre by ``stab_rotation_*`` degrees
+       (counter-clockwise, in the KLE frame).
+    2. Whole plate (footprint, switch centres, cutouts): rotated by
+       ``global_rotation`` degrees about the origin, then mirrored along X if
+       ``global_mirror_x``.  With the defaults (90 deg + mirror X) this is a
+       transposition, (x, y) -> (y, x).
+    3. Everything is shifted so the plate's bounding box (including margin)
+       starts at (0, 0).
+
+    Defaults
+    --------
+    They reproduce the manual Blender corrections of the old TODO.txt:
+    whole plate "rotate 90 deg about Z, mirror X", spacebar stabilizer
+    "+180 deg", all other stabilizers "+90 deg".  The old generator rotated
+    horizontal keys by 90 deg and vertical keys by 0 deg, so the corrected
+    values are horizontal 90+90 = 180, vertical 0+90 = 90, spacebar 0+180 = 180.
+    In the KLE frame this means: horizontal and spacebar cutouts have their
+    long axis along X and the wider side of the cutout (the template is about
+    0.7 mm wider towards -Y) ends up towards +Y, the typist; vertical cutouts
+    have their long axis along Y.
+
+    "Rotate 90 deg, then mirror X" equals "flip KLE y (y down -> y up), then
+    rotate 90 deg" (both are (x, y) -> (y, x)).  The mirror is therefore the
+    KLE -> CAD handedness fix, and the 90 deg turn is the only part that is a
+    pure orientation choice (typist side towards +X).
+    """
+
+    stab_rotation_horizontal: int = 180
+    stab_rotation_vertical: int = 90
+    stab_rotation_spacebar: int = 180
+    global_transform: bool = True
+    global_rotation: int = 90
+    global_mirror_x: bool = True
+
+    def __post_init__(self):
+        for name in ("stab_rotation_horizontal", "stab_rotation_vertical",
+                     "stab_rotation_spacebar", "global_rotation"):
+            value = getattr(self, name)
+            if value not in ROTATION_CHOICES:
+                raise ValueError(f"{name} must be one of {ROTATION_CHOICES}, got {value!r}")
+
+
+def matrix_multiply(outer, inner):
+    """Linear map that applies ``inner`` first and then ``outer``."""
+    a, b, d, e = outer
+    ia, ib, id_, ie = inner
+    return (a * ia + b * id_, a * ib + b * ie,
+            d * ia + e * id_, d * ib + e * ie)
+
+
+def rotation_matrix(degrees):
+    if degrees not in ROTATION_MATRICES:
+        raise ValueError(f"Rotation must be one of {ROTATION_CHOICES}, got {degrees!r}")
+    return ROTATION_MATRICES[degrees]
+
+
+def global_matrix(orientation: OrientationConfig):
+    """Linear part of the whole-plate transform (rotation, then optional mirror X)."""
+    if not orientation.global_transform:
+        return IDENTITY_MATRIX
+    m = rotation_matrix(orientation.global_rotation)
+    if orientation.global_mirror_x:
+        m = matrix_multiply(MIRROR_X_MATRIX, m)
+    return m
+
+
+def apply_matrix(matrix, x, y):
+    a, b, d, e = matrix
+    return a * x + b * y, d * x + e * y
 
 
 def parse_kle(data):
@@ -127,6 +222,7 @@ def section_size(mesh, z):
         return None
     if len(sec.entities) == 0:
         return None
+    # For the socket STL there is one clean section loop.
     entity = max(sec.entities, key=lambda e: len(e.points))
     pts = sec.vertices[entity.points]
     if len(pts) < 4:
@@ -264,13 +360,25 @@ def stabilizer_template(path: Path):
     if not intervals:
         raise ValueError("Could not reconstruct stabilizer Z profile.")
 
+    base = intervals[0]["poly"]
+    ext = np.asarray(base.bounds[2:4]) - np.asarray(base.bounds[0:2])
+    all_ext = [np.asarray(i["poly"].bounds[2:4]) -
+               np.asarray(i["poly"].bounds[0:2]) for i in intervals]
+    long_axis = 1 if ext[1] >= ext[0] else 0
+    template_long = max(float(e[long_axis]) for e in all_ext)
+
     return {
         "zmin": zmin,
         "zmax": zmax,
         "thickness": zmax - zmin,
         "intervals": intervals,
+        "long_axis": long_axis,
+        "central_half": 8.0,
+        "template_long": template_long,
+        "template_half": template_long / 2.0,
         "vertices": sum(len(i["poly"].exterior.coords) - 1 for i in intervals),
     }
+
 
 def polygon_wires(poly):
     outer = (cq.Workplane("XY")
@@ -346,9 +454,65 @@ def cavity_for_center(profile, cx, cy):
     return result
 
 
-def stabilizer_cavity(template, cx, cy, orientation):
-    intervals = template["intervals"]
+def transform_stabilizer_polygon(poly, template, key_length_units, mode="auto"):
+    if mode == "none":
+        return poly
 
+    target_long = template["template_long"] * (key_length_units / 2.0)
+    if abs(target_long - template["template_long"]) < 1e-7:
+        return poly
+
+    s = ((target_long / 2.0) - template["central_half"]) / \
+        (template["template_half"] - template["central_half"])
+    if s <= 0:
+        raise ValueError("Requested stabilizer size is too small for the template.")
+
+    def tx(x, y):
+        v = y if template["long_axis"] == 1 else x
+        sign = 1.0 if v >= 0 else -1.0
+        av = abs(v)
+        if av <= template["central_half"]:
+            nv = v
+        else:
+            nv = sign * (template["central_half"] +
+                         (av - template["central_half"]) * s)
+        return (x, nv) if template["long_axis"] == 1 else (nv, y)
+
+    coords = [tx(x, y) for x, y in list(poly.exterior.coords)]
+    holes = []
+    for ring in poly.interiors:
+        holes.append([tx(x, y) for x, y in list(ring.coords)])
+    return Polygon(coords, holes)
+
+
+def wire_at(poly, z):
+    return (cq.Workplane("XY")
+            .workplane(offset=z)
+            .polyline(list(poly.exterior.coords)[:-1])
+            .close().wire().val())
+
+
+def stabilizer_cavity(template, cx, cy, key_length_units, matrix, scale_mode):
+    """Build the combined stabilizer + switch cavity.
+
+    ``matrix`` is the exact linear 2D map (a, b, d, e) applied to the template
+    around its origin (= switch centre): the per-stabilizer rotation followed
+    by the whole-plate transform.  ``(cx, cy)`` is the switch centre in the
+    plate frame, i.e. already transformed.
+    """
+    intervals = template["intervals"]
+    a, b, d, e = matrix
+    transformed = []
+    for i in intervals:
+        poly = transform_stabilizer_polygon(i["poly"], template,
+                                            key_length_units, scale_mode)
+        poly = affine_transform(poly, [a, b, d, e, 0, 0])
+        # A mirror flips the ring direction; extrusion needs counter-clockwise.
+        transformed.append(orient(poly, 1.0))
+
+    # Preserve each measured STL section as a clean prismatic CAD segment.
+    # This avoids fragile high-order boolean lofts while retaining the actual
+    # stabilizer profile and its upper collar.
     solids = []
     for i, interval in enumerate(intervals):
         z0 = interval["z0"]
@@ -358,86 +522,90 @@ def stabilizer_cavity(template, cx, cy, orientation):
         if i == len(intervals) - 1:
             z1 += EPS
         solids.append(cq.Solid.extrudeLinear(
-            face(interval["poly"]), cq.Vector(0, 0, z1 - z0)
+            face(transformed[i]), cq.Vector(0, 0, z1 - z0)
         ).located(cq.Location(cq.Vector(0, 0, z0))))
 
     result = solids[0]
     for solid in solids[1:]:
         result = result.fuse(solid)
-
-    result = apply_orientation(result, orientation)
     return result.located(cq.Location(cq.Vector(cx, cy, 0)))
 
+
 def is_spacebar_key(k):
+    # In KLE Raw Data the supplied spacebar is represented by an empty label.
     return k.get("label", "") == "" and max(float(k["w"]), float(k["h"])) >= 6.0
 
 
 def is_stabilized_key(k, min_units):
     label = k.get("label", "")
+    # Caps Lock uses a normal switch cutout.
     if label == "Caps Lock" or is_spacebar_key(k):
         return False
     return max(float(k["w"]), float(k["h"])) >= min_units
 
 
-def stabilizer_orientation(label):
-    """Return the configured orientation for one stabilizer label."""
-    return STABILIZER_ORIENTATIONS.get(label, DEFAULT_STABILIZER_ORIENTATION)
+KIND_NORMAL = "normal"
+KIND_STABILIZED = "stabilized"
+KIND_SPACEBAR = "spacebar"
 
 
-def flip_orientation(is_horizontal, flip_horizontal, flip_vertical):
-    """Return the optional 180-degree orientation flip for a stabilizer."""
-    if (is_horizontal and flip_horizontal) or (
-        not is_horizontal and flip_vertical
-    ):
-        return Orientation(rotation_z=180.0)
-    return Orientation()
+def classify_key(k, min_units=1.75):
+    """Return KIND_SPACEBAR, KIND_STABILIZED or KIND_NORMAL for a parsed key."""
+    if is_spacebar_key(k):
+        return KIND_SPACEBAR
+    if is_stabilized_key(k, min_units):
+        return KIND_STABILIZED
+    return KIND_NORMAL
 
 
-def apply_orientation(shape, orientation):
-    """Apply an orientation around the shape's local XY center."""
-    if abs(orientation.rotation_z) > 1e-12:
-        center = shape.Center()
-        shape = shape.rotate(
-            (center.x, center.y, center.z),
-            (center.x, center.y, center.z + 1.0),
-            orientation.rotation_z,
-        )
+def stabilizer_rotation(k, orientation: "OrientationConfig", min_units=1.75):
+    """Rotation (degrees, counter-clockwise, KLE frame) of a key's cutout.
 
-    if orientation.mirror_x or orientation.mirror_y:
-        center = shape.Center()
-        if orientation.mirror_x:
-            shape = shape.mirror(
-                "YZ",
-                basePointVector=(center.x, center.y, center.z),
-            )
-        if orientation.mirror_y:
-            center = shape.Center()
-            shape = shape.mirror(
-                "XZ",
-                basePointVector=(center.x, center.y, center.z),
-            )
-
-    return shape
+    Returns ``None`` for keys with a normal switch socket.  Stabilized keys
+    that are wider than tall count as horizontal, all others as vertical.
+    """
+    kind = classify_key(k, min_units)
+    if kind == KIND_SPACEBAR:
+        return orientation.stab_rotation_spacebar
+    if kind == KIND_STABILIZED:
+        if k["w"] > k["h"]:
+            return orientation.stab_rotation_horizontal
+        return orientation.stab_rotation_vertical
+    return None
 
 
-def generate(
-    kle_path: Path,
-    socket_path: Path,
-    stabilizer_path: Path,
-    spacebar_centered_path: Path,
-    spacebar_off_centered_path: Path,
-    spacebar_position="centered",
-    output: Path = Path(DEFAULT_OUTPUT),
-    margin=DEFAULT_MARGIN,
-    stabilizer_min_unit=1.75,
-    flip_horizontal_stabilizers=None,
-    flip_vertical_stabilizers=None,
-):
-    if flip_horizontal_stabilizers is None:
-        flip_horizontal_stabilizers = FLIP_HORIZONTAL_STABILIZERS
-    if flip_vertical_stabilizers is None:
-        flip_vertical_stabilizers = FLIP_VERTICAL_STABILIZERS
+@dataclass
+class PlateModel:
+    """Result of ``build_plate_model``; everything is in the plate frame."""
 
+    keys: list          # parsed KLE keys
+    kinds: list         # classify_key() result per key
+    rotations: list     # stabilizer rotation per key in degrees, None if normal
+    centers: list       # switch centre per key (mm)
+    footprint: object   # shapely (Multi)Polygon of the plate outline
+    cavities: list      # one CAD solid per key, same order as ``keys``
+    plate: object       # CAD solid with all cavities cut out
+    profile: dict
+    stab: dict
+    spacebar_path: Path
+    matrix: tuple       # linear part of the whole-plate transform
+
+
+def build_plate_model(kle_path: Path, socket_path: Path, stabilizer_path: Path,
+                      spacebar_centered_path: Path, spacebar_off_centered_path: Path,
+                      spacebar_position="centered", margin=DEFAULT_MARGIN,
+                      stabilizer_min_unit=1.75, stabilizer_scale_mode="auto",
+                      orientation: OrientationConfig | None = None) -> PlateModel:
+    """Build the plate solid without exporting it.
+
+    Transformation order (see ``OrientationConfig``): per-stabilizer rotation
+    about its switch centre, then the whole-plate transform about the origin,
+    then a shift so that the plate's bounding box (including margin) starts at
+    (0, 0).  Rotations and the mirror are exact integer matrices applied to
+    the 2D data (footprint, switch centres, cutout sections) before anything
+    is extruded; no mirrored CAD solid is ever created.
+    """
+    orientation = orientation or OrientationConfig()
     data = json.loads(kle_path.read_text(encoding="utf-8"))
     keys = parse_kle(data)
     if not keys:
@@ -445,65 +613,50 @@ def generate(
 
     profile = socket_profile(socket_path)
     stab = stabilizer_template(stabilizer_path)
-    spacebar_path = (
-        spacebar_centered_path
-        if spacebar_position == "centered"
-        else spacebar_off_centered_path
-    )
+    spacebar_path = (spacebar_centered_path if spacebar_position == "centered"
+                     else spacebar_off_centered_path)
     spacebar_stab = stabilizer_template(spacebar_path)
 
+    gm = global_matrix(orientation)
+    a, b, d, e = gm
     shapes = []
     for k in keys:
         s = local_key_shape(k)
         s = translate(s, xoff=k["x"], yoff=k["y"])
         s = scale(s, xfact=UNIT, yfact=UNIT, origin=(0, 0))
-        shapes.append(s)
+        shapes.append(affine_transform(s, [a, b, d, e, 0, 0]))
 
-    minx = min(s.bounds[0] for s in shapes)
-    miny = min(s.bounds[1] for s in shapes)
-    shapes = [translate(s, xoff=-minx, yoff=-miny) for s in shapes]
     footprint = unary_union(shapes).buffer(margin, join_style=2)
+    minx, miny = footprint.bounds[0], footprint.bounds[1]
+    footprint = translate(footprint, xoff=-minx, yoff=-miny)
 
     centers = []
     for k in keys:
-        cx, cy = switch_center(k)
+        cx, cy = apply_matrix(gm, *switch_center(k))
         centers.append((cx - minx, cy - miny))
 
     plate = extruded_footprint(footprint, profile["zmin"], profile["thickness"])
 
-    normal_cavities = []
-    stabilizer_cavities = []
-    spacebar_cavities = []
-    stab_keys = []
-    spacebar_keys = []
+    kinds, rotations, cavities = [], [], []
     for k, (cx, cy) in zip(keys, centers):
-        if is_spacebar_key(k):
-            spacebar_keys.append(k)
-            spacebar_orientation = SPACEBAR_ORIENTATIONS[spacebar_position]
-            spacebar_cavities.append(
-                stabilizer_cavity(spacebar_stab, cx, cy, spacebar_orientation)
-            )
-        elif is_stabilized_key(k, stabilizer_min_unit):
-            stab_keys.append(k)
-            is_horizontal = k["w"] > k["h"]
-            orientation = stabilizer_orientation(k["label"])
-            flip = flip_orientation(
-                is_horizontal,
-                flip_horizontal_stabilizers,
-                flip_vertical_stabilizers,
-            )
-            orientation = Orientation(
-                rotation_z=orientation.rotation_z + flip.rotation_z,
-                mirror_x=orientation.mirror_x,
-                mirror_y=orientation.mirror_y,
-            )
-            stabilizer_cavities.append(
-                stabilizer_cavity(stab, cx, cy, orientation)
-            )
+        kind = classify_key(k, stabilizer_min_unit)
+        rotation = stabilizer_rotation(k, orientation, stabilizer_min_unit)
+        kinds.append(kind)
+        rotations.append(rotation)
+        if kind == KIND_NORMAL:
+            cavities.append(cavity_for_center(profile, cx, cy))
+            continue
+        # Step 1 (rotation about the switch centre), then step 2 (whole plate).
+        m = matrix_multiply(gm, rotation_matrix(rotation))
+        if kind == KIND_SPACEBAR:
+            # The supplied spacebar templates keep their internal switch
+            # position (centered/off-centered) exactly; no length scaling.
+            cavities.append(stabilizer_cavity(spacebar_stab, cx, cy, 6.25, m, "none"))
         else:
-            normal_cavities.append(cavity_for_center(profile, cx, cy))
+            length_units = max(float(k["w"]), float(k["h"]))
+            cavities.append(stabilizer_cavity(stab, cx, cy, length_units, m,
+                                              stabilizer_scale_mode))
 
-    cavities = normal_cavities + stabilizer_cavities + spacebar_cavities
     if not cavities:
         raise RuntimeError("No cavities generated.")
     cavity = cavities[0]
@@ -512,50 +665,73 @@ def generate(
 
     result = plate.cut(cavity)
     if not result.isValid():
-        raise RuntimeError("Generated CAD solid is invalid after cutting cavities.")
-
-    result = apply_orientation(result, PLATE_ORIENTATION)
+        raise RuntimeError("Generated CAD solid is invalid.")
     result = result.clean()
 
-    if not result.isValid():
-        raise RuntimeError("Generated CAD solid became invalid after cleanup.")
+    return PlateModel(keys=keys, kinds=kinds, rotations=rotations, centers=centers,
+                      footprint=footprint, cavities=cavities, plate=result,
+                      profile=profile, stab=stab, spacebar_path=spacebar_path,
+                      matrix=gm)
 
-    print(
-        "Plate orientation: "
-        f"rotation_z={PLATE_ORIENTATION.rotation_z:g}°, "
-        f"mirror_x={PLATE_ORIENTATION.mirror_x}, "
-        f"mirror_y={PLATE_ORIENTATION.mirror_y}"
-    )
+
+def generate(kle_path: Path, socket_path: Path, stabilizer_path: Path,
+             spacebar_centered_path: Path, spacebar_off_centered_path: Path,
+             spacebar_position="centered",
+             output: Path = Path(DEFAULT_OUTPUT), margin=DEFAULT_MARGIN,
+             stabilizer_min_unit=1.75, stabilizer_scale_mode="auto",
+             orientation: OrientationConfig | None = None):
+    orientation = orientation or OrientationConfig()
+    model = build_plate_model(
+        kle_path, socket_path, stabilizer_path, spacebar_centered_path,
+        spacebar_off_centered_path, spacebar_position=spacebar_position,
+        margin=margin, stabilizer_min_unit=stabilizer_min_unit,
+        stabilizer_scale_mode=stabilizer_scale_mode, orientation=orientation)
+    keys, profile, stab = model.keys, model.profile, model.stab
+
     output.parent.mkdir(parents=True, exist_ok=True)
-    cq.exporters.export(
-        result,
-        str(output),
-        exportType="STL",
-        tolerance=0.001,
-        angularTolerance=0.1,
-    )
+    cq.exporters.export(model.plate, str(output), exportType="STL",
+                        tolerance=0.001, angularTolerance=0.1)
 
-    # Validate the exported mesh without changing its topology.
+    # IMPORTANT: never keep only the largest connected component here. KLE
+    # layouts such as 100% / Full Size can contain separated regions (F-row,
+    # navigation cluster, numpad). Filtering by largest component silently
+    # deletes those regions. CadQuery has already validated the BRep above, so
+    # the STL is deliberately left exactly as OCC exported it.
+    #
+    # We only inspect the STL for a basic sanity check; no trimesh.split(),
+    # repair or component filtering is performed. This also removes the
+    # networkx dependency that caused the previous runtime error.
     exported = trimesh.load_mesh(output, force="mesh")
     if exported.is_empty or len(exported.faces) == 0:
         raise RuntimeError("STL export produced an empty mesh.")
     exported.export(output)
 
-    print("\nFat Plate Generator v0.16")
+    print("\nFat Plate Generator v10")
     print("----------------------")
     print(f"KLE:             {kle_path}")
     print(f"Socket:          {socket_path}")
     print(f"Stabilizer:      {stabilizer_path}")
-    print(f"Spacebar:        {spacebar_path} ({spacebar_position})")
+    print(f"Spacebar:        {model.spacebar_path} ({spacebar_position})")
     print(f"Output:          {output}")
     print(f"Keys:            {len(keys)}")
-    print(f"Stabilizer keys: {len(stab_keys)}")
-    print(f"Spacebar keys:   {len(spacebar_keys)}")
+    print(f"Stabilizer keys: {model.kinds.count(KIND_STABILIZED)}")
+    print(f"Spacebar keys:   {model.kinds.count(KIND_SPACEBAR)}")
     print(f"Plate thickness: {profile['thickness']:.4f} mm")
     print(f"Normal narrow:   {profile['min_size']:.4f} mm")
-    print(f"Stab section:    {stab['vertices']} section vertices")
-    print(f"Stabilizer flip: horizontal={flip_horizontal_stabilizers}, vertical={flip_vertical_stabilizers}")
+    print(f"Stab section:    {stab['vertices']} vertices, {stab['template_long']:.4f} mm long")
+    print(f"Stab scale:      {stabilizer_scale_mode} (default: no stretching)")
+    print("Stab switch:     central 16 mm opening kept unscaled")
     print("Caps Lock:       normal switch cutout")
+    print(f"Stab rotation:   horizontal {orientation.stab_rotation_horizontal} deg, "
+          f"vertical {orientation.stab_rotation_vertical} deg, "
+          f"spacebar {orientation.stab_rotation_spacebar} deg")
+    if orientation.global_transform:
+        mirror = " + mirror X" if orientation.global_mirror_x else ""
+        print(f"Plate transform: rotate {orientation.global_rotation} deg{mirror}, "
+              f"matrix {model.matrix}")
+    else:
+        print("Plate transform: none (--no-global-transform)")
+    print("Voxelization:    NONE")
     print("\nDone.")
 
 
@@ -572,19 +748,27 @@ def main():
     parser.add_argument("--output", type=Path, default=base / DEFAULT_OUTPUT)
     parser.add_argument("--margin", type=float, default=DEFAULT_MARGIN)
     parser.add_argument("--stabilizer-min-unit", type=float, default=1.75)
-    parser.add_argument(
-        "--flip-horizontal-stabilizers",
-        action="store_true",
-        default=None,
-        help="Add 180° to horizontal stabilizers for this run.",
-    )
-    parser.add_argument(
-        "--flip-vertical-stabilizers",
-        action="store_true",
-        default=None,
-        help="Add 180° to vertical stabilizers for this run.",
-    )
+    parser.add_argument("--stabilizer-scale", choices=["auto", "none"], default="none")
+    defaults = OrientationConfig()
+    parser.add_argument("--stab-rotation-horizontal", type=int, choices=ROTATION_CHOICES,
+                        default=defaults.stab_rotation_horizontal,
+                        help="rotation of horizontal stabilizer cutouts in degrees, counter-clockwise "
+                             "(default: %(default)s)")
+    parser.add_argument("--stab-rotation-vertical", type=int, choices=ROTATION_CHOICES,
+                        default=defaults.stab_rotation_vertical,
+                        help="rotation of vertical stabilizer cutouts in degrees (default: %(default)s)")
+    parser.add_argument("--stab-rotation-spacebar", type=int, choices=ROTATION_CHOICES,
+                        default=defaults.stab_rotation_spacebar,
+                        help="rotation of the spacebar cutout in degrees (default: %(default)s)")
+    parser.add_argument("--no-global-transform", action="store_true",
+                        help="skip the whole-plate transform (rotate 90 deg + mirror X); "
+                             "mainly for comparison with older output")
     args = parser.parse_args()
+    orientation = OrientationConfig(
+        stab_rotation_horizontal=args.stab_rotation_horizontal,
+        stab_rotation_vertical=args.stab_rotation_vertical,
+        stab_rotation_spacebar=args.stab_rotation_spacebar,
+        global_transform=not args.no_global_transform)
 
     try:
         generate(args.json, args.socket, args.stabilizer,
@@ -592,8 +776,8 @@ def main():
                   spacebar_position=args.spacebar_position,
                   output=args.output, margin=args.margin,
                   stabilizer_min_unit=args.stabilizer_min_unit,
-                  flip_horizontal_stabilizers=args.flip_horizontal_stabilizers,
-                  flip_vertical_stabilizers=args.flip_vertical_stabilizers)
+                  stabilizer_scale_mode=args.stabilizer_scale,
+                  orientation=orientation)
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         raise

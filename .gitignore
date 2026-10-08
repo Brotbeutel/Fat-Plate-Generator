@@ -6,3 +6,15 @@ TODO.txt
 TODO.md
 TO-DO.txt
 TO-DO.md
+# Python / test caches
+__pycache__/
+.pytest_cache/
+
+# Generated plates (templates and the example STL stay tracked)
+*.stl
+!switch_socket.stl
+!stabilizer.stl
+!stabilzer_spacebar.stl
+!stabilzer_spacebar_centered.stl
+!stabilzer_spacebar_off-center.stl
+!fat_plate_export_example.stl
