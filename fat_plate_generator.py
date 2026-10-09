@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Fat Plate Generator v10
+"""Fat Plate Generator
 
-KLE raw JSON -> clean CAD/STL plate, without voxelization.
+KLE raw JSON -> clean CAD/STL plate.
 
 The normal switch socket is reconstructed from the supplied socket STL.
 Stabilized keys use the supplied stabilizer STL as ONE combined cavity
 (stabilizer cutout + switch socket).  The stabilizer cross-section is taken
-from the actual STL section and preserved as straight CAD geometry; no
-resampling/loft smoothing is used.
+from the actual STL section and preserved as straight CAD geometry; nothing
+is scaled, rounded, resampled or smoothed.
 """
 from __future__ import annotations
 
@@ -26,6 +26,7 @@ from shapely.geometry import LineString, Polygon, box
 from shapely.geometry.polygon import orient
 from shapely.ops import polygonize, unary_union
 
+VERSION = "0.11"
 UNIT = 19.05
 DEFAULT_MARGIN = 1
 DEFAULT_JSON = "keyboard-layout.json"
@@ -374,9 +375,7 @@ def stabilizer_template(path: Path):
         "thickness": zmax - zmin,
         "intervals": intervals,
         "long_axis": long_axis,
-        "central_half": 8.0,
         "template_long": template_long,
-        "template_half": template_long / 2.0,
         "vertices": sum(len(i["poly"].exterior.coords) - 1 for i in intervals),
     }
 
@@ -455,45 +454,7 @@ def cavity_for_center(profile, cx, cy):
     return result
 
 
-def transform_stabilizer_polygon(poly, template, key_length_units, mode="auto"):
-    if mode == "none":
-        return poly
-
-    target_long = template["template_long"] * (key_length_units / 2.0)
-    if abs(target_long - template["template_long"]) < 1e-7:
-        return poly
-
-    s = ((target_long / 2.0) - template["central_half"]) / \
-        (template["template_half"] - template["central_half"])
-    if s <= 0:
-        raise ValueError("Requested stabilizer size is too small for the template.")
-
-    def tx(x, y):
-        v = y if template["long_axis"] == 1 else x
-        sign = 1.0 if v >= 0 else -1.0
-        av = abs(v)
-        if av <= template["central_half"]:
-            nv = v
-        else:
-            nv = sign * (template["central_half"] +
-                         (av - template["central_half"]) * s)
-        return (x, nv) if template["long_axis"] == 1 else (nv, y)
-
-    coords = [tx(x, y) for x, y in list(poly.exterior.coords)]
-    holes = []
-    for ring in poly.interiors:
-        holes.append([tx(x, y) for x, y in list(ring.coords)])
-    return Polygon(coords, holes)
-
-
-def wire_at(poly, z):
-    return (cq.Workplane("XY")
-            .workplane(offset=z)
-            .polyline(list(poly.exterior.coords)[:-1])
-            .close().wire().val())
-
-
-def stabilizer_cavity(template, cx, cy, key_length_units, matrix, scale_mode):
+def stabilizer_cavity(template, cx, cy, matrix):
     """Build the combined stabilizer + switch cavity.
 
     ``matrix`` is the exact linear 2D map (a, b, d, e) applied to the template
@@ -505,9 +466,7 @@ def stabilizer_cavity(template, cx, cy, key_length_units, matrix, scale_mode):
     a, b, d, e = matrix
     transformed = []
     for i in intervals:
-        poly = transform_stabilizer_polygon(i["poly"], template,
-                                            key_length_units, scale_mode)
-        poly = affine_transform(poly, [a, b, d, e, 0, 0])
+        poly = affine_transform(i["poly"], [a, b, d, e, 0, 0])
         # A mirror flips the ring direction; extrusion needs counter-clockwise.
         transformed.append(orient(poly, 1.0))
 
@@ -595,7 +554,7 @@ class PlateModel:
 def build_plate_model(kle_path: Path, socket_path: Path, stabilizer_path: Path,
                       spacebar_centered_path: Path, spacebar_off_centered_path: Path,
                       spacebar_position="centered", margin=DEFAULT_MARGIN,
-                      stabilizer_min_unit=1.75, stabilizer_scale_mode="auto",
+                      stabilizer_min_unit=1.75,
                       orientation: OrientationConfig | None = None) -> PlateModel:
     """Build the plate solid without exporting it.
 
@@ -649,14 +608,10 @@ def build_plate_model(kle_path: Path, socket_path: Path, stabilizer_path: Path,
             continue
         # Step 1 (rotation about the switch centre), then step 2 (whole plate).
         m = matrix_multiply(gm, rotation_matrix(rotation))
-        if kind == KIND_SPACEBAR:
-            # The supplied spacebar templates keep their internal switch
-            # position (centered/off-centered) exactly; no length scaling.
-            cavities.append(stabilizer_cavity(spacebar_stab, cx, cy, 6.25, m, "none"))
-        else:
-            length_units = max(float(k["w"]), float(k["h"]))
-            cavities.append(stabilizer_cavity(stab, cx, cy, length_units, m,
-                                              stabilizer_scale_mode))
+        # The templates are used exactly as supplied (no scaling); the spacebar
+        # templates keep their internal switch position (centered/off-centered).
+        template = spacebar_stab if kind == KIND_SPACEBAR else stab
+        cavities.append(stabilizer_cavity(template, cx, cy, m))
 
     if not cavities:
         raise RuntimeError("No cavities generated.")
@@ -675,39 +630,119 @@ def build_plate_model(kle_path: Path, socket_path: Path, stabilizer_path: Path,
                       matrix=gm)
 
 
+def validate_exported_stl(stl_path: Path, expected_bounds=None,
+                          bounds_tolerance: float = 0.1):
+    """Validate an exported STL without modifying or re-exporting the file.
+
+    ``expected_bounds`` may be ``(minimum_xyz, maximum_xyz)`` from the source
+    CAD model. Mesh processing is performed only in memory so STL triangle
+    vertices can be merged for topology checks; the file itself is untouched.
+    """
+    stl_path = Path(stl_path)
+    if not stl_path.is_file():
+        raise RuntimeError(f"STL export was not created: {stl_path}")
+    if stl_path.stat().st_size == 0:
+        raise RuntimeError(f"STL export is empty: {stl_path}")
+
+    try:
+        mesh = trimesh.load_mesh(stl_path, force="mesh", process=True)
+    except Exception as exc:
+        raise RuntimeError(f"Could not read exported STL '{stl_path}': {exc}") from exc
+
+    if not isinstance(mesh, trimesh.Trimesh):
+        raise RuntimeError("STL export did not produce a triangle mesh.")
+    if mesh.is_empty or len(mesh.vertices) == 0 or len(mesh.faces) == 0:
+        raise RuntimeError("STL export contains no triangle geometry.")
+    if not np.isfinite(mesh.vertices).all():
+        raise RuntimeError("STL export contains NaN or infinite vertex coordinates.")
+
+    bounds = np.asarray(mesh.bounds, dtype=float)
+    extents = np.asarray(mesh.extents, dtype=float)
+    if bounds.shape != (2, 3) or not np.isfinite(bounds).all():
+        raise RuntimeError("STL export has invalid or non-finite bounds.")
+    if not np.isfinite(extents).all() or np.any(extents <= 0):
+        raise RuntimeError(f"STL export has invalid dimensions: {extents.tolist()}")
+
+    if not mesh.is_watertight:
+        raise RuntimeError(
+            "STL export is not watertight. Check the CAD model for open edges "
+            "or holes before printing."
+        )
+    if not mesh.is_winding_consistent:
+        raise RuntimeError(
+            "STL export has inconsistent face winding. Check the exported mesh topology."
+        )
+    if not mesh.is_volume or not np.isfinite(mesh.volume) or mesh.volume <= 0:
+        raise RuntimeError(
+            "STL export does not describe a valid outward-facing closed volume."
+        )
+
+    if expected_bounds is not None:
+        try:
+            expected_min = np.asarray(expected_bounds[0], dtype=float)
+            expected_max = np.asarray(expected_bounds[1], dtype=float)
+        except (TypeError, ValueError, IndexError) as exc:
+            raise ValueError(
+                "expected_bounds must be a pair: (minimum_xyz, maximum_xyz)."
+            ) from exc
+        if (expected_min.shape != (3,) or expected_max.shape != (3,)
+                or not np.isfinite(expected_min).all()
+                or not np.isfinite(expected_max).all()
+                or np.any(expected_min > expected_max)):
+            raise ValueError(
+                "expected_bounds must contain finite 3D minimum and maximum coordinates."
+            )
+        if not np.isfinite(bounds_tolerance) or bounds_tolerance < 0:
+            raise ValueError("bounds_tolerance must be a finite non-negative number.")
+
+        min_error = float(np.max(np.abs(bounds[0] - expected_min)))
+        max_error = float(np.max(np.abs(bounds[1] - expected_max)))
+        if max(min_error, max_error) > bounds_tolerance:
+            raise RuntimeError(
+                "STL bounds differ from the source CAD model. "
+                f"Minimum-coordinate error: {min_error:.4f} mm; "
+                f"maximum-coordinate error: {max_error:.4f} mm; "
+                f"allowed tolerance: {bounds_tolerance:.4f} mm."
+            )
+
+    print(
+        "STL validation passed: "
+        f"{len(mesh.vertices)} vertices, {len(mesh.faces)} triangles, "
+        f"watertight={mesh.is_watertight}, "
+        f"volume={mesh.volume:.3f} mm³, "
+        f"dimensions={extents.tolist()} mm"
+    )
+    return mesh
+
+
 def generate(kle_path: Path, socket_path: Path, stabilizer_path: Path,
              spacebar_centered_path: Path, spacebar_off_centered_path: Path,
              spacebar_position="centered",
              output: Path = Path(DEFAULT_OUTPUT), margin=DEFAULT_MARGIN,
-             stabilizer_min_unit=1.75, stabilizer_scale_mode="auto",
+             stabilizer_min_unit=1.75,
              orientation: OrientationConfig | None = None):
     orientation = orientation or OrientationConfig()
     model = build_plate_model(
         kle_path, socket_path, stabilizer_path, spacebar_centered_path,
         spacebar_off_centered_path, spacebar_position=spacebar_position,
         margin=margin, stabilizer_min_unit=stabilizer_min_unit,
-        stabilizer_scale_mode=stabilizer_scale_mode, orientation=orientation)
+        orientation=orientation)
     keys, profile, stab = model.keys, model.profile, model.stab
 
     output.parent.mkdir(parents=True, exist_ok=True)
     cq.exporters.export(model.plate, str(output), exportType="STL",
                         tolerance=0.001, angularTolerance=0.1)
 
-    # IMPORTANT: never keep only the largest connected component here. KLE
-    # layouts such as 100% / Full Size can contain separated regions (F-row,
-    # navigation cluster, numpad). Filtering by largest component silently
-    # deletes those regions. CadQuery has already validated the BRep above, so
-    # the STL is deliberately left exactly as OCC exported it.
-    #
-    # We only inspect the STL for a basic sanity check; no trimesh.split(),
-    # repair or component filtering is performed. This also removes the
-    # networkx dependency that caused the previous runtime error.
-    exported = trimesh.load_mesh(output, force="mesh")
-    if exported.is_empty or len(exported.faces) == 0:
-        raise RuntimeError("STL export produced an empty mesh.")
-    exported.export(output)
+    # The STL is validated in memory only (see below).  It is never repaired,
+    # filtered by component or re-exported: separated layout regions (F-row,
+    # navigation cluster, numpad) must not be silently deleted.
+    bb = model.plate.BoundingBox()
+    expected_bounds = (
+        (bb.xmin, bb.ymin, bb.zmin),
+        (bb.xmax, bb.ymax, bb.zmax),
+    )
 
-    print("\nFat Plate Generator v10")
+    print(f"\nFat Plate Generator v{VERSION}")
     print("----------------------")
     print(f"KLE:             {kle_path}")
     print(f"Socket:          {socket_path}")
@@ -720,8 +755,6 @@ def generate(kle_path: Path, socket_path: Path, stabilizer_path: Path,
     print(f"Plate thickness: {profile['thickness']:.4f} mm")
     print(f"Normal narrow:   {profile['min_size']:.4f} mm")
     print(f"Stab section:    {stab['vertices']} vertices, {stab['template_long']:.4f} mm long")
-    print(f"Stab scale:      {stabilizer_scale_mode} (default: no stretching)")
-    print("Stab switch:     central 16 mm opening kept unscaled")
     print("Caps Lock:       normal switch cutout")
     print(f"Stab rotation:   horizontal {orientation.stab_rotation_horizontal} deg, "
           f"vertical {orientation.stab_rotation_vertical} deg, "
@@ -732,12 +765,13 @@ def generate(kle_path: Path, socket_path: Path, stabilizer_path: Path,
               f"matrix {model.matrix}")
     else:
         print("Plate transform: none (--no-global-transform)")
-    print("Voxelization:    NONE")
+    validate_exported_stl(output, expected_bounds=expected_bounds)
     print("\nDone.")
 
 
 def main():
     parser = argparse.ArgumentParser(description="Generate a clean Fat Plate STL from KLE JSON.")
+    parser.add_argument("--version", action="version", version=f"Fat Plate Generator {VERSION}")
     base = Path(__file__).resolve().parent
     parser.add_argument("--json", type=Path, default=base / DEFAULT_JSON)
     parser.add_argument("--socket", type=Path, default=base / DEFAULT_SOCKET)
@@ -749,7 +783,6 @@ def main():
     parser.add_argument("--output", type=Path, default=base / DEFAULT_OUTPUT)
     parser.add_argument("--margin", type=float, default=DEFAULT_MARGIN)
     parser.add_argument("--stabilizer-min-unit", type=float, default=1.75)
-    parser.add_argument("--stabilizer-scale", choices=["auto", "none"], default="none")
     defaults = OrientationConfig()
     parser.add_argument("--stab-rotation-horizontal", type=int, choices=ROTATION_CHOICES,
                         default=defaults.stab_rotation_horizontal,
@@ -777,7 +810,6 @@ def main():
                   spacebar_position=args.spacebar_position,
                   output=args.output, margin=args.margin,
                   stabilizer_min_unit=args.stabilizer_min_unit,
-                  stabilizer_scale_mode=args.stabilizer_scale,
                   orientation=orientation)
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
