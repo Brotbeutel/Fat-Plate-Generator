@@ -15,6 +15,8 @@ This is not a finished product!
 It has not yet been tested, if the generated plate fits a real keyboard and switches in 3D-printed form. 
 Spacebar stabilizer cutouts are now supported with centered and off-centered switch-position options, which is needed for a classic Cherry G80-3000.
 
+The template STLs are currently being rebuilt for exact geometry. Until then the generator may stop with the error `STL export is not watertight` (see *Common Errors*); the STL is still written and can be inspected.
+
 
 
 
@@ -23,11 +25,20 @@ Spacebar stabilizer cutouts are now supported with centered and off-centered swi
 
 - `fat_plate_generator.py` – the application
 - `requirements.txt` – required Python packages
-- `key_socket.stl` – template for standard switch sockets
+- `requirements-dev.txt` – additional packages for the preview tool and the tests
+- `switch_socket.stl` – template for standard switch sockets
 - `stabilizer.stl` – template for standard stabilized keys
 - `stabilzer_spacebar.stl` – centered spacebar template
+- `stabilzer_spacebar_centered.stl` – identical copy of the centered template (not read by the generator)
 - `stabilzer_spacebar_off-center.stl` – off-centered spacebar template
 - `keyboard-layout.json` – example layout
+- `KLE-exports/` – more example layouts (40%, 100% ISO and ANSI)
+- `fat_plate_export_example.stl` – example output
+- `tools/preview.py` – top-view preview of a generated STL
+- `tests/` – automated tests (`python -m pytest`)
+- `docs/` – preview images
+- `blender-files/` – Blender sources of the template STLs
+- `AGENTS.md`, `ROADMAP.md`, `CHANGELOG.md` – project rules, plans and change history
 - `README.md` – this guide
 
 ---
@@ -60,24 +71,32 @@ Download Blender at: https://www.blender.org/download/
 
 ---
 
-# 2. Extracting the Program
+# 2. Getting the Program
 
-Extract the ZIP file, for example, to:
+Download the repository from GitHub (green **Code** button, then **Download ZIP**) and extract it, or clone it:
+
+```powershell
+git clone https://github.com/Brotbeutel/Fat-Plate-Generator.git
+```
+
+For example to:
 
 ```text
-C:\GitHub\Fat Plate Generator\fat_plate_generator_v10
+C:\GitHub\Fat-Plate-Generator
 ```
 
 The folder should look roughly like this:
 
 ```text
-fat_plate_generator_v10
+Fat-Plate-Generator
 ├── fat_plate_generator.py
 ├── requirements.txt
 ├── README.md
-├── key_socket.stl
+├── switch_socket.stl
 ├── stabilizer.stl
-└── g80_3000_kle.json
+├── stabilzer_spacebar.stl
+├── stabilzer_spacebar_off-center.stl
+└── keyboard-layout.json
 ```
 
 ---
@@ -156,6 +175,8 @@ Wait until the command completes without error messages.
 
 You do not need to install the packages individually.
 
+A notice such as `A new release of pip is available` can be ignored. It only says that a newer pip exists; pip itself is not part of `requirements.txt`. To update it anyway, run `python -m pip install --upgrade pip`.
+
 ---
 
 # 7. Running the First Test
@@ -176,8 +197,9 @@ The generator automatically uses:
 
 ```text
 keyboard-layout.json
-key_socket.stl
+switch_socket.stl
 stabilizer.stl
+stabilzer_spacebar.stl
 ```
 
 and generates:
@@ -221,7 +243,7 @@ Important: Use the KLE **Raw Data JSON**, not another JSON export format.
 You can explicitly specify the socket and stabilizer files:
 
 ```powershell
-python .\fat_plate_generator.py --json my_keyboard.json --socket key_socket.stl --stabilizer stabilizer.stl --output my_keyboard.stl
+python .\fat_plate_generator.py --json my_keyboard.json --socket switch_socket.stl --stabilizer stabilizer.stl --output my_keyboard.stl
 ```
 
 This explicitly defines which files are being used.
@@ -230,7 +252,7 @@ This explicitly defines which files are being used.
 
 # 10. What Are the STL Templates?
 
-## `key_socket.stl`
+## `switch_socket.stl`
 
 This file defines the cutout for a standard key or switch.
 
@@ -254,11 +276,11 @@ or:
 --spacebar-position off-centered
 ```
 
-The default is **centered**. The supplied spacebar geometry is used without stretching.
+The default is **centered**. The supplied templates are used exactly as they are; nothing is stretched, scaled or rounded.
 
 ### Caps Lock
 
-Caps Lock is intentionally **not** treated as a stabilized key. It always receives the normal `key_socket.stl` switch cutout, even though it is 1.75u wide.
+Caps Lock is intentionally **not** treated as a stabilized key. It always receives the normal `switch_socket.stl` switch cutout, even though it is 1.75u wide.
 
 ---
 
@@ -273,7 +295,7 @@ Caps Lock is intentionally **not** treated as a stabilized key. It always receiv
 ### Socket
 
 ```powershell
---socket key_socket.stl
+--socket switch_socket.stl
 ```
 
 ### Stabilizer
@@ -302,6 +324,12 @@ The two options select `stabilzer_spacebar.stl` or `stabilzer_spacebar_off-cente
 
 ```powershell
 --output my_plate.stl
+```
+
+### Version
+
+```powershell
+--version
 ```
 
 ### Margin
@@ -458,6 +486,12 @@ Then:
 
 ---
 
+## `STL export is not watertight`
+
+The generated STL has open edges or edges shared by more than two triangles, so some slicers may not handle it correctly. So far the cause was inexact template STLs: tiny coordinate differences (far below a hundredth of a millimeter) between the layers of a stabilizer cutout. The STL is written anyway, so you can inspect it. If you use your own templates, check them in Blender. The spacebar templates are currently being rebuilt, see `ROADMAP.md`.
+
+---
+
 ## Missing F-Row or Numpad
 
 Ensure that you are using a current version of the generator.
@@ -486,17 +520,20 @@ KLE JSON
    v
 KLE Key Positions
    |
-   +--> Standard Key ------> key_socket.stl
+   +--> Standard Key ------> switch_socket.stl
    |
-   +--> Stabilizer Key ----> stabilizer.stl
+   +--> Stabilizer Key ----> stabilizer.stl  (turned per key class)
    |
-   +--> Spacebar ---------> dedicated spacebar STL
+   +--> Spacebar ---------> dedicated spacebar STL  (turned)
    |
    v
-CAD Plate
+CAD Plate  (whole-plate transform, moved to X = 0, Y = 0)
    |
    v
 STL File
+   |
+   v
+Validation (closed volume, dimensions)
 ```
 
 Individual keys are not simply placed side-by-side as independent STL files. The goal is a clean, contiguous plate geometry.
@@ -506,6 +543,14 @@ Individual keys are not simply placed side-by-side as independent STL files. The
 # 16. Checking the STL
 
 After successful generation, the STL file will be located in the specified output folder.
+
+The generator also checks every exported STL itself. The file is only read, never changed. The checks are:
+
+- the file exists and is not empty
+- the mesh is a closed (watertight) volume with consistent, outward-facing triangles
+- the dimensions match the CAD model within 0.1 mm
+
+If a check fails, the generator prints the reason and stops with an error. The STL has already been written at that point, so you can still open it and look at it.
 
 Before printing, you should verify:
 
@@ -528,14 +573,18 @@ Currently, the generator supports in particular:
 - 60% layouts
 - Full-size / 100% layouts
 - Spatially separated key groups
+- Stabilizer cutouts turned per key class (horizontal, vertical, spacebar)
 - CAD-based geometry
-- STL export
+- STL export with automatic validation
+- Top-view preview of generated plates (`tools/preview.py`)
 
-Planned or currently in development:
+Planned or currently in development (details in `ROADMAP.md`):
 
+- Exact template STLs (in progress), so that every plate is watertight
+- Rotated KLE keys and a more robust spacebar / Caps Lock detection
+- Layout features such as one mesh for the F-row and several STL files for separated parts
+- Rounded or beveled plate corners and standoffs
 - Additional stabilizer variants
-- Further KLE edge cases
-- Additional convenience features
 
 ---
 

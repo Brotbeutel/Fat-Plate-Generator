@@ -4,15 +4,16 @@ Status: `[ ]` offen, `[~]` in Arbeit, `[x]` erledigt.
 
 ## Arbeitspakete
 
-- [~] **WP-01** Stabilizer-Orientierung + Preview/Tests (aktuell)
-  - Orientierung zentral konfigurierbar (horizontal / vertical / spacebar getrennt)
-  - Whole-Plate-Transformation und Stabilizer-Rotationen aus der alten TODO.txt in den Code übernehmen
+- [x] **WP-01** Stabilizer-Orientierung + Preview/Tests
+  - Orientierung zentral konfigurierbar (`OrientationConfig`: horizontal / vertical / spacebar getrennt, Ganzplatten-Transformation)
   - Preview-Tool (`tools/preview.py`) und pytest-Suite
-- [ ] **WP-02** Aufräumen
-  - Stretch-/Voxel-Reste entfernen
-  - KLE-Rotation (`r`) für Cavities
-  - robustere Spacebar-/Caps-Lock-Erkennung
-  - README/Version/Dateinamen konsistent
+  - Die Defaults hat der Nutzer nach Sichtprüfung angepasst: horizontal 180°, vertical 270°, spacebar 180°, Platte 180° + Spiegelung an X (= KLE-Y-Umrechnung ohne weitere Drehung)
+- [~] **WP-02** Aufräumen
+  - [x] Stretch-/Voxel-Reste entfernt (`--stabilizer-scale`, Skalierungscode, toter Code)
+  - [x] README/Version/Dateinamen konsistent (`VERSION` im Generator, README-Titel, `switch_socket.stl`)
+  - [x] STL-Validierung aus `fat_plate_generator_wp1.py` übernommen, STL wird nicht mehr neu exportiert
+  - [ ] KLE-Rotation (`r`) für Cavities (zurückgestellt: Design-Entscheidung nötig, wie die Cavity-Drehung mit der Ganzplatten-Transformation zusammenspielt)
+  - [ ] robustere Spacebar-/Caps-Lock-Erkennung (zurückgestellt, bis die neuen Spacebar-Templates stehen)
 - [ ] **WP-03** Testdruck: Mini-Testplatte drucken, Passung und Toleranzen prüfen
 - [ ] **WP-04** Layout-Features
   - F-Row als ein Mesh
@@ -22,15 +23,25 @@ Status: `[ ]` offen, `[~]` in Arbeit, `[x]` erledigt.
 - [ ] **WP-05** Plattenform: abgerundete/gefaste Ecken, Standoffs/Spacer
 - [ ] **WP-06** Weitere Stabilizer-Varianten
 
+## Laufend (Nutzer)
+
+- [~] **Template-Neubau**: Die Spacebar-Stabilizer (und danach `stabilizer.stl`) werden in Blender exakt neu gebaut.
+  - Ziel: Koordinaten, die in den Schichten eines Ausschnitts identisch sein sollen, sind es auch. In den Templates streuen sie bisher um 10 bis 20 nm, an einzelnen Stellen um bis zu 0,7 µm. Dadurch bleiben im exportierten Mesh offene oder gemeinsam genutzte Kanten zurück, und die neue Validierung meldet `STL export is not watertight`.
+  - Nach dem Neubau: die `TEMPLATE_DEFECT`-Marker in `tests/test_plate.py` entfernen. Die Tests sollen dann ohne Marker bestehen, auch `test_exported_stl_is_strictly_watertight` für das Testlayout und das 100%-Layout.
+  - Danach `fat_plate_export_example.stl` mit dem aktuellen Stand neu erzeugen.
+
+## Vorschläge (nicht beauftragt)
+
+- `tools/check_templates.py`: listet Koordinaten auf, die in einem Template fast, aber nicht exakt gleich sind. Soll nach dem Neubau 0 Gruppen melden.
+- Versionen in den Requirements festschreiben, damit Ergebnisse auf verschiedenen Rechnern reproduzierbar sind.
+- Die schweren Tests (100%-Layout) per Marker abtrennbar machen, sodass ein schneller Lauf möglich ist.
+- `stabilzer_spacebar_centered.stl` ist byte-identisch mit `stabilzer_spacebar.stl` und wird vom Generator nicht gelesen. Klären, ob die Kopie bleiben soll.
+- Dateinamen `stabilzer_*.stl` → `stabilizer_*.stl` korrigieren, sobald die Templates fertig sind (betrifft Generator, Tests, README).
+
 ## Übernommene offene Punkte aus der alten TODO.txt
 
 | Punkt | Zuordnung |
 | --- | --- |
-| push | Nutzer (Branch pushen und mergen) |
-| code mesh transformations (Plate: 90° um Z + Spiegelung an X; Spacebar-Stabilizer +180°; alle anderen Stabilizer +90°) | WP-01 |
-| uniform stabilizer orientation | WP-01 |
-| options for stabilizer orientation – horizontal and vertical ones separate | WP-01 |
-| clear traces of voxels and stretch function | WP-02 |
 | option for F1–F12 row in one mesh | WP-04 |
 | option -> create multiple STL files for separated meshes | WP-04 |
 | option for rectangular arrow box shape (filled corners) | WP-04 |
@@ -41,6 +52,11 @@ Status: `[ ]` offen, `[~]` in Arbeit, `[x]` erledigt.
 
 ## Erledigt (aus der alten TODO.txt)
 
+- push
+- code mesh transformations (Plate, Spacebar-Stabilizer, andere Stabilizer) → WP-01
+- uniform stabilizer orientation → WP-01
+- options for stabilizer orientation – horizontal and vertical ones separate → WP-01
+- clear traces of voxels and stretch function → WP-02
 - new default names
 - add `stabilizer_spacebar.stl` and `stabilizer_spacebar_off-center.stl`
 - add disclaimer to README
