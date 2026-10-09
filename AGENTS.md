@@ -13,7 +13,7 @@ Gilt für alle Agenten/Implementer, die an diesem Repository arbeiten.
 
 ## Projektüberblick
 
-- `fat_plate_generator.py`: die Anwendung. Kern: `build_plate_model()` (Platte bauen), `generate()` (Export), `validate_exported_stl()` (Prüfung), `OrientationConfig` (zentrale Orientierungs-Defaults), `classify_key()` (normal / stabilized / spacebar).
+- `fat_plate_generator.py`: die Anwendung. Kern: `build_plate_model()` (Platte bauen), `generate()` (Export), `check_exported_stl()` (Prüfung, warnt nur), `OrientationConfig` (zentrale Orientierungs-Defaults), `classify_key()` (normal / stabilized / spacebar).
 - `switch_socket.stl`, `stabilizer.stl`, `stabilzer_spacebar*.stl`: Template-STLs. Die Quellen liegen in `blender-files/`.
 - `tools/preview.py`: Draufsicht-PNG einer erzeugten STL.
 - `tests/`: pytest-Suite. `tests/layouts/stabilizer_orientation.json` ist das Testlayout.

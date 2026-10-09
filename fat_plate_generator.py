@@ -630,9 +630,14 @@ def build_plate_model(kle_path: Path, socket_path: Path, stabilizer_path: Path,
                       matrix=gm)
 
 
-def validate_exported_stl(stl_path: Path, expected_bounds=None,
-                          bounds_tolerance: float = 0.1):
-    """Validate an exported STL without modifying or re-exporting the file.
+def check_exported_stl(stl_path: Path, expected_bounds=None,
+                       bounds_tolerance: float = 0.1):
+    """Check an exported STL without modifying or re-exporting the file.
+
+    Returns ``(mesh, problems)``.  ``problems`` is a list of readable
+    messages about the mesh quality (open or shared edges, face direction,
+    dimensions); it is empty for a clean STL.  A missing, empty or unreadable
+    file cannot be used at all and raises ``RuntimeError``.
 
     ``expected_bounds`` may be ``(minimum_xyz, maximum_xyz)`` from the source
     CAD model. Mesh processing is performed only in memory so STL triangle
@@ -663,19 +668,19 @@ def validate_exported_stl(stl_path: Path, expected_bounds=None,
     if not np.isfinite(extents).all() or np.any(extents <= 0):
         raise RuntimeError(f"STL export has invalid dimensions: {extents.tolist()}")
 
+    problems = []
     if not mesh.is_watertight:
-        raise RuntimeError(
-            "STL export is not watertight. Check the CAD model for open edges "
-            "or holes before printing."
+        _, counts = np.unique(mesh.edges_sorted, axis=0, return_counts=True)
+        problems.append(
+            "not watertight: "
+            f"{int((counts == 1).sum())} open edges (one face only), "
+            f"{int((counts > 2).sum())} edges shared by more than two faces"
         )
     if not mesh.is_winding_consistent:
-        raise RuntimeError(
-            "STL export has inconsistent face winding. Check the exported mesh topology."
-        )
-    if not mesh.is_volume or not np.isfinite(mesh.volume) or mesh.volume <= 0:
-        raise RuntimeError(
-            "STL export does not describe a valid outward-facing closed volume."
-        )
+        problems.append("inconsistent face winding")
+    if (mesh.is_watertight and mesh.is_winding_consistent
+            and (not mesh.is_volume or not np.isfinite(mesh.volume) or mesh.volume <= 0)):
+        problems.append("does not describe a valid outward-facing closed volume")
 
     if expected_bounds is not None:
         try:
@@ -698,21 +703,29 @@ def validate_exported_stl(stl_path: Path, expected_bounds=None,
         min_error = float(np.max(np.abs(bounds[0] - expected_min)))
         max_error = float(np.max(np.abs(bounds[1] - expected_max)))
         if max(min_error, max_error) > bounds_tolerance:
-            raise RuntimeError(
-                "STL bounds differ from the source CAD model. "
-                f"Minimum-coordinate error: {min_error:.4f} mm; "
-                f"maximum-coordinate error: {max_error:.4f} mm; "
-                f"allowed tolerance: {bounds_tolerance:.4f} mm."
+            problems.append(
+                "bounds differ from the CAD model "
+                f"(minimum error {min_error:.4f} mm, maximum error {max_error:.4f} mm, "
+                f"allowed {bounds_tolerance:.4f} mm)"
             )
 
-    print(
-        "STL validation passed: "
-        f"{len(mesh.vertices)} vertices, {len(mesh.faces)} triangles, "
-        f"watertight={mesh.is_watertight}, "
-        f"volume={mesh.volume:.3f} mm³, "
-        f"dimensions={extents.tolist()} mm"
-    )
-    return mesh
+    return mesh, problems
+
+
+def report_stl_check(mesh, problems, stl_path: Path):
+    """Print the result of ``check_exported_stl``; problems become a warning."""
+    if not problems:
+        print(f"STL check:       passed ({len(mesh.faces)} triangles, "
+              f"volume {mesh.volume:.3f} mm³, "
+              f"dimensions {[round(float(e), 4) for e in mesh.extents]} mm)")
+        return
+    print("\nWARNING: the exported STL has problems and may not slice or print "
+          "correctly:", file=sys.stderr)
+    for problem in problems:
+        print(f"  - {problem}", file=sys.stderr)
+    print(f"The STL was written anyway: {stl_path}", file=sys.stderr)
+    print("So far this was caused by template STLs that are not exact "
+          "(see README, 'Common Errors').", file=sys.stderr)
 
 
 def generate(kle_path: Path, socket_path: Path, stabilizer_path: Path,
@@ -733,7 +746,7 @@ def generate(kle_path: Path, socket_path: Path, stabilizer_path: Path,
     cq.exporters.export(model.plate, str(output), exportType="STL",
                         tolerance=0.001, angularTolerance=0.1)
 
-    # The STL is validated in memory only (see below).  It is never repaired,
+    # The STL is checked in memory only (see below).  It is never repaired,
     # filtered by component or re-exported: separated layout regions (F-row,
     # navigation cluster, numpad) must not be silently deleted.
     bb = model.plate.BoundingBox()
@@ -765,8 +778,9 @@ def generate(kle_path: Path, socket_path: Path, stabilizer_path: Path,
               f"matrix {model.matrix}")
     else:
         print("Plate transform: none (--no-global-transform)")
-    validate_exported_stl(output, expected_bounds=expected_bounds)
-    print("\nDone.")
+    mesh, problems = check_exported_stl(output, expected_bounds=expected_bounds)
+    report_stl_check(mesh, problems, output)
+    print("\nDone." if not problems else "\nDone, with warnings.")
 
 
 def main():

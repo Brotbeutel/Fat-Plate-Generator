@@ -15,7 +15,7 @@ This is not a finished product!
 It has not yet been tested, if the generated plate fits a real keyboard and switches in 3D-printed form. 
 Spacebar stabilizer cutouts are now supported with centered and off-centered switch-position options, which is needed for a classic Cherry G80-3000.
 
-The template STLs are currently being rebuilt for exact geometry. Until then the generator may stop with the error `STL export is not watertight` (see *Common Errors*); the STL is still written and can be inspected.
+The template STLs are currently being rebuilt for exact geometry. Until then the generator may print the warning `not watertight` (see *Common Errors*); the STL is written anyway and can be inspected.
 
 
 
@@ -486,9 +486,9 @@ Then:
 
 ---
 
-## `STL export is not watertight`
+## Warning: `not watertight`
 
-The generated STL has open edges or edges shared by more than two triangles, so some slicers may not handle it correctly. So far the cause was inexact template STLs: tiny coordinate differences (far below a hundredth of a millimeter) between the layers of a stabilizer cutout. The STL is written anyway, so you can inspect it. If you use your own templates, check them in Blender. The spacebar templates are currently being rebuilt, see `ROADMAP.md`.
+The generator prints this warning when the exported STL has open edges or edges shared by more than two triangles, so some slicers may not handle it correctly. So far the cause was inexact template STLs: tiny coordinate differences (far below a hundredth of a millimeter) between the layers of a stabilizer cutout. The STL is written anyway, so you can inspect it. If you use your own templates, check them in Blender. The spacebar templates are currently being rebuilt, see `ROADMAP.md`.
 
 ---
 
@@ -550,7 +550,7 @@ The generator also checks every exported STL itself. The file is only read, neve
 - the mesh is a closed (watertight) volume with consistent, outward-facing triangles
 - the dimensions match the CAD model within 0.1 mm
 
-If a check fails, the generator prints the reason and stops with an error. The STL has already been written at that point, so you can still open it and look at it.
+If a check finds a problem, the generator prints an explicit `WARNING` with the reasons (for example the number of open edges) and carries on. The STL is always written, so you can open it and look at it. Only a missing or empty file is treated as an error.
 
 Before printing, you should verify:
 

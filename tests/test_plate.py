@@ -27,18 +27,6 @@ TEMPLATE_DEFECT = pytest.mark.xfail(
     reason="template STLs are not exact yet (sub-micron noise between layers, see ROADMAP.md)")
 
 
-def generate_tolerating_template_defects(*args, **kwargs):
-    """Run fpg.generate().  Only the 'not watertight' validation error is tolerated,
-    because it depends on the template quality and not on the code under test."""
-    try:
-        fpg.generate(*args, **kwargs)
-    except RuntimeError as exc:
-        if "not watertight" not in str(exc):
-            raise
-        return str(exc)
-    return None
-
-
 def footprint_parts(footprint):
     return list(footprint.geoms) if footprint.geom_type == "MultiPolygon" else [footprint]
 
@@ -186,7 +174,7 @@ def test_switch_centres_match_the_preview_placement(orientation_model):
 def test_generate_writes_a_nonempty_stl(tmp_path):
     out = tmp_path / "plate.stl"
     root = Path(fpg.__file__).parent
-    generate_tolerating_template_defects(
+    fpg.generate(
         ORIENTATION_LAYOUT, root / fpg.DEFAULT_SOCKET, root / fpg.DEFAULT_STABILIZER,
         root / fpg.DEFAULT_SPACEBAR_CENTERED, root / fpg.DEFAULT_SPACEBAR_OFF_CENTERED,
         output=out)
@@ -202,7 +190,7 @@ def test_generate_never_re_exports_the_stl(tmp_path, monkeypatch):
 
     monkeypatch.setattr(trimesh.Trimesh, "export", forbidden)
     root = Path(fpg.__file__).parent
-    generate_tolerating_template_defects(
+    fpg.generate(
         ORIENTATION_LAYOUT, root / fpg.DEFAULT_SOCKET, root / fpg.DEFAULT_STABILIZER,
         root / fpg.DEFAULT_SPACEBAR_CENTERED, root / fpg.DEFAULT_SPACEBAR_OFF_CENTERED,
         output=tmp_path / "plate.stl")
@@ -300,11 +288,8 @@ def test_cli_orientation_options(repo_root, tmp_path):
     result = run_cli(repo_root, "--json", str(ORIENTATION_LAYOUT), "--output", str(out),
                      "--stab-rotation-horizontal", "0", "--stab-rotation-vertical", "270",
                      "--stab-rotation-spacebar", "90", "--no-global-transform")
-    # The settings are echoed before the STL is validated, so they can be checked
-    # independently of the template quality.  Only a watertight complaint is
-    # tolerated as the reason for a non-zero exit code.
-    if result.returncode != 0:
-        assert "not watertight" in result.stderr, result.stderr
+    # Mesh problems only produce a warning, they never change the exit code.
+    assert result.returncode == 0, result.stderr
     assert "horizontal 0 deg, vertical 270 deg, spacebar 90 deg" in result.stdout
     assert "none (--no-global-transform)" in result.stdout
     assert out.exists() and not trimesh.load(out, force="mesh").is_empty

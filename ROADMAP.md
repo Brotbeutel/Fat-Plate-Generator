@@ -11,7 +11,7 @@ Status: `[ ]` offen, `[~]` in Arbeit, `[x]` erledigt.
 - [~] **WP-02** Aufräumen
   - [x] Stretch-/Voxel-Reste entfernt (`--stabilizer-scale`, Skalierungscode, toter Code)
   - [x] README/Version/Dateinamen konsistent (`VERSION` im Generator, README-Titel, `switch_socket.stl`)
-  - [x] STL-Validierung aus `fat_plate_generator_wp1.py` übernommen, STL wird nicht mehr neu exportiert
+  - [x] STL-Prüfung aus `fat_plate_generator_wp1.py` übernommen (als ausdrückliche Warnung statt Abbruch), STL wird nicht mehr neu exportiert
   - [ ] KLE-Rotation (`r`) für Cavities (zurückgestellt: Design-Entscheidung nötig, wie die Cavity-Drehung mit der Ganzplatten-Transformation zusammenspielt)
   - [ ] robustere Spacebar-/Caps-Lock-Erkennung (zurückgestellt, bis die neuen Spacebar-Templates stehen)
 - [ ] **WP-03** Testdruck: Mini-Testplatte drucken, Passung und Toleranzen prüfen
@@ -26,7 +26,7 @@ Status: `[ ]` offen, `[~]` in Arbeit, `[x]` erledigt.
 ## Laufend (Nutzer)
 
 - [~] **Template-Neubau**: Die Spacebar-Stabilizer (und danach `stabilizer.stl`) werden in Blender exakt neu gebaut.
-  - Ziel: Koordinaten, die in den Schichten eines Ausschnitts identisch sein sollen, sind es auch. In den Templates streuen sie bisher um 10 bis 20 nm, an einzelnen Stellen um bis zu 0,7 µm. Dadurch bleiben im exportierten Mesh offene oder gemeinsam genutzte Kanten zurück, und die neue Validierung meldet `STL export is not watertight`.
+  - Ziel: Koordinaten, die in den Schichten eines Ausschnitts identisch sein sollen, sind es auch. In den Templates streuen sie bisher um 10 bis 20 nm, an einzelnen Stellen um bis zu 0,7 µm. Dadurch bleiben im exportierten Mesh offene oder gemeinsam genutzte Kanten zurück, und die STL-Prüfung warnt mit `not watertight`.
   - Nach dem Neubau: die `TEMPLATE_DEFECT`-Marker in `tests/test_plate.py` entfernen. Die Tests sollen dann ohne Marker bestehen, auch `test_exported_stl_is_strictly_watertight` für das Testlayout und das 100%-Layout.
   - Danach `fat_plate_export_example.stl` mit dem aktuellen Stand neu erzeugen.
 
