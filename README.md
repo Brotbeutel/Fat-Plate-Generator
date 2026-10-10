@@ -252,6 +252,8 @@ This explicitly defines which files are being used.
 
 # 10. What Are the STL Templates?
 
+A template is a plate cell with the cutout in it, centered on the switch. The generator reads the **contour of the cutout** from it and builds the cutter for every key from that contour. Socket, stabilizer and spacebar are read and built in exactly the same way.
+
 ## `switch_socket.stl`
 
 This file defines the cutout for a standard key or switch.
@@ -281,6 +283,38 @@ The default is **centered**. The supplied templates are used exactly as they are
 ### Caps Lock
 
 Caps Lock is intentionally **not** treated as a stabilized key. It always receives the normal `switch_socket.stl` switch cutout, even though it is 1.75u wide.
+
+## Fixed bounding boxes
+
+The outer size of every template is fixed. If you design a new template (for example in Blender), build it inside this box and do not change the box:
+
+| Template | Size X × Y | Height Z |
+| --- | --- | --- |
+| socket | 19.05 × 19.05 mm | −5.0 … 1.2 mm |
+| stabilizer | 36.3875 × 19.05 mm | −5.0 … 1.2 mm |
+| spacebar (both variants) | 112.5889 × 19.05 mm | −5.0 … 1.2 mm |
+
+The plate is exactly 6.2 mm thick (z from −5.0 to 1.2); this comes from the fixed values, not from a template. 19.05 mm is the pitch of a 1u key; the lengths of the stabilizer and spacebar box are the sizes of the current templates.
+
+The box is only **checked**. If a template deviates by more than 0.001 mm, the generator prints a warning with the deviation. The geometry is never stretched, cut or moved to fit the box.
+
+## How a template must be built
+
+- The switch center is the origin (0, 0).
+- The cutout is described by closed contours. A contour must not lie inside another contour.
+- Between two heights a wall is either vertical or one straight slope. Slopes are kept exactly (see below).
+- The mesh should be closed. Defects are reported as warnings.
+- Everything outside the cutout (the outer rim of the cell) is ignored.
+
+## How the generator reads a template
+
+The template is cut at every horizontal plane of the mesh. Between two planes each contour is turned into a ruled loft from its lower to its upper outline. Vertical walls therefore stay vertical and **slanted walls stay slanted**, for the socket as well as for the stabilizers. Every contour of every layer is kept, nothing is left out silently, and nothing is rounded or snapped. The only tolerances are:
+
+- Heights closer than 0.000001 mm belong to the same plane (the STL stores float32).
+- Contour points closer than 0.000000001 mm are the same point.
+- A point in the middle of a flat wall is only a leftover of the triangulation. It is dropped if it lies within 0.00005 mm (50 nm) of the straight wall. For a layer with a defective mesh this is raised in steps up to 0.005 mm, and the generator says so in a warning.
+- A layer whose walls lean or twist by less than 0.005 mm and cannot be lofted because of that is built as a straight prism from its section at half height, and the generator says so in a warning. A real slope is never straightened; that is an error.
+- The bounding box check described above (warning only).
 
 ---
 
@@ -486,9 +520,15 @@ Then:
 
 ---
 
+## Warning: `the template STLs are not exact`
+
+The generator found something in a template that deviates from the fixed bounding box or from a clean mesh, for example a bounding box that is 0.002 mm too small, a wall that leans by a micron, or contour points that belong to no closed contour. The plate is built from the templates exactly as they are, and every line of the warning says which file and which height is affected. Fix the template in Blender; the spacebar templates are currently being rebuilt, see `ROADMAP.md`.
+
+---
+
 ## Warning: `not watertight`
 
-The generator prints this warning when the exported STL has open edges or edges shared by more than two triangles, so some slicers may not handle it correctly. So far the cause was inexact template STLs: tiny coordinate differences (far below a hundredth of a millimeter) between the layers of a stabilizer cutout. The STL is written anyway, so you can inspect it. If you use your own templates, check them in Blender. The spacebar templates are currently being rebuilt, see `ROADMAP.md`.
+The generator prints this warning when the exported STL has open edges or edges shared by more than two triangles, so some slicers may not handle it correctly. So far the cause was inexact template STLs: tiny coordinate differences (far below a hundredth of a millimeter) between the layers of a cutout, which leave a few edges shared by four triangles where two layers touch. The STL is written anyway, so you can inspect it. If you use your own templates, check them in Blender.
 
 ---
 
@@ -526,6 +566,7 @@ KLE Key Positions
    |
    +--> Spacebar ---------> dedicated spacebar STL  (turned)
    |
+   |    all three: contour read layer by layer, every layer lofted
    v
 CAD Plate  (whole-plate transform, moved to X = 0, Y = 0)
    |

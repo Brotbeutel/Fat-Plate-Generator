@@ -19,9 +19,9 @@ from tools import preview
 
 
 # The template STLs still carry sub-micron coordinate noise between their layers
-# (see ROADMAP.md).  Depending on library versions this leaves a few open or
-# non-manifold edges in the exported plate.  Tests that need a perfect mesh are
-# marked, not hidden: once the templates are exact they pass and the markers go.
+# (see ROADMAP.md).  It leaves a few edges shared by four faces in the exported
+# plate where two layers touch.  Tests that need a perfect mesh are marked, not
+# hidden: once the templates are exact they pass and the markers go.
 TEMPLATE_DEFECT = pytest.mark.xfail(
     strict=False,
     reason="template STLs are not exact yet (sub-micron noise between layers, see ROADMAP.md)")
@@ -196,7 +196,6 @@ def test_generate_never_re_exports_the_stl(tmp_path, monkeypatch):
         output=tmp_path / "plate.stl")
 
 
-@TEMPLATE_DEFECT
 @pytest.mark.parametrize("mesh_name", ["orientation_mesh", "full_mesh"])
 def test_exported_stl_is_closed(request, mesh_name):
     """No holes in the surface: every edge is shared by an even number of faces,

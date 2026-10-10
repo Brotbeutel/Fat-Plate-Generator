@@ -14,7 +14,7 @@ Gilt für alle Agenten/Implementer, die an diesem Repository arbeiten.
 ## Projektüberblick
 
 - `fat_plate_generator.py`: die Anwendung. Kern: `build_plate_model()` (Platte bauen), `generate()` (Export), `check_exported_stl()` (Prüfung, warnt nur), `OrientationConfig` (zentrale Orientierungs-Defaults), `classify_key()` (normal / stabilized / spacebar).
-- `switch_socket.stl`, `stabilizer.stl`, `stabilzer_spacebar*.stl`: Template-STLs. Die Quellen liegen in `blender-files/`.
+- `switch_socket.stl`, `stabilizer.stl`, `stabilzer_spacebar*.stl`: Template-STLs. Die Quellen liegen in `blender-files/`. Ein Loader (`load_template()`) und ein Cutter-Bauer (`template_cutter()`) behandeln alle drei gleich.
 - `tools/preview.py`: Draufsicht-PNG einer erzeugten STL.
 - `tests/`: pytest-Suite. `tests/layouts/stabilizer_orientation.json` ist das Testlayout.
 - `docs/`: Preview-Bilder. `ROADMAP.md`, `CHANGELOG.md`, `README.md`: Plan, Änderungen, Anleitung.
@@ -33,7 +33,9 @@ python .\tools\preview.py plate.stl --layout my_layout.json --output plate.png
 - Keine Werte runden, auf ein Raster snappen oder glätten. Alles bleibt präzise und exakt. Ungenauigkeiten werden an der Quelle behoben (Blender-Dateien, Templates), nicht im Code kaschiert. Mängel in Templates im Bericht melden, nicht verstecken.
 - Transformationsreihenfolge: Rotation je Stabilizer um dessen Switch-Zentrum, dann Gesamttransformation um den Ursprung, dann Verschiebung, sodass die Bounding-Box bei (0, 0) beginnt. Rotationen und Spiegelung sind exakte Integer-Matrizen auf den 2D-Daten, es entstehen keine gespiegelten CAD-Körper.
 - Die Orientierungs-Defaults stehen zentral in `OrientationConfig`. Die Werte hat der Nutzer nach Sichtprüfung festgelegt; nicht ohne Auftrag ändern.
-- Die exportierte STL wird nur im Speicher validiert, nie repariert, nach Komponenten gefiltert oder neu exportiert.
+- Die exportierte STL wird nur im Speicher geprüft, nie repariert, nach Komponenten gefiltert oder neu exportiert.
+- Socket, Stabilizer und Spacebar laufen durch denselben Code. Keine Sonderwege je Template, keine stille Glättung von Schrägen, keine Konturen weglassen.
+- Die Bounding Boxen der Templates sind fest (`TEMPLATE_BOUNDING_BOXES`) und werden nur geprüft (Warnung), nie angepasst. Neue Toleranzen nur mit Begründung, benannter Konstante und Eintrag in der README; die bestehenden stehen dort.
 
 ## Dateien und Abhängigkeiten
 

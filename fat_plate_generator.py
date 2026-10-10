@@ -22,9 +22,8 @@ import cadquery as cq
 import numpy as np
 import trimesh
 from shapely.affinity import affine_transform, rotate, scale, translate
-from shapely.geometry import LineString, Polygon, box
-from shapely.geometry.polygon import orient
-from shapely.ops import polygonize, unary_union
+from shapely.geometry import Polygon, box
+from shapely.ops import unary_union
 
 VERSION = "0.11"
 UNIT = 19.05
@@ -36,7 +35,6 @@ DEFAULT_SPACEBAR_CENTERED = "stabilzer_spacebar.stl"
 DEFAULT_SPACEBAR_OFF_CENTERED = "stabilzer_spacebar_off-center.stl"
 DEFAULT_OUTPUT = "fat_plate_export.stl"
 EPS = 0.02
-SIZE_TOL = 0.08
 
 # ---------------------------------------------------------------------------
 # Orientation of stabilizer cutouts and of the whole plate
@@ -204,180 +202,328 @@ def switch_center(k):
     return cx * UNIT, cy * UNIT
 
 
-def clustered_z_levels(mesh, decimals=5):
-    vals = np.unique(np.round(mesh.vertices[:, 2], decimals))
-    if not len(vals):
-        raise ValueError("STL has no vertices.")
-    groups = [[float(vals[0])]]
-    for z in vals[1:]:
-        if float(z) - groups[-1][-1] < 0.002:
+# ---------------------------------------------------------------------------
+# Template STLs
+# ---------------------------------------------------------------------------
+# Every template is a plate cell with the cutout in it.  The outer size of each
+# template is fixed (TEMPLATE_BOUNDING_BOXES, PLATE_Z_MIN/MAX) so that new
+# templates can be designed against it.  The bounding box is only CHECKED: a
+# deviation produces a warning and never changes the geometry.  Only the
+# contour of the cutout is read from the STL; the outer rim of the cell is
+# ignored.  Socket, stabilizer and spacebar are read and built the same way.
+PLATE_Z_MIN = -5.0
+PLATE_Z_MAX = 1.2
+TEMPLATE_BOUNDING_BOXES = {      # x, y size in mm
+    "socket": (19.05, 19.05),
+    "stabilizer": (36.3875, 19.05),
+    "spacebar": (112.5889, 19.05),
+}
+BOUNDING_BOX_TOLERANCE = 0.001   # mm; only decides whether a warning is printed
+# STL stores float32, so one horizontal plane shows up with slightly different
+# z values (about 1e-7 mm).  Values closer than LEVEL_TOLERANCE are the same plane.
+# This only finds the planes; no coordinate is changed.
+LEVEL_TOLERANCE = 1e-6           # mm
+# Contour points computed from neighbouring triangles are the same point if they
+# agree to floating point noise.  Only used to join them; no coordinate is changed.
+POINT_TOLERANCE = 1e-9           # mm
+# The triangles of a flat wall leave contour points in the middle of the wall.
+# They are no corners and would slide along the wall between two heights, so
+# they are dropped.  Douglas-Peucker guarantees that every dropped point lies
+# within FLAT_WALL_TOLERANCE of the straight wall that remains, so the shape
+# changes by at most this much (50 nm).  The current templates carry about
+# 20 nm of noise on such points; for exact templates this can go down to 1e-9.
+FLAT_WALL_TOLERANCE = 5e-5       # mm
+# A defect of the mesh (for example a step of half a micron whose triangles run
+# slantwise) can make two corners fall together inside a layer.  The tolerance is
+# then raised step by step, at most by these factors, until the layer can be
+# lofted; every raise is reported as a warning with the tolerance that was used.
+FLAT_WALL_RELAXATIONS = (10, 100)
+MIN_CORNER_DISTANCE = 1e-6       # mm; closer corners cannot be lofted
+# If even that does not help but the walls of the layer hardly move between its
+# two ends (by less than STRAIGHT_LAYER_TOLERANCE at most: a template whose walls
+# lean by a micron), the layer is built as a straight prism from its section at
+# half height, and a warning says by how much the walls lean.  A layer whose walls
+# really move (a slope) is never straightened: that is an error.
+STRAIGHT_LAYER_TOLERANCE = 5e-3  # mm
+
+
+class TemplateError(ValueError):
+    """A template STL cannot be used as a cutter."""
+
+
+@dataclass
+class Ring:
+    """One closed contour of a layer, given as the mesh edges its vertices lie on.
+
+    ``lines[i]`` holds the two end points (x, y, z) of the mesh edge of vertex i.
+    Evaluating the lines at a height gives the contour at that height, so a
+    slanted wall stays exactly slanted, and the vertex order is the same at
+    every height (which is what a loft between two heights needs).
+    """
+
+    lines: np.ndarray            # shape (N, 2, 3)
+
+    def at(self, z):
+        p0, p1 = self.lines[:, 0], self.lines[:, 1]
+        t = (z - p0[:, 2]) / (p1[:, 2] - p0[:, 2])
+        return p0[:, :2] + t[:, None] * (p1[:, :2] - p0[:, :2])
+
+
+@dataclass
+class Layer:
+    z0: float
+    z1: float
+    rings: list
+
+
+@dataclass
+class Template:
+    path: Path
+    kind: str
+    bounds: np.ndarray           # exact bounds of the STL, shape (2, 3)
+    layers: list
+    warnings: list               # readable problems found while reading
+
+    @property
+    def vertex_count(self):
+        return sum(len(r.lines) for layer in self.layers for r in layer.rings)
+
+
+def _exact_mesh(path: Path):
+    """Read an STL; vertices are merged only where they are exactly equal."""
+    if not path.is_file():
+        raise TemplateError(f"template STL not found: {path}")
+    mesh = trimesh.load(path, force="mesh", process=False)
+    if mesh.is_empty or len(mesh.faces) == 0:
+        raise TemplateError(f"{path.name}: the template STL is empty")
+    vertices, inverse = np.unique(np.asarray(mesh.vertices, dtype=float),
+                                  axis=0, return_inverse=True)
+    faces = inverse.reshape(-1)[np.asarray(mesh.faces)]
+    faces = faces[[len(set(f)) == 3 for f in faces.tolist()]]
+    return vertices, faces, np.array([vertices.min(axis=0), vertices.max(axis=0)])
+
+
+def _levels(z_values):
+    """Heights of the horizontal planes of a template (see LEVEL_TOLERANCE)."""
+    groups = [[float(z)] for z in np.unique(z_values)[:1]]
+    for z in np.unique(z_values)[1:]:
+        if z - groups[-1][-1] <= LEVEL_TOLERANCE:
             groups[-1].append(float(z))
         else:
             groups.append([float(z)])
     return [sum(g) / len(g) for g in groups]
 
 
-def section_size(mesh, z):
-    sec = mesh.section(plane_origin=[0, 0, float(z)],
-                       plane_normal=[0, 0, 1])
-    if sec is None:
-        return None
-    if len(sec.entities) == 0:
-        return None
-    # For the socket STL there is one clean section loop.
-    entity = max(sec.entities, key=lambda e: len(e.points))
-    pts = sec.vertices[entity.points]
-    if len(pts) < 4:
-        return None
-    ext = pts[:, :2].max(axis=0) - pts[:, :2].min(axis=0)
-    return float((ext[0] + ext[1]) / 2.0)
+def _corner_indices(points, tolerance):
+    """Indices of the corners of a closed polygon.
 
-
-def socket_profile(path: Path):
-    mesh = trimesh.load(path, force="mesh")
-    if mesh.is_empty:
-        raise ValueError(f"Socket STL is empty: {path}")
-
-    zmin = float(mesh.bounds[0, 2])
-    zmax = float(mesh.bounds[1, 2])
-    thickness = zmax - zmin
-    if thickness <= 0:
-        raise ValueError("Socket STL has zero Z thickness.")
-
-    levels = clustered_z_levels(mesh)
-    intervals = []
-    for a, b in zip(levels[:-1], levels[1:]):
-        if b - a < 0.002:
-            continue
-        size = section_size(mesh, (a + b) * 0.5)
-        if size is not None:
-            intervals.append({"z0": a, "z1": b, "size": size})
-    if not intervals:
-        raise ValueError("Could not extract a horizontal profile from socket STL.")
-
-    sizes = [i["size"] for i in intervals]
-    lower_size = sizes[0]
-    top_size = sizes[-1]
-    min_size = min(sizes)
-
-    taper_start = next((i["z0"] for i in intervals
-                        if i["size"] < lower_size - SIZE_TOL), intervals[0]["z0"])
-    taper_end = next((i["z0"] for i in intervals
-                      if i["z0"] >= taper_start and
-                      abs(i["size"] - min_size) <= SIZE_TOL), taper_start)
-    collar_start = next((i["z0"] for i in intervals
-                         if i["z0"] >= taper_end and
-                         i["size"] >= top_size - SIZE_TOL), intervals[-1]["z0"])
-
-    return {
-        "zmin": zmin, "zmax": zmax, "thickness": thickness,
-        "lower_size": lower_size, "min_size": min_size, "top_size": top_size,
-        "taper_start": max(zmin, min(zmax, taper_start)),
-        "taper_end": max(zmin, min(zmax, taper_end)),
-        "collar_start": max(zmin, min(zmax, collar_start)),
-        "intervals": intervals,
-    }
-
-
-
-def remove_collinear(poly, tol=1e-5):
-    """Remove triangulation-only collinear vertices without changing shape."""
-    pts = np.asarray(poly.exterior.coords[:-1], dtype=float)
-    changed = True
-    while changed and len(pts) > 3:
-        changed = False
-        keep = []
-        n = len(pts)
-        for i in range(n):
-            a = pts[i - 1]
-            b = pts[i]
-            c = pts[(i + 1) % n]
-            u = b - a
-            v = c - b
-            cross = abs(float(u[0] * v[1] - u[1] * v[0]))
-            dot = float(u[0] * v[0] + u[1] * v[1])
-            if cross <= tol and dot >= -tol:
-                changed = True
-                continue
-            keep.append(b)
-        pts = np.asarray(keep, dtype=float)
-    return Polygon(pts)
-
-def triangle_section_polygon(mesh, z):
-    """Intersect every STL triangle with a horizontal plane and polygonize it.
-
-    This avoids topology-dependent behaviour in trimesh.section() and gives
-    deterministic, clean polygons directly from the supplied STL faces.
+    All other points lie within ``tolerance`` of the straight line between the
+    corners next to them (Douglas-Peucker on both halves of the ring, starting
+    from two points that are certainly corners: the extreme ones).
     """
-    vertices = np.asarray(mesh.vertices, dtype=float)
-    faces = np.asarray(mesh.faces, dtype=np.int64)
-    lines = []
+    count = len(points)
+    first = int(np.argmax(np.hypot(*(points - points.mean(axis=0)).T)))
+    second = int(np.argmax(np.hypot(*(points - points[first]).T)))
+    keep = {first, second}
 
-    for face_idx in faces:
-        tri = vertices[face_idx]
-        points = []
-        for a, b in ((tri[0], tri[1]), (tri[1], tri[2]), (tri[2], tri[0])):
-            za, zb = float(a[2]), float(b[2])
-            if (za < z < zb) or (zb < z < za):
-                t = (z - za) / (zb - za)
-                q = a + t * (b - a)
-                points.append(np.round(q[:2], 6))
-        if len(points) == 2 and np.linalg.norm(points[0] - points[1]) > 1e-8:
-            lines.append(LineString(points))
+    def stretch(i, j):
+        return [(i + k) % count for k in range(((j - i) % count) + 1)]
 
-    if not lines:
-        raise ValueError(f"No stabilizer section at z={z:.6f}.")
-
-    polygons_found = list(polygonize(unary_union(lines)))
-    if not polygons_found:
-        raise ValueError(f"Could not polygonize stabilizer section at z={z:.6f}.")
-
-    poly = max(polygons_found, key=lambda p: p.area)
-    if not poly.is_valid or poly.area <= 1e-6:
-        raise ValueError(f"Invalid stabilizer section at z={z:.6f}.")
-    poly = remove_collinear(poly)
-    if not poly.is_valid:
-        raise ValueError(f"Cleaned stabilizer section at z={z:.6f} is invalid.")
-    return poly
-
-
-def stabilizer_template(path: Path):
-    mesh = trimesh.load(path, force="mesh")
-    if mesh.is_empty:
-        raise ValueError(f"Stabilizer STL is empty: {path}")
-
-    zmin = float(mesh.bounds[0, 2])
-    zmax = float(mesh.bounds[1, 2])
-    if zmax <= zmin:
-        raise ValueError("Stabilizer STL has zero Z thickness.")
-
-    levels = clustered_z_levels(mesh)
-    intervals = []
-    for a, b in zip(levels[:-1], levels[1:]):
-        if b - a < 0.002:
+    stack = [stretch(first, second), stretch(second, first)]
+    while stack:
+        path = stack.pop()
+        if len(path) < 3:
             continue
-        poly = triangle_section_polygon(mesh, (a + b) * 0.5)
-        intervals.append({"z0": a, "z1": b, "poly": poly})
+        start, end = points[path[0]], points[path[-1]]
+        direction = end - start
+        length = float(np.hypot(*direction))
+        offsets = points[path[1:-1]] - start
+        distance = np.abs(direction[0] * offsets[:, 1] - direction[1] * offsets[:, 0]) / length
+        worst = int(np.argmax(distance))
+        if distance[worst] > tolerance:
+            split = worst + 1
+            keep.add(path[split])
+            stack.append(path[:split + 1])
+            stack.append(path[split:])
+    return sorted(keep, key=lambda index: (index - first) % count)
 
-    if not intervals:
-        raise ValueError("Could not reconstruct stabilizer Z profile.")
 
-    base = intervals[0]["poly"]
-    ext = np.asarray(base.bounds[2:4]) - np.asarray(base.bounds[0:2])
-    all_ext = [np.asarray(i["poly"].bounds[2:4]) -
-               np.asarray(i["poly"].bounds[0:2]) for i in intervals]
-    long_axis = 1 if ext[1] >= ext[0] else 0
-    template_long = max(float(e[long_axis]) for e in all_ext)
+def _ring_is_clean(ring, z_lo, z_hi):
+    """No two neighbouring corners fall together at either end of the layer."""
+    for z in (z_lo, z_hi):
+        points = ring.at(z)
+        if np.hypot(*(points - np.roll(points, -1, axis=0)).T).min() < MIN_CORNER_DISTANCE:
+            return False
+    return True
 
-    return {
-        "zmin": zmin,
-        "zmax": zmax,
-        "thickness": zmax - zmin,
-        "intervals": intervals,
-        "long_axis": long_axis,
-        "template_long": template_long,
-        "vertices": sum(len(i["poly"].exterior.coords) - 1 for i in intervals),
-    }
+
+def _wall_movement(ring, z_lo, z_hi):
+    """Largest distance the walls of a contour move between two heights."""
+    lower = Polygon(ring.at(z_lo)).buffer(0).boundary
+    upper = Polygon(ring.at(z_hi)).buffer(0).boundary
+    return float(lower.hausdorff_distance(upper))
+
+
+def _interval_rings(vertices, faces, z_lo, z_hi, name):
+    """Closed contours of the template between two neighbouring levels.
+
+    Between two levels no vertex lies inside, so every wall is a planar strip
+    from the lower to the upper level.  The contour is read halfway up and
+    chained through the mesh edges it crosses.  Returns ``(rings, dangling)``;
+    ``dangling`` lists contour points that belong to no closed contour (a mesh
+    defect), which are left out.
+    """
+    z_mid = 0.5 * (z_lo + z_hi)
+    z = vertices[:, 2]
+    positions, lines = [], []
+
+    def node(point, edge):
+        for k, q in enumerate(positions):
+            if abs(point[0] - q[0]) <= POINT_TOLERANCE and abs(point[1] - q[1]) <= POINT_TOLERANCE:
+                return k
+        positions.append(point)
+        lines.append(np.array([vertices[edge[0]], vertices[edge[1]]]))
+        return len(positions) - 1
+
+    adjacency = {}
+    for face in faces:
+        crossings = []
+        for i, j in ((face[0], face[1]), (face[1], face[2]), (face[2], face[0])):
+            if (z[i] < z_mid < z[j]) or (z[j] < z_mid < z[i]):
+                t = (z_mid - z[i]) / (z[j] - z[i])
+                crossings.append(node(vertices[i, :2] + t * (vertices[j, :2] - vertices[i, :2]), (i, j)))
+        if len(crossings) == 2 and crossings[0] != crossings[1]:
+            a, b = crossings
+            adjacency.setdefault(a, set()).add(b)
+            adjacency.setdefault(b, set()).add(a)
+
+    dangling = []
+    changed = True
+    while changed:
+        changed = False
+        for n in [n for n, nb in adjacency.items() if len(nb) < 2]:
+            if n not in adjacency:
+                continue
+            dangling.append(positions[n])
+            for m in adjacency[n]:
+                adjacency[m].discard(n)
+            del adjacency[n]
+            changed = True
+
+    for n, neighbours in adjacency.items():
+        if len(neighbours) != 2:
+            x, y = positions[n]
+            raise TemplateError(
+                f"{name}: the contour branches at x={x:.6f}, y={y:.6f} "
+                f"(z={z_mid:.4f}); the template mesh is ambiguous there")
+
+    orders, seen = [], set()
+    for start in adjacency:
+        if start in seen:
+            continue
+        order, previous, current = [], None, start
+        while True:
+            order.append(current)
+            seen.add(current)
+            first, second = sorted(adjacency[current])
+            following = first if first != previous else second
+            previous, current = current, following
+            if current == start:
+                break
+        orders.append(order)
+
+    polygons_found = [Polygon([positions[n] for n in order]) for order in orders]
+    for i, outer in enumerate(polygons_found):
+        for j, inner in enumerate(polygons_found):
+            if i != j and outer.contains(inner):
+                raise TemplateError(
+                    f"{name}: nested contours at z={z_mid:.4f} are not supported "
+                    "(a contour inside another one)")
+    rings, relaxed, straightened = [], [], []
+    for order in orders:
+        points = np.array([positions[n] for n in order])
+        for factor in (1,) + FLAT_WALL_RELAXATIONS:
+            tolerance = FLAT_WALL_TOLERANCE * factor
+            corners = _corner_indices(points, tolerance)
+            ring = Ring(np.array([lines[order[i]] for i in corners]))
+            if len(corners) >= 3 and _ring_is_clean(ring, z_lo, z_hi):
+                break
+        else:
+            moved = _wall_movement(Ring(np.array([lines[n] for n in order])), z_lo, z_hi)
+            if moved > STRAIGHT_LAYER_TOLERANCE:
+                raise TemplateError(
+                    f"{name}: corners of a slanted contour between z={z_lo:.4f} and z={z_hi:.4f} "
+                    "fall together inside the layer and the layer cannot be lofted; check the template")
+            tolerance = FLAT_WALL_TOLERANCE * FLAT_WALL_RELAXATIONS[-1]
+            corners = _corner_indices(points, tolerance)
+            ring = Ring(np.array([[[*positions[order[i]], z_lo], [*positions[order[i]], z_hi]]
+                                  for i in corners]))
+            straightened.append(moved)
+            factor = 1
+        if factor > 1:
+            relaxed.append(tolerance)
+        rings.append(ring)
+    return rings, dangling, relaxed, straightened
+
+
+def _bounding_box_warnings(name, kind, bounds):
+    spec_x, spec_y = TEMPLATE_BOUNDING_BOXES[kind]
+    extents = bounds[1] - bounds[0]
+    problems = []
+    for axis, label, spec in ((0, "x", spec_x), (1, "y", spec_y)):
+        deviation = abs(extents[axis] - spec)
+        if deviation > BOUNDING_BOX_TOLERANCE:
+            problems.append(f"{name}: bounding box {label} is {extents[axis]:.4f} mm, the fixed "
+                            f"size is {spec} mm (off by {deviation:.4f} mm)")
+    for value, spec, label in ((bounds[0][2], PLATE_Z_MIN, "bottom"), (bounds[1][2], PLATE_Z_MAX, "top")):
+        deviation = abs(value - spec)
+        if deviation > BOUNDING_BOX_TOLERANCE:
+            problems.append(f"{name}: bounding box {label} is at z={value:.4f} mm, the fixed value "
+                            f"is {spec} mm (off by {deviation:.4f} mm)")
+    return problems
+
+
+def load_template(path, kind):
+    """Read a template STL (kind: socket, stabilizer or spacebar).
+
+    The cutout is described layer by layer between the horizontal planes of the
+    mesh.  Nothing is rounded, simplified or left out silently: every contour
+    of every layer is kept, and defects of the mesh and deviations from the
+    fixed bounding box are returned as ``Template.warnings``.
+    """
+    path = Path(path)
+    vertices, faces, bounds = _exact_mesh(path)
+    levels = _levels(vertices[:, 2])
+    found, warnings = [], []
+    for z_lo, z_hi in zip(levels[:-1], levels[1:]):
+        rings, dangling, relaxed, straightened = _interval_rings(
+            vertices, faces, z_lo, z_hi, path.name)
+        found.append((z_lo, z_hi, rings))
+        if straightened:
+            warnings.append(
+                f"{path.name}: between z={z_lo:.4f} and z={z_hi:.4f} the walls of {len(straightened)} "
+                f"contour(s) lean or twist by up to {max(straightened) * 1000:.1f} um (a defect of the "
+                "template); the layer was built as a straight prism from its section at half height")
+        if relaxed:
+            warnings.append(
+                f"{path.name}: between z={z_lo:.4f} and z={z_hi:.4f} corners of the mesh fall together "
+                f"inside the layer (a defect of the template); {len(relaxed)} contour(s) were simplified "
+                f"with a tolerance of {max(relaxed) * 1000:.1f} um instead of {FLAT_WALL_TOLERANCE * 1000:.2f} um")
+        if dangling:
+            x, y = dangling[0]
+            warnings.append(
+                f"{path.name}: {len(dangling)} dangling contour point(s) between z={z_lo:.4f} and "
+                f"z={z_hi:.4f} were left out (first at x={x:.6f}, y={y:.6f}); the mesh is not closed there")
+    while found and not found[0][2]:
+        found.pop(0)
+    while found and not found[-1][2]:
+        found.pop()
+    if not found:
+        raise TemplateError(f"{path.name}: no cutout contour found")
+    if any(not rings for _, _, rings in found):
+        raise TemplateError(f"{path.name}: a layer without a contour lies between two layers with one")
+    warnings += _bounding_box_warnings(path.name, kind, bounds)
+    return Template(path, kind, bounds, [Layer(a, b, r) for a, b, r in found], warnings)
 
 
 def polygon_wires(poly):
@@ -415,80 +561,49 @@ def extruded_footprint(footprint, z, height):
     return solids[0] if len(solids) == 1 else cq.Compound.makeCompound(solids)
 
 
-def square_wire(size, z, cx=0.0, cy=0.0):
-    return (cq.Workplane("XY")
-            .workplane(offset=z)
-            .center(cx, cy)
-            .rect(size, size)
-            .wire().val())
+def _ring_wire(points, z):
+    return cq.Wire.makePolygon([cq.Vector(float(x), float(y), z) for x, y in points], close=True)
 
 
-def cavity_for_center(profile, cx, cy):
-    z0 = profile["zmin"] - EPS
-    z1 = profile["zmax"] + EPS
-    lower = profile["lower_size"]
-    narrow = profile["min_size"]
-    top = profile["top_size"]
-    ts = profile["taper_start"]
-    te = profile["taper_end"]
-    cs = profile["collar_start"]
-    solids = []
+def template_cutter(template: Template, matrix):
+    """CAD cutter of a template around the origin (= switch centre).
 
-    if ts > z0 + 1e-4:
-        solids.append(cq.Solid.extrudeLinear(
-            square_wire(lower, z0, cx, cy), [], cq.Vector(0, 0, ts - z0)))
-    if te > ts + 1e-4 and abs(lower - narrow) > SIZE_TOL:
-        solids.append(cq.Solid.makeLoft([
-            square_wire(lower, ts, cx, cy),
-            square_wire(narrow, te, cx, cy)], ruled=True))
-    if cs > te + 1e-4:
-        solids.append(cq.Solid.extrudeLinear(
-            square_wire(narrow, te, cx, cy), [], cq.Vector(0, 0, cs - te)))
-    if z1 > cs + 1e-4:
-        solids.append(cq.Solid.extrudeLinear(
-            square_wire(top, cs, cx, cy), [], cq.Vector(0, 0, z1 - cs)))
-
-    result = solids[0]
-    for s in solids[1:]:
-        result = result.fuse(s)
-    return result
-
-
-def stabilizer_cavity(template, cx, cy, matrix):
-    """Build the combined stabilizer + switch cavity.
-
-    ``matrix`` is the exact linear 2D map (a, b, d, e) applied to the template
-    around its origin (= switch centre): the per-stabilizer rotation followed
-    by the whole-plate transform.  ``(cx, cy)`` is the switch centre in the
-    plate frame, i.e. already transformed.
+    ``matrix`` is the exact linear 2D map (a, b, d, e) applied to the cutout:
+    the per-stabilizer rotation followed by the whole-plate transform (for the
+    socket only the whole-plate transform).  Each layer is a ruled loft from
+    its lower to its upper contour, so vertical walls stay vertical and slanted
+    walls stay slanted, for every template alike.  Below the first and above
+    the last layer a straight prism of EPS reaches out of the plate, so that
+    the cut never leaves coplanar faces; it lies outside the plate and does not
+    change it.
     """
-    intervals = template["intervals"]
     a, b, d, e = matrix
-    transformed = []
-    for i in intervals:
-        poly = affine_transform(i["poly"], [a, b, d, e, 0, 0])
-        # A mirror flips the ring direction; extrusion needs counter-clockwise.
-        transformed.append(orient(poly, 1.0))
+    linear = np.array([[a, d], [b, e]], dtype=float)      # row vectors: p @ linear
 
-    # Preserve each measured STL section as a clean prismatic CAD segment.
-    # This avoids fragile high-order boolean lofts while retaining the actual
-    # stabilizer profile and its upper collar.
+    def loft(name, lower, z0, upper, z1):
+        area = 0.5 * np.sum(lower[:, 0] * np.roll(lower[:, 1], -1)
+                            - np.roll(lower[:, 0], -1) * lower[:, 1])
+        if area < 0:                  # a mirror reverses the ring; extrusion needs counter-clockwise
+            lower, upper = lower[::-1], upper[::-1]
+        wires = [_ring_wire(lower, z0), _ring_wire(upper, z1)]
+        if len(wires[0].Edges()) != len(wires[1].Edges()):
+            raise TemplateError(
+                f"{name}: contour points lie closer together than CadQuery resolves, "
+                "so the layer cannot be lofted; check the template")
+        return cq.Solid.makeLoft(wires, ruled=True)
+
     solids = []
-    for i, interval in enumerate(intervals):
-        z0 = interval["z0"]
-        z1 = interval["z1"]
-        if i == 0:
-            z0 -= EPS
-        if i == len(intervals) - 1:
-            z1 += EPS
-        solids.append(cq.Solid.extrudeLinear(
-            face(transformed[i]), cq.Vector(0, 0, z1 - z0)
-        ).located(cq.Location(cq.Vector(0, 0, z0))))
-
-    result = solids[0]
-    for solid in solids[1:]:
-        result = result.fuse(solid)
-    return result.located(cq.Location(cq.Vector(cx, cy, 0)))
+    last = len(template.layers) - 1
+    for index, layer in enumerate(template.layers):
+        name = f"{template.path.name} (z={layer.z0:.4f}..{layer.z1:.4f})"
+        for ring in layer.rings:
+            lower, upper = ring.at(layer.z0) @ linear, ring.at(layer.z1) @ linear
+            solids.append(loft(name, lower, layer.z0, upper, layer.z1))
+            if index == 0:
+                solids.append(loft(name, lower, layer.z0 - EPS, lower, layer.z0))
+            if index == last:
+                solids.append(loft(name, upper, layer.z1, upper, layer.z1 + EPS))
+    return solids[0].fuse(*solids[1:]) if len(solids) > 1 else solids[0]
 
 
 def is_spacebar_key(k):
@@ -545,8 +660,8 @@ class PlateModel:
     footprint: object   # shapely (Multi)Polygon of the plate outline
     cavities: list      # one CAD solid per key, same order as ``keys``
     plate: object       # CAD solid with all cavities cut out
-    profile: dict
-    stab: dict
+    templates: dict     # the templates that were used, by kind
+    warnings: list      # problems found in the templates
     spacebar_path: Path
     matrix: tuple       # linear part of the whole-plate transform
 
@@ -571,11 +686,11 @@ def build_plate_model(kle_path: Path, socket_path: Path, stabilizer_path: Path,
     if not keys:
         raise ValueError("KLE JSON contains no keys.")
 
-    profile = socket_profile(socket_path)
-    stab = stabilizer_template(stabilizer_path)
     spacebar_path = (spacebar_centered_path if spacebar_position == "centered"
                      else spacebar_off_centered_path)
-    spacebar_stab = stabilizer_template(spacebar_path)
+    template_paths = {"socket": socket_path, "stabilizer": stabilizer_path,
+                      "spacebar": spacebar_path}
+    templates = {}
 
     gm = global_matrix(orientation)
     a, b, d, e = gm
@@ -595,23 +710,26 @@ def build_plate_model(kle_path: Path, socket_path: Path, stabilizer_path: Path,
         cx, cy = apply_matrix(gm, *switch_center(k))
         centers.append((cx - minx, cy - miny))
 
-    plate = extruded_footprint(footprint, profile["zmin"], profile["thickness"])
+    plate = extruded_footprint(footprint, PLATE_Z_MIN, PLATE_Z_MAX - PLATE_Z_MIN)
 
-    kinds, rotations, cavities = [], [], []
+    # Socket, stabilizer and spacebar cutouts are built by the same code.  The
+    # templates are used exactly as supplied (nothing is scaled); the spacebar
+    # templates keep their internal switch position (centered/off-centered).
+    kinds, rotations, cavities, cutters = [], [], [], {}
     for k, (cx, cy) in zip(keys, centers):
         kind = classify_key(k, stabilizer_min_unit)
         rotation = stabilizer_rotation(k, orientation, stabilizer_min_unit)
         kinds.append(kind)
         rotations.append(rotation)
-        if kind == KIND_NORMAL:
-            cavities.append(cavity_for_center(profile, cx, cy))
-            continue
+        template_kind = {KIND_NORMAL: "socket", KIND_STABILIZED: "stabilizer",
+                         KIND_SPACEBAR: "spacebar"}[kind]
+        if template_kind not in templates:
+            templates[template_kind] = load_template(template_paths[template_kind], template_kind)
         # Step 1 (rotation about the switch centre), then step 2 (whole plate).
-        m = matrix_multiply(gm, rotation_matrix(rotation))
-        # The templates are used exactly as supplied (no scaling); the spacebar
-        # templates keep their internal switch position (centered/off-centered).
-        template = spacebar_stab if kind == KIND_SPACEBAR else stab
-        cavities.append(stabilizer_cavity(template, cx, cy, m))
+        m = gm if rotation is None else matrix_multiply(gm, rotation_matrix(rotation))
+        if (template_kind, m) not in cutters:
+            cutters[(template_kind, m)] = template_cutter(templates[template_kind], m)
+        cavities.append(cutters[(template_kind, m)].moved(cq.Location(cq.Vector(cx, cy, 0))))
 
     if not cavities:
         raise RuntimeError("No cavities generated.")
@@ -626,8 +744,9 @@ def build_plate_model(kle_path: Path, socket_path: Path, stabilizer_path: Path,
 
     return PlateModel(keys=keys, kinds=kinds, rotations=rotations, centers=centers,
                       footprint=footprint, cavities=cavities, plate=result,
-                      profile=profile, stab=stab, spacebar_path=spacebar_path,
-                      matrix=gm)
+                      templates=templates,
+                      warnings=[w for t in templates.values() for w in t.warnings],
+                      spacebar_path=spacebar_path, matrix=gm)
 
 
 def check_exported_stl(stl_path: Path, expected_bounds=None,
@@ -712,6 +831,16 @@ def check_exported_stl(stl_path: Path, expected_bounds=None,
     return mesh, problems
 
 
+def report_template_warnings(warnings):
+    """Print problems found in the templates; the plate is built from them as they are."""
+    if not warnings:
+        return
+    print("\nWARNING: the template STLs are not exact. The plate is built from them exactly "
+          "as they are:", file=sys.stderr)
+    for warning in warnings:
+        print(f"  - {warning}", file=sys.stderr)
+
+
 def report_stl_check(mesh, problems, stl_path: Path):
     """Print the result of ``check_exported_stl``; problems become a warning."""
     if not problems:
@@ -740,7 +869,7 @@ def generate(kle_path: Path, socket_path: Path, stabilizer_path: Path,
         spacebar_off_centered_path, spacebar_position=spacebar_position,
         margin=margin, stabilizer_min_unit=stabilizer_min_unit,
         orientation=orientation)
-    keys, profile, stab = model.keys, model.profile, model.stab
+    keys = model.keys
 
     output.parent.mkdir(parents=True, exist_ok=True)
     cq.exporters.export(model.plate, str(output), exportType="STL",
@@ -765,9 +894,10 @@ def generate(kle_path: Path, socket_path: Path, stabilizer_path: Path,
     print(f"Keys:            {len(keys)}")
     print(f"Stabilizer keys: {model.kinds.count(KIND_STABILIZED)}")
     print(f"Spacebar keys:   {model.kinds.count(KIND_SPACEBAR)}")
-    print(f"Plate thickness: {profile['thickness']:.4f} mm")
-    print(f"Normal narrow:   {profile['min_size']:.4f} mm")
-    print(f"Stab section:    {stab['vertices']} vertices, {stab['template_long']:.4f} mm long")
+    print(f"Plate thickness: {PLATE_Z_MAX - PLATE_Z_MIN:.4f} mm")
+    for kind, template in model.templates.items():
+        print(f"Template {kind + ':':11s} {template.path.name}, {len(template.layers)} layers, "
+              f"{template.vertex_count} contour vertices")
     print("Caps Lock:       normal switch cutout")
     print(f"Stab rotation:   horizontal {orientation.stab_rotation_horizontal} deg, "
           f"vertical {orientation.stab_rotation_vertical} deg, "
@@ -778,9 +908,10 @@ def generate(kle_path: Path, socket_path: Path, stabilizer_path: Path,
               f"matrix {model.matrix}")
     else:
         print("Plate transform: none (--no-global-transform)")
+    report_template_warnings(model.warnings)
     mesh, problems = check_exported_stl(output, expected_bounds=expected_bounds)
     report_stl_check(mesh, problems, output)
-    print("\nDone." if not problems else "\nDone, with warnings.")
+    print("\nDone." if not (problems or model.warnings) else "\nDone, with warnings.")
 
 
 def main():
