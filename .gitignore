@@ -17,4 +17,9 @@ __pycache__/
 !stabilzer_spacebar.stl
 !stabilzer_spacebar_centered.stl
 !stabilzer_spacebar_off-center.stl
+!stabilzer_spacebar_off-center_left.stl
+!stabilzer_spacebar_off-center_right.stl
 !fat_plate_export_example.stl
+
+old_STLs/*
+new_STLs/*
