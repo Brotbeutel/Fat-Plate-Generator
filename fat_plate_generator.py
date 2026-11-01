@@ -208,6 +208,16 @@ def local_key_shape(k):
     return g
 
 
+def local_key_rectangles(k):
+    """The rectangles a key is made of (the key and its second part), in key units."""
+    rectangles = [box(0, 0, k["w"], k["h"]),
+                  box(k["x2"], k["y2"], k["x2"] + k["w2"], k["y2"] + k["h2"])]
+    if abs(k["r"]) > 1e-12:
+        rectangles = [rotate(r, k["r"], origin=(k["rx"] - k["x"], k["ry"] - k["y"]),
+                             use_radians=False) for r in rectangles]
+    return rectangles
+
+
 def switch_center(k):
     cx = k["x"] + k["w"] / 2.0
     cy = k["y"] + k["h"] / 2.0
@@ -567,6 +577,50 @@ def polygons(geom):
     raise ValueError(f"Unexpected polygon geometry: {geom.geom_type}")
 
 
+def gap_bridges(rectangles):
+    """Rectangles that fill the space between keys that face each other.
+
+    Two keys face each other if one lies to the right of (or above) the other
+    and their extents overlap along the other axis.  The bridge spans the
+    whole space between them, over the overlap.  This closes gaps of any width
+    between keys of the same row or column, for example between Esc and F1.
+    """
+    boxes = [r.bounds for r in rectangles]
+    bridges = []
+    for i, (ax0, ay0, ax1, ay1) in enumerate(boxes):
+        for j, (bx0, by0, bx1, by1) in enumerate(boxes):
+            if i == j:
+                continue
+            low, high = max(ay0, by0), min(ay1, by1)
+            if bx0 - ax1 > 1e-9 and high - low > 1e-9:        # B is right of A
+                bridges.append(box(ax1, low, bx0, high))
+            low, high = max(ax0, bx0), min(ax1, bx1)
+            if by0 - ay1 > 1e-9 and high - low > 1e-9:        # B is above A
+                bridges.append(box(low, ay1, high, by0))
+    return bridges
+
+
+def plate_footprint(keys, matrix, margin, single_mesh=False):
+    """Outline of the plate: the keys grown by ``margin`` (before the shift to (0, 0)).
+
+    With ``single_mesh`` the space between keys that face each other is filled
+    first (``gap_bridges``); whatever is still separate or enclosed afterwards is
+    joined by ``connect_footprint``.
+    """
+    a, b, d, e = matrix
+
+    def place(shape, k):
+        shape = translate(shape, xoff=k["x"], yoff=k["y"])
+        shape = scale(shape, xfact=UNIT, yfact=UNIT, origin=(0, 0))
+        return affine_transform(shape, [a, b, d, e, 0, 0])
+
+    shapes = [place(local_key_shape(k), k) for k in keys]
+    if single_mesh:
+        shapes += gap_bridges([place(r, k) for k in keys for r in local_key_rectangles(k)])
+    footprint = unary_union(shapes).buffer(margin, join_style=2)
+    return connect_footprint(footprint) if single_mesh else footprint
+
+
 def connect_footprint(footprint):
     """Return the plate outline as ONE polygon without voids.
 
@@ -733,10 +787,10 @@ def build_plate_model(kle_path: Path, socket_path: Path, stabilizer_path: Path,
     rotated, never mirrored.
 
     ``spacebar_paths`` maps every name in ``SPACEBAR_POSITIONS`` to a template.
-    With ``single_mesh`` the gaps between separated parts of the plate (for
-    example between F-row, main block and numpad) and voids enclosed by the
-    outline are filled, so the plate is one connected piece without gaps;
-    otherwise those parts stay separate.
+    With ``single_mesh`` the space between keys that face each other and voids
+    enclosed by the outline are filled, so the plate is one connected piece
+    without gaps (see ``plate_footprint``); otherwise the plate follows the keys
+    and falls apart where they are far from each other.
     """
     orientation = orientation or OrientationConfig()
     data = json.loads(kle_path.read_text(encoding="utf-8"))
@@ -754,17 +808,7 @@ def build_plate_model(kle_path: Path, socket_path: Path, stabilizer_path: Path,
 
     gm = global_matrix(orientation)
     pm = plate_rotation_matrix(orientation)
-    a, b, d, e = gm
-    shapes = []
-    for k in keys:
-        s = local_key_shape(k)
-        s = translate(s, xoff=k["x"], yoff=k["y"])
-        s = scale(s, xfact=UNIT, yfact=UNIT, origin=(0, 0))
-        shapes.append(affine_transform(s, [a, b, d, e, 0, 0]))
-
-    footprint = unary_union(shapes).buffer(margin, join_style=2)
-    if single_mesh:
-        footprint = connect_footprint(footprint)
+    footprint = plate_footprint(keys, gm, margin, single_mesh)
     minx, miny = footprint.bounds[0], footprint.bounds[1]
     footprint = translate(footprint, xoff=-minx, yoff=-miny)
 
