@@ -1,6 +1,8 @@
 """Option --single-mesh: the plate as one connected piece without gaps."""
 from __future__ import annotations
 
+import json
+
 import pytest
 from shapely.geometry import Point, box
 from shapely.ops import unary_union
@@ -57,6 +59,76 @@ def test_enclosed_voids_are_filled():
     filled = fpg.connect_footprint(ring)
     assert not list(filled.interiors)
     assert filled.area == pytest.approx(900.0, abs=1e-6)
+
+
+# --------------------------------------------------------------------------
+# gap_bridges(): the space between keys that face each other
+# --------------------------------------------------------------------------
+def bridge_area(rectangles):
+    return unary_union(fpg.gap_bridges(rectangles)).area
+
+
+def test_keys_in_one_row_get_a_bridge_over_the_whole_gap():
+    bridges = fpg.gap_bridges([box(0, 0, 10, 10), box(30, 0, 40, 10)])
+    assert len(bridges) == 1
+    assert bridges[0].bounds == pytest.approx((10, 0, 30, 10))
+
+
+def test_keys_in_one_column_get_a_bridge_too():
+    bridges = fpg.gap_bridges([box(0, 0, 10, 10), box(0, 25, 10, 35)])
+    assert len(bridges) == 1
+    assert bridges[0].bounds == pytest.approx((0, 10, 10, 25))
+
+
+def test_the_bridge_covers_only_the_overlap_of_the_two_keys():
+    bridges = fpg.gap_bridges([box(0, 0, 10, 10), box(20, 5, 30, 25)])
+    assert bridges[0].bounds == pytest.approx((10, 5, 20, 10))
+
+
+def test_touching_and_diagonal_keys_get_no_bridge():
+    assert fpg.gap_bridges([box(0, 0, 10, 10), box(10, 0, 20, 10)]) == []       # touching
+    assert fpg.gap_bridges([box(0, 0, 10, 10), box(20, 10, 30, 20)]) == []      # only diagonal
+    assert fpg.gap_bridges([box(0, 0, 10, 10)]) == []
+
+
+# --------------------------------------------------------------------------
+# plate_footprint(): the outline, with and without the option
+# --------------------------------------------------------------------------
+def keys_of(text):
+    return fpg.parse_kle(json.loads(text))
+
+
+def test_a_gap_between_two_keys_with_a_key_below_is_closed():
+    """Esc ... F1 above a row of keys: without the option there is a bay at the
+    edge, with it the plate is a plain rectangle."""
+    keys = keys_of('[["Esc", {"x": 1}, "F1"], [{"y": 0.5}, "a", "b", "c"]]')
+    plain = fpg.plate_footprint(keys, fpg.IDENTITY_MATRIX, fpg.DEFAULT_MARGIN, single_mesh=False)
+    joined = fpg.plate_footprint(keys, fpg.IDENTITY_MATRIX, fpg.DEFAULT_MARGIN, single_mesh=True)
+    assert joined.geom_type == "Polygon" and not list(joined.interiors)
+    assert joined.area == pytest.approx(box(*joined.bounds).area, abs=1e-6)       # a rectangle
+    assert plain.area < joined.area - 100.0                                       # the bay was there
+
+
+def test_the_gap_between_esc_and_f1_of_the_100_percent_layout_is_closed(repo_root):
+    keys = fpg.parse_kle(json.loads((repo_root / "keyboard-layout.json").read_text(encoding="utf-8")))
+    by_label = {k["label"]: k for k in keys}
+    (x0, y0), (x1, y1) = (fpg.switch_center(by_label["Esc"]), fpg.switch_center(by_label["F1"]))
+    middle = Point((x0 + x1) / 2, (y0 + y1) / 2)         # in the gap between the two keys
+    plain = fpg.plate_footprint(keys, fpg.IDENTITY_MATRIX, fpg.DEFAULT_MARGIN, single_mesh=False)
+    joined = fpg.plate_footprint(keys, fpg.IDENTITY_MATRIX, fpg.DEFAULT_MARGIN, single_mesh=True)
+    assert not plain.contains(middle)
+    assert joined.contains(middle)
+    assert joined.geom_type == "Polygon" and not list(joined.interiors)
+
+
+def test_the_step_above_the_numpad_stays(repo_root):
+    """No key faces the numpad from above, so nothing is filled there."""
+    keys = fpg.parse_kle(json.loads((repo_root / "keyboard-layout.json").read_text(encoding="utf-8")))
+    by_label = {k["label"]: k for k in keys}
+    cx, cy = fpg.switch_center(by_label["Num Lock"])
+    above = Point(cx, cy - fpg.UNIT * 1.5)                # one and a half keys above Num Lock
+    joined = fpg.plate_footprint(keys, fpg.IDENTITY_MATRIX, fpg.DEFAULT_MARGIN, single_mesh=True)
+    assert not joined.contains(above)
 
 
 # --------------------------------------------------------------------------

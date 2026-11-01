@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 ## Unreleased
 
 ### Added
-- `--single-mesh` generates the plate as one connected mesh without gaps: the gaps between separated parts (for example F-row, main block and numpad) are closed with the smallest radius that joins all parts, and voids enclosed by the outline are filled. Without the option the plate is generated as before.
+- `--single-mesh` generates the plate as one connected mesh without gaps: the space between keys that face each other (horizontally or vertically, whatever the gap: Esc and F1, F-row, main block and numpad) is filled, parts that are still separate are joined with the smallest radius that connects them, and voids enclosed by the outline are filled. Without the option the plate is generated as before.
 - `--spacebar-position off-centered-left` and `off-centered-right` (with `--spacebar-off-centered-left` / `--spacebar-off-centered-right` for the files) replace `off-centered`; the template `stabilzer_spacebar_off-center.stl` was split into `stabilzer_spacebar_off-center_left.stl` and `..._right.stl`.
 - `--stab-rotation-horizontal`, `--stab-rotation-vertical` and `--stab-rotation-spacebar` (0/90/180/270) set the stabilizer orientation per key class.
 - `--no-global-transform` skips the whole-plate transform (for comparison with older plates).

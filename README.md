@@ -432,7 +432,7 @@ By default the plate follows the keys: where the distance between two groups of 
 --single-mesh
 ```
 
-the plate is one connected mesh without gaps. The gaps between the parts are closed with the smallest radius that joins all of them (half of the longest gap that has to be bridged), so every gap up to that width is filled, and voids that are enclosed by the plate outline are filled as well. Notches at the edge that are wider than that stay open, and everywhere else the outline stays exactly where it was. The key cutouts are not affected. Without the option the plate is generated as before.
+the plate is one connected mesh without gaps. The space between two keys that face each other, horizontally or vertically, is filled over the whole gap, whatever its width (for example between Esc and F1, or between F-row, main block and numpad). Parts that are still separate after that are joined with the smallest radius that connects them, and voids that are enclosed by the plate outline are filled as well. Where no key faces another one (for example the step above the numpad of a 100% layout) the outline stays as it was. The key cutouts are not affected. Without the option the plate is generated as before.
 
 ---
 
