@@ -8,6 +8,7 @@ import pytest
 import trimesh
 
 import fat_plate_generator as fpg
+from tests.conftest import spacebar_paths
 
 
 def write_box(path, extents=(10.0, 20.0, 5.0)):
@@ -119,8 +120,7 @@ def test_generate_warns_but_still_succeeds(tmp_path, monkeypatch, capsys):
     out = tmp_path / "plate.stl"
     fpg.generate(root / "tests" / "layouts" / "stabilizer_orientation.json",
                  root / fpg.DEFAULT_SOCKET, root / fpg.DEFAULT_STABILIZER,
-                 root / fpg.DEFAULT_SPACEBAR_CENTERED, root / fpg.DEFAULT_SPACEBAR_OFF_CENTERED,
-                 output=out)
+                 spacebar_paths(root), output=out)
     captured = capsys.readouterr()
     assert out.exists() and out.stat().st_size > 0
     assert "WARNING" in captured.err and "Done, with warnings." in captured.out

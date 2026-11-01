@@ -7,18 +7,20 @@ Status: `[ ]` offen, `[~]` in Arbeit, `[x]` erledigt.
 - [x] **WP-01** Stabilizer-Orientierung + Preview/Tests
   - Orientierung zentral konfigurierbar (`OrientationConfig`: horizontal / vertical / spacebar getrennt, Ganzplatten-Transformation)
   - Preview-Tool (`tools/preview.py`) und pytest-Suite
-  - Die Defaults hat der Nutzer nach Sichtprüfung angepasst: horizontal 180°, vertical 270°, spacebar 180°, Platte 180° + Spiegelung an X (= KLE-Y-Umrechnung ohne weitere Drehung)
+  - Die Defaults hat der Nutzer nach Sichtprüfung angepasst: horizontal 180°, vertical 90°, spacebar 180°, Platte 180° + Spiegelung an X (= KLE-Y-Umrechnung ohne weitere Drehung); die Ausschnitte werden nur gedreht, nie gespiegelt
 - [~] **WP-02** Aufräumen
   - [x] Stretch-/Voxel-Reste entfernt (`--stabilizer-scale`, Skalierungscode, toter Code)
   - [x] README/Version/Dateinamen konsistent (`VERSION` im Generator, README-Titel, `switch_socket.stl`)
   - [x] Socket, Stabilizer und Spacebar werden gleich und exakt erzeugt: ein Loader, jede Schicht ein Loft (Schrägen bleiben Schrägen), alle Konturen, keine Rundungen; die alten Verfahren und ihre Toleranzen sind entfernt
   - [x] Feste Bounding Boxen je Template (nur Prüfung mit Warnung, ändern die Geometrie nie), dokumentiert in der README
+  - [x] Stabilizer-Ausschnitte werden nur gedreht, nie gespiegelt (die Spiegelung der Ganzplatten-Transformation betrifft nur Tasten und Umriss); Spacebar-Varianten links/rechts (`--spacebar-position`)
   - [x] STL-Prüfung aus `fat_plate_generator_wp1.py` übernommen (als ausdrückliche Warnung statt Abbruch), STL wird nicht mehr neu exportiert
   - [ ] KLE-Rotation (`r`) für Cavities (zurückgestellt: Design-Entscheidung nötig, wie die Cavity-Drehung mit der Ganzplatten-Transformation zusammenspielt)
-  - [ ] robustere Spacebar-/Caps-Lock-Erkennung (zurückgestellt, bis die neuen Spacebar-Templates stehen)
+  - [ ] robustere Spacebar-/Caps-Lock-Erkennung (zurückgestellt; jetzt möglich, die Spacebar-Templates stehen)
 - [ ] **WP-03** Testdruck: Mini-Testplatte drucken, Passung und Toleranzen prüfen
-- [ ] **WP-04** Layout-Features
-  - F-Row als ein Mesh
+- [~] **WP-04** Layout-Features
+  - [x] Option `--single-mesh`: die Platte als ein zusammenhängendes Mesh ohne Lücken (Standard bleibt: getrennte Teile)
+  - F-Row als ein Mesh (für die ganze Platte durch `--single-mesh` abgedeckt; als eigene Option noch offen)
   - getrennte Meshes → mehrere STL-Dateien
   - Pfeilcluster-Box (gefüllte Ecken)
   - Caps-Lock-Optionen (große Aussparung, linksbündig, zentriert)
@@ -27,20 +29,17 @@ Status: `[ ]` offen, `[~]` in Arbeit, `[x]` erledigt.
 
 ## Laufend (Nutzer)
 
-- [~] **Template-Neubau**: Die Spacebar-Stabilizer (und danach `stabilizer.stl`) werden in Blender exakt neu gebaut.
-  - Ziel: Koordinaten, die in den Schichten eines Ausschnitts identisch sein sollen, sind es auch. In den Templates streuen sie bisher um 10 bis 20 nm, an einzelnen Stellen um bis zu 1 µm. Dadurch bleiben im exportierten Mesh einzelne Kanten zurück, die von vier Flächen geteilt werden, und die STL-Prüfung warnt mit `not watertight`.
-  - Bekannte Befunde, die der Generator meldet: `switch_socket.stl` ist 19,0478 mm statt 19,05 mm breit; in `stabilizer.stl` (z −5,0 … −1,8) kippt eine Wand um etwa 1 µm, und es gibt dort 1-µm-Splitter, deren Konturpunkte keine geschlossene Kontur bilden.
-  - Die festen Bounding Boxen (`TEMPLATE_BOUNDING_BOXES` im Generator, Tabelle in der README) bestätigen oder ändern: Socket 19,05 × 19,05 mm; Stabilizer 36,3875 × 19,05 mm und Spacebar 112,5889 × 19,05 mm sind die Maße der aktuellen Templates, keine bewusst gewählten Sollwerte.
-  - Nach dem Neubau: die `TEMPLATE_DEFECT`-Marker in `tests/test_plate.py` entfernen (zwei Tests). Die Warnungen zu den Templates sollen dann verschwinden. Danach prüfen, ob `FLAT_WALL_TOLERANCE` von 50 nm auf 1e-9 mm gesenkt werden kann.
-  - Danach `fat_plate_export_example.stl` mit dem aktuellen Stand neu erzeugen.
+- [x] **Template-Neubau**: Die Templates sind exakt neu gebaut (Socket 19,05 × 19,05 mm, Stabilizer 38,1 × 19,05 mm, Spacebar 114,3015 × 19,05 mm; Spacebar zusätzlich als links/rechts versetzte Varianten). Der Generator meldet keine Warnungen mehr, die Platten sind watertight, die `TEMPLATE_DEFECT`-Marker sind entfernt.
+  - `FLAT_WALL_TOLERANCE` (50 nm) lässt sich noch nicht senken: bei 1e-6 und 1e-7 ändern sich die Eckenzahlen von `stabilizer.stl` (Punkte auf geraden Wänden weichen 1e-6 bis 5e-5 mm von der Geraden ab), bei 1e-9 lässt sich `stabilizer.stl` nicht mehr loften. Möglich wäre es erst, wenn die Wände der Templates bis auf Float32-Genauigkeit exakt gerade sind.
+  - Offen: `fat_plate_export_example.stl` mit dem aktuellen Stand neu erzeugen.
 
 ## Vorschläge (nicht beauftragt)
 
-- `tools/check_templates.py`: lädt ein Template wie der Generator und listet seine Warnungen, dazu Koordinaten, die fast, aber nicht exakt gleich sind. Soll nach dem Neubau nichts mehr melden.
+- `tools/check_templates.py`: lädt ein Template wie der Generator und listet seine Warnungen, dazu Koordinaten, die fast, aber nicht exakt gleich sind. Soll bei exakten Templates nichts melden.
 - Versionen in den Requirements festschreiben, damit Ergebnisse auf verschiedenen Rechnern reproduzierbar sind.
 - Die schweren Tests (100%-Layout) per Marker abtrennbar machen, sodass ein schneller Lauf möglich ist.
 - `stabilzer_spacebar_centered.stl` ist byte-identisch mit `stabilzer_spacebar.stl` und wird vom Generator nicht gelesen. Klären, ob die Kopie bleiben soll.
-- Dateinamen `stabilzer_*.stl` → `stabilizer_*.stl` korrigieren, sobald die Templates fertig sind (betrifft Generator, Tests, README).
+- Dateinamen `stabilzer_*.stl` → `stabilizer_*.stl` korrigieren; jetzt möglich, die Templates sind fertig (betrifft Generator, Tests, README).
 
 ## Übernommene offene Punkte aus der alten TODO.txt
 

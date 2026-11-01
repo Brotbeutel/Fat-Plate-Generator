@@ -13,9 +13,9 @@ This is still a WIP, but with some 3D editing (for example Blender) you can alre
 This is not a finished product!
 
 It has not yet been tested, if the generated plate fits a real keyboard and switches in 3D-printed form. 
-Spacebar stabilizer cutouts are now supported with centered and off-centered switch-position options, which is needed for a classic Cherry G80-3000.
+Spacebar stabilizer cutouts are now supported with centered and off-centered (left or right) switch-position options, which is needed for a classic Cherry G80-3000.
 
-The template STLs are currently being rebuilt for exact geometry. Until then the generator may print the warning `not watertight` (see *Common Errors*); the STL is written anyway and can be inspected.
+If a template STL is not exact (for example one you designed yourself), the generator prints warnings (see *Common Errors*); the STL is written anyway and can be inspected.
 
 
 
@@ -30,7 +30,8 @@ The template STLs are currently being rebuilt for exact geometry. Until then the
 - `stabilizer.stl` – template for standard stabilized keys
 - `stabilzer_spacebar.stl` – centered spacebar template
 - `stabilzer_spacebar_centered.stl` – identical copy of the centered template (not read by the generator)
-- `stabilzer_spacebar_off-center.stl` – off-centered spacebar template
+- `stabilzer_spacebar_off-center_left.stl` – spacebar template with the switch left of the center
+- `stabilzer_spacebar_off-center_right.stl` – spacebar template with the switch right of the center
 - `keyboard-layout.json` – example layout
 - `KLE-exports/` – more example layouts (40%, 100% ISO and ANSI)
 - `fat_plate_export_example.stl` – example output
@@ -95,7 +96,8 @@ Fat-Plate-Generator
 ├── switch_socket.stl
 ├── stabilizer.stl
 ├── stabilzer_spacebar.stl
-├── stabilzer_spacebar_off-center.stl
+├── stabilzer_spacebar_off-center_left.stl
+├── stabilzer_spacebar_off-center_right.stl
 └── keyboard-layout.json
 ```
 
@@ -262,9 +264,9 @@ This file defines the cutout for a standard key or switch.
 
 This file contains the **switch socket + stabilizer cutout**.
 
-## `stabilzer_spacebar.stl` and `stabilzer_spacebar_off-center.stl`
+## `stabilzer_spacebar.stl`, `stabilzer_spacebar_off-center_left.stl` and `stabilzer_spacebar_off-center_right.stl`
 
-These files define the dedicated 6.25u spacebar cutout. The two templates contain the same overall spacebar geometry, but place the switch position differently.
+These files define the dedicated 6.25u spacebar cutout. The templates contain the same overall spacebar geometry, but place the switch position differently: centered, left of the center or right of the center, seen from above with the typist at the bottom of the plate.
 
 Select the desired variant with:
 
@@ -275,7 +277,13 @@ Select the desired variant with:
 or:
 
 ```powershell
---spacebar-position off-centered
+--spacebar-position off-centered-left
+```
+
+or:
+
+```powershell
+--spacebar-position off-centered-right
 ```
 
 The default is **centered**. The supplied templates are used exactly as they are; nothing is stretched, scaled or rounded.
@@ -291,8 +299,8 @@ The outer size of every template is fixed. If you design a new template (for exa
 | Template | Size X × Y | Height Z |
 | --- | --- | --- |
 | socket | 19.05 × 19.05 mm | −5.0 … 1.2 mm |
-| stabilizer | 36.3875 × 19.05 mm | −5.0 … 1.2 mm |
-| spacebar (both variants) | 112.5889 × 19.05 mm | −5.0 … 1.2 mm |
+| stabilizer | 38.1 × 19.05 mm | −5.0 … 1.2 mm |
+| spacebar (all variants) | 114.3015 × 19.05 mm | −5.0 … 1.2 mm |
 
 The plate is exactly 6.2 mm thick (z from −5.0 to 1.2); this comes from the fixed values, not from a template. 19.05 mm is the pitch of a 1u key; the lengths of the stabilizer and spacebar box are the sizes of the current templates.
 
@@ -349,10 +357,16 @@ Default: `centered`
 or:
 
 ```powershell
---spacebar-position off-centered
+--spacebar-position off-centered-left
 ```
 
-The two options select `stabilzer_spacebar.stl` or `stabilzer_spacebar_off-center.stl`.
+or:
+
+```powershell
+--spacebar-position off-centered-right
+```
+
+The three options select `stabilzer_spacebar.stl`, `stabilzer_spacebar_off-center_left.stl` or `stabilzer_spacebar_off-center_right.stl`. The switch position is seen from above with the typist at the bottom of the plate.
 
 ### Output
 
@@ -388,15 +402,19 @@ The stabilizer cutouts are asymmetric, so each of them can be turned in 90° ste
 
 ```powershell
 --stab-rotation-horizontal 180
---stab-rotation-vertical 270
+--stab-rotation-vertical 90
 --stab-rotation-spacebar 180
 ```
 
 Allowed values are `0`, `90`, `180` and `270`. The values above are the defaults. If a stabilizer faces the wrong way in your plate, change only the option of that key class.
 
+The cutouts are only turned, **never mirrored**: every cutout is the template as designed, so a left spacebar template stays a left one.
+
 ### Whole-Plate Transform
 
 KLE counts Y downwards (towards the typist), CAD counts Y upwards. The generated plate is therefore turned by 180° around Z and mirrored along X, which is the same as flipping the KLE Y axis: the plate is the layout as seen from above, with the typist side at low Y. The plate is then moved so that its bounding box starts at X = 0, Y = 0. The order is: stabilizer rotation first, then the whole-plate transform, then the move.
+
+The mirror of the whole-plate transform only moves the keys and the plate outline. The cutouts get just its rotation (they turn with the plate), so they are never mirrored.
 
 The whole-plate rotation is `global_rotation` in `OrientationConfig` (`fat_plate_generator.py`). If you want the plate turned further, change it to `90` or `270`; `90` gives the transform used in the first version of this tool.
 
@@ -405,6 +423,16 @@ To switch the transform off, for example to compare with older plates:
 ```powershell
 --no-global-transform
 ```
+
+### Plate as One Connected Mesh
+
+By default the plate follows the keys: where the distance between two groups of keys is larger than twice the margin (for example between F-row, main block and numpad of a 100% layout), the plate falls apart into separate parts. With
+
+```powershell
+--single-mesh
+```
+
+the plate is one connected mesh without gaps. The gaps between the parts are closed with the smallest radius that joins all of them (half of the longest gap that has to be bridged), so every gap up to that width is filled, and voids that are enclosed by the plate outline are filled as well. Notches at the edge that are wider than that stay open, and everywhere else the outline stays exactly where it was. The key cutouts are not affected. Without the option the plate is generated as before.
 
 ---
 
@@ -522,7 +550,7 @@ Then:
 
 ## Warning: `the template STLs are not exact`
 
-The generator found something in a template that deviates from the fixed bounding box or from a clean mesh, for example a bounding box that is 0.002 mm too small, a wall that leans by a micron, or contour points that belong to no closed contour. The plate is built from the templates exactly as they are, and every line of the warning says which file and which height is affected. Fix the template in Blender; the spacebar templates are currently being rebuilt, see `ROADMAP.md`.
+The generator found something in a template that deviates from the fixed bounding box or from a clean mesh, for example a bounding box that is 0.002 mm too small, a wall that leans by a micron, or contour points that belong to no closed contour. The plate is built from the templates exactly as they are, and every line of the warning says which file and which height is affected. Fix the template in Blender.
 
 ---
 
@@ -616,12 +644,13 @@ Currently, the generator supports in particular:
 - Spatially separated key groups
 - Stabilizer cutouts turned per key class (horizontal, vertical, spacebar)
 - CAD-based geometry
+- Exact template STLs: the exported plates are watertight
 - STL export with automatic validation
 - Top-view preview of generated plates (`tools/preview.py`)
+- Optional single connected plate without gaps (`--single-mesh`)
 
 Planned or currently in development (details in `ROADMAP.md`):
 
-- Exact template STLs (in progress), so that every plate is watertight
 - Rotated KLE keys and a more robust spacebar / Caps Lock detection
 - Layout features such as one mesh for the F-row and several STL files for separated parts
 - Rounded or beveled plate corners and standoffs

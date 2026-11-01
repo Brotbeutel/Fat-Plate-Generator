@@ -13,8 +13,8 @@ EXPECTED = {
     "2u": (fpg.KIND_STABILIZED, 180),               # horizontal
     "2.25u": (fpg.KIND_STABILIZED, 180),
     "2.75u": (fpg.KIND_STABILIZED, 180),
-    "2u vertical": (fpg.KIND_STABILIZED, 270),      # vertical
-    "ISO Enter": (fpg.KIND_STABILIZED, 270),        # 1.25 x 2 -> vertical
+    "2u vertical": (fpg.KIND_STABILIZED, 90),       # vertical
+    "ISO Enter": (fpg.KIND_STABILIZED, 90),         # 1.25 x 2 -> vertical
     "": (fpg.KIND_SPACEBAR, 180),                   # 6.25u spacebar (empty label)
 }
 
@@ -59,11 +59,11 @@ def test_horizontal_vs_vertical_rule():
 
 
 def test_documented_defaults():
-    """The defaults the project owner settled on after checking the exported
-    plate (the first version followed TODO.txt: vertical 90, plate 90 + mirror)."""
+    """The defaults after the cutouts stopped being mirrored: the same plate as
+    before for symmetric stabilizers (the mirrored pipeline needed vertical 270)."""
     cfg = OrientationConfig()
     assert cfg.stab_rotation_horizontal == 180
-    assert cfg.stab_rotation_vertical == 270
+    assert cfg.stab_rotation_vertical == 90
     assert cfg.stab_rotation_spacebar == 180
     assert cfg.global_transform
     assert cfg.global_rotation == 180

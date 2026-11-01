@@ -32,7 +32,11 @@ DEFAULT_JSON = "keyboard-layout.json"
 DEFAULT_SOCKET = "switch_socket.stl"
 DEFAULT_STABILIZER = "stabilizer.stl"
 DEFAULT_SPACEBAR_CENTERED = "stabilzer_spacebar.stl"
-DEFAULT_SPACEBAR_OFF_CENTERED = "stabilzer_spacebar_off-center.stl"
+DEFAULT_SPACEBAR_OFF_CENTERED_LEFT = "stabilzer_spacebar_off-center_left.stl"
+DEFAULT_SPACEBAR_OFF_CENTERED_RIGHT = "stabilzer_spacebar_off-center_right.stl"
+# Switch position of the spacebar template, as seen from above with the typist
+# at the bottom of the plate (x to the right).
+SPACEBAR_POSITIONS = ("centered", "off-centered-left", "off-centered-right")
 DEFAULT_OUTPUT = "fat_plate_export.stl"
 EPS = 0.02
 
@@ -71,26 +75,29 @@ class OrientationConfig:
     1. Per stabilizer: the cutout template (long axis X, wide notches towards
        -Y) is rotated about its switch centre by ``stab_rotation_*`` degrees
        (counter-clockwise, in the KLE frame).
-    2. Whole plate (footprint, switch centres, cutouts): rotated by
+    2. Whole plate: the footprint and the switch centres are rotated by
        ``global_rotation`` degrees about the origin, then mirrored along X if
        ``global_mirror_x``.  With the defaults (180 deg + mirror X) this is
        exactly the KLE -> CAD conversion (y down -> y up), (x, y) -> (x, -y),
-       without any further turn of the plate.
+       without any further turn of the plate.  The cutouts get only the
+       ROTATION of this transform, never the mirror: a mirrored stabilizer
+       would be a different part, so every cutout is the template as designed,
+       turned in steps of 90 deg.
     3. Everything is shifted so the plate's bounding box (including margin)
        starts at (0, 0).
 
     Defaults
     --------
-    horizontal 180, vertical 270, spacebar 180, whole plate 180 deg + mirror X.
+    horizontal 180, vertical 90, spacebar 180, whole plate 180 deg + mirror X.
     The stabilizer rotations are measured in the KLE frame, about the switch
     centre.  Horizontal and spacebar cutouts have their long axis along X and
     the wider side of the cutout (the template is about 0.7 mm wider towards
-    -Y) ends up towards +Y, the typist; vertical cutouts have their long axis
-    along Y.  The first version of these defaults followed the manual Blender
-    corrections of the old TODO.txt (whole plate "rotate 90 deg, mirror X",
-    vertical 90); the project owner then adjusted them after checking the
-    exported plate.  The old whole-plate transform is still available as
-    ``global_rotation=90`` (a transposition, (x, y) -> (y, x)).
+    -Y) ends up towards the typist (low Y of the plate); vertical cutouts have
+    their long axis along Y.  The values were chosen by the project owner after
+    checking the exported plate; earlier versions mirrored the cutouts with the
+    plate and therefore needed vertical 270 for the same result.  The old
+    whole-plate transform is still available as ``global_rotation=90`` (a
+    transposition, (x, y) -> (y, x)).
 
     "Rotate 180 deg, then mirror X" equals "flip KLE y".  That is the
     KLE -> CAD handedness fix and nothing else; any other ``global_rotation``
@@ -98,7 +105,7 @@ class OrientationConfig:
     """
 
     stab_rotation_horizontal: int = 180
-    stab_rotation_vertical: int = 270
+    stab_rotation_vertical: int = 90
     stab_rotation_spacebar: int = 180
     global_transform: bool = True
     global_rotation: int = 180
@@ -134,6 +141,16 @@ def global_matrix(orientation: OrientationConfig):
     if orientation.global_mirror_x:
         m = matrix_multiply(MIRROR_X_MATRIX, m)
     return m
+
+
+def plate_rotation_matrix(orientation: OrientationConfig):
+    """Rotation part of the whole-plate transform, without the mirror.
+
+    This is what the cutouts get: they turn with the plate but are never mirrored.
+    """
+    if not orientation.global_transform:
+        return IDENTITY_MATRIX
+    return rotation_matrix(orientation.global_rotation)
 
 
 def apply_matrix(matrix, x, y):
@@ -215,8 +232,8 @@ PLATE_Z_MIN = -5.0
 PLATE_Z_MAX = 1.2
 TEMPLATE_BOUNDING_BOXES = {      # x, y size in mm
     "socket": (19.05, 19.05),
-    "stabilizer": (36.3875, 19.05),
-    "spacebar": (112.5889, 19.05),
+    "stabilizer": (38.1, 19.05),
+    "spacebar": (114.3015, 19.05),
 }
 BOUNDING_BOX_TOLERANCE = 0.001   # mm; only decides whether a warning is printed
 # STL stores float32, so one horizontal plane shows up with slightly different
@@ -550,6 +567,40 @@ def polygons(geom):
     raise ValueError(f"Unexpected polygon geometry: {geom.geom_type}")
 
 
+def connect_footprint(footprint):
+    """Return the plate outline as ONE polygon without voids.
+
+    The gaps between separated parts are closed by a morphological closing
+    (grow, then shrink, both with mitre joins) with the smallest radius that
+    joins all parts: half of the longest link of the shortest tree through the
+    parts.  Gaps and notches narrower than twice that radius are filled;
+    everywhere else the outline stays exactly where it was.  Voids that are
+    enclosed by the outline are filled as well.  The key cutouts are not part of
+    the outline; they are cut out of the plate afterwards.
+    """
+    parts = polygons(footprint)
+    closed = footprint
+    if len(parts) > 1:
+        linked, longest = {0}, 0.0
+        while len(linked) < len(parts):
+            distance, nearest = min((parts[i].distance(parts[j]), j)
+                                    for i in linked for j in range(len(parts)) if j not in linked)
+            longest = max(longest, distance)
+            linked.add(nearest)
+        # A hair more than half of the longest gap: parts that are exactly as far
+        # apart as the longest link would only touch, and floating point noise
+        # decides whether they merge.
+        radius = longest / 2.0 * (1.0 + 1e-6)
+        for _ in range(50):
+            closed = footprint.buffer(radius, join_style=2).buffer(-radius, join_style=2)
+            if closed.geom_type == "Polygon":
+                break
+            radius *= 1.0001
+        else:
+            raise RuntimeError("The plate outline could not be joined into one piece.")
+    return Polygon(closed.exterior)
+
+
 def extruded_footprint(footprint, z, height):
     solids = []
     for poly in polygons(footprint):
@@ -667,10 +718,10 @@ class PlateModel:
 
 
 def build_plate_model(kle_path: Path, socket_path: Path, stabilizer_path: Path,
-                      spacebar_centered_path: Path, spacebar_off_centered_path: Path,
-                      spacebar_position="centered", margin=DEFAULT_MARGIN,
-                      stabilizer_min_unit=1.75,
-                      orientation: OrientationConfig | None = None) -> PlateModel:
+                      spacebar_paths: dict, spacebar_position="centered",
+                      margin=DEFAULT_MARGIN, stabilizer_min_unit=1.75,
+                      orientation: OrientationConfig | None = None,
+                      single_mesh=False) -> PlateModel:
     """Build the plate solid without exporting it.
 
     Transformation order (see ``OrientationConfig``): per-stabilizer rotation
@@ -678,7 +729,14 @@ def build_plate_model(kle_path: Path, socket_path: Path, stabilizer_path: Path,
     then a shift so that the plate's bounding box (including margin) starts at
     (0, 0).  Rotations and the mirror are exact integer matrices applied to
     the 2D data (footprint, switch centres, cutout sections) before anything
-    is extruded; no mirrored CAD solid is ever created.
+    is extruded; no mirrored CAD solid is ever created.  The cutouts are only
+    rotated, never mirrored.
+
+    ``spacebar_paths`` maps every name in ``SPACEBAR_POSITIONS`` to a template.
+    With ``single_mesh`` the gaps between separated parts of the plate (for
+    example between F-row, main block and numpad) and voids enclosed by the
+    outline are filled, so the plate is one connected piece without gaps;
+    otherwise those parts stay separate.
     """
     orientation = orientation or OrientationConfig()
     data = json.loads(kle_path.read_text(encoding="utf-8"))
@@ -686,13 +744,16 @@ def build_plate_model(kle_path: Path, socket_path: Path, stabilizer_path: Path,
     if not keys:
         raise ValueError("KLE JSON contains no keys.")
 
-    spacebar_path = (spacebar_centered_path if spacebar_position == "centered"
-                     else spacebar_off_centered_path)
+    if spacebar_position not in SPACEBAR_POSITIONS:
+        raise ValueError(f"spacebar_position must be one of {SPACEBAR_POSITIONS}, "
+                         f"got {spacebar_position!r}")
+    spacebar_path = Path(spacebar_paths[spacebar_position])
     template_paths = {"socket": socket_path, "stabilizer": stabilizer_path,
                       "spacebar": spacebar_path}
     templates = {}
 
     gm = global_matrix(orientation)
+    pm = plate_rotation_matrix(orientation)
     a, b, d, e = gm
     shapes = []
     for k in keys:
@@ -702,6 +763,8 @@ def build_plate_model(kle_path: Path, socket_path: Path, stabilizer_path: Path,
         shapes.append(affine_transform(s, [a, b, d, e, 0, 0]))
 
     footprint = unary_union(shapes).buffer(margin, join_style=2)
+    if single_mesh:
+        footprint = connect_footprint(footprint)
     minx, miny = footprint.bounds[0], footprint.bounds[1]
     footprint = translate(footprint, xoff=-minx, yoff=-miny)
 
@@ -725,8 +788,9 @@ def build_plate_model(kle_path: Path, socket_path: Path, stabilizer_path: Path,
                          KIND_SPACEBAR: "spacebar"}[kind]
         if template_kind not in templates:
             templates[template_kind] = load_template(template_paths[template_kind], template_kind)
-        # Step 1 (rotation about the switch centre), then step 2 (whole plate).
-        m = gm if rotation is None else matrix_multiply(gm, rotation_matrix(rotation))
+        # Step 1 (rotation about the switch centre), then step 2 (rotation of the
+        # whole plate).  The mirror of the whole-plate transform never reaches a cutout.
+        m = pm if rotation is None else matrix_multiply(pm, rotation_matrix(rotation))
         if (template_kind, m) not in cutters:
             cutters[(template_kind, m)] = template_cutter(templates[template_kind], m)
         cavities.append(cutters[(template_kind, m)].moved(cq.Location(cq.Vector(cx, cy, 0))))
@@ -858,17 +922,17 @@ def report_stl_check(mesh, problems, stl_path: Path):
 
 
 def generate(kle_path: Path, socket_path: Path, stabilizer_path: Path,
-             spacebar_centered_path: Path, spacebar_off_centered_path: Path,
-             spacebar_position="centered",
+             spacebar_paths: dict, spacebar_position="centered",
              output: Path = Path(DEFAULT_OUTPUT), margin=DEFAULT_MARGIN,
              stabilizer_min_unit=1.75,
-             orientation: OrientationConfig | None = None):
+             orientation: OrientationConfig | None = None,
+             single_mesh=False):
     orientation = orientation or OrientationConfig()
     model = build_plate_model(
-        kle_path, socket_path, stabilizer_path, spacebar_centered_path,
-        spacebar_off_centered_path, spacebar_position=spacebar_position,
+        kle_path, socket_path, stabilizer_path, spacebar_paths,
+        spacebar_position=spacebar_position,
         margin=margin, stabilizer_min_unit=stabilizer_min_unit,
-        orientation=orientation)
+        orientation=orientation, single_mesh=single_mesh)
     keys = model.keys
 
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -895,6 +959,11 @@ def generate(kle_path: Path, socket_path: Path, stabilizer_path: Path,
     print(f"Stabilizer keys: {model.kinds.count(KIND_STABILIZED)}")
     print(f"Spacebar keys:   {model.kinds.count(KIND_SPACEBAR)}")
     print(f"Plate thickness: {PLATE_Z_MAX - PLATE_Z_MIN:.4f} mm")
+    parts = len(polygons(model.footprint))
+    if single_mesh:
+        print(f"Plate shape:     one connected mesh (--single-mesh), {parts} part")
+    else:
+        print(f"Plate shape:     {parts} part(s), separated where the keys are far apart")
     for kind, template in model.templates.items():
         print(f"Template {kind + ':':11s} {template.path.name}, {len(template.layers)} layers, "
               f"{template.vertex_count} contour vertices")
@@ -922,9 +991,14 @@ def main():
     parser.add_argument("--socket", type=Path, default=base / DEFAULT_SOCKET)
     parser.add_argument("--stabilizer", type=Path, default=base / DEFAULT_STABILIZER)
     parser.add_argument("--spacebar-centered", type=Path, default=base / DEFAULT_SPACEBAR_CENTERED)
-    parser.add_argument("--spacebar-off-centered", type=Path, default=base / DEFAULT_SPACEBAR_OFF_CENTERED)
-    parser.add_argument("--spacebar-position", choices=["centered", "off-centered"], default="centered",
-                        help="Spacebar switch position: centered or off-centered.")
+    parser.add_argument("--spacebar-off-centered-left", type=Path,
+                        default=base / DEFAULT_SPACEBAR_OFF_CENTERED_LEFT)
+    parser.add_argument("--spacebar-off-centered-right", type=Path,
+                        default=base / DEFAULT_SPACEBAR_OFF_CENTERED_RIGHT)
+    parser.add_argument("--spacebar-position", choices=SPACEBAR_POSITIONS, default="centered",
+                        help="Spacebar switch position, seen from above with the typist at the "
+                             "bottom: centered, off-centered-left or off-centered-right "
+                             "(default: %(default)s).")
     parser.add_argument("--output", type=Path, default=base / DEFAULT_OUTPUT)
     parser.add_argument("--margin", type=float, default=DEFAULT_MARGIN)
     parser.add_argument("--stabilizer-min-unit", type=float, default=1.75)
@@ -939,6 +1013,10 @@ def main():
     parser.add_argument("--stab-rotation-spacebar", type=int, choices=ROTATION_CHOICES,
                         default=defaults.stab_rotation_spacebar,
                         help="rotation of the spacebar cutout in degrees (default: %(default)s)")
+    parser.add_argument("--single-mesh", action="store_true",
+                        help="close the gaps between separated parts of the plate (for example "
+                             "F-row, main block and numpad) so that the plate is one connected "
+                             "mesh; without it those parts stay separate")
     parser.add_argument("--no-global-transform", action="store_true",
                         help="skip the whole-plate transform (KLE y flip); "
                              "mainly for comparison with older output")
@@ -951,11 +1029,13 @@ def main():
 
     try:
         generate(args.json, args.socket, args.stabilizer,
-                  args.spacebar_centered, args.spacebar_off_centered,
-                  spacebar_position=args.spacebar_position,
-                  output=args.output, margin=args.margin,
-                  stabilizer_min_unit=args.stabilizer_min_unit,
-                  orientation=orientation)
+                 {"centered": args.spacebar_centered,
+                  "off-centered-left": args.spacebar_off_centered_left,
+                  "off-centered-right": args.spacebar_off_centered_right},
+                 spacebar_position=args.spacebar_position,
+                 output=args.output, margin=args.margin,
+                 stabilizer_min_unit=args.stabilizer_min_unit,
+                 orientation=orientation, single_mesh=args.single_mesh)
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         raise

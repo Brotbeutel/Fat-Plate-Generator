@@ -14,17 +14,8 @@ from shapely.ops import unary_union
 
 import fat_plate_generator as fpg
 from fat_plate_generator import OrientationConfig
-from tests.conftest import ORIENTATION_LAYOUT, build_model
+from tests.conftest import ORIENTATION_LAYOUT, build_model, spacebar_paths
 from tools import preview
-
-
-# The template STLs still carry sub-micron coordinate noise between their layers
-# (see ROADMAP.md).  It leaves a few edges shared by four faces in the exported
-# plate where two layers touch.  Tests that need a perfect mesh are marked, not
-# hidden: once the templates are exact they pass and the markers go.
-TEMPLATE_DEFECT = pytest.mark.xfail(
-    strict=False,
-    reason="template STLs are not exact yet (sub-micron noise between layers, see ROADMAP.md)")
 
 
 def footprint_parts(footprint):
@@ -176,8 +167,7 @@ def test_generate_writes_a_nonempty_stl(tmp_path):
     root = Path(fpg.__file__).parent
     fpg.generate(
         ORIENTATION_LAYOUT, root / fpg.DEFAULT_SOCKET, root / fpg.DEFAULT_STABILIZER,
-        root / fpg.DEFAULT_SPACEBAR_CENTERED, root / fpg.DEFAULT_SPACEBAR_OFF_CENTERED,
-        output=out)
+        spacebar_paths(root), output=out)
     mesh = trimesh.load(out, force="mesh")
     assert not mesh.is_empty and len(mesh.faces) > 0
     assert mesh.volume > 0
@@ -192,8 +182,7 @@ def test_generate_never_re_exports_the_stl(tmp_path, monkeypatch):
     root = Path(fpg.__file__).parent
     fpg.generate(
         ORIENTATION_LAYOUT, root / fpg.DEFAULT_SOCKET, root / fpg.DEFAULT_STABILIZER,
-        root / fpg.DEFAULT_SPACEBAR_CENTERED, root / fpg.DEFAULT_SPACEBAR_OFF_CENTERED,
-        output=tmp_path / "plate.stl")
+        spacebar_paths(root), output=tmp_path / "plate.stl")
 
 
 @pytest.mark.parametrize("mesh_name", ["orientation_mesh", "full_mesh"])
@@ -209,24 +198,10 @@ def test_exported_stl_is_closed(request, mesh_name):
     assert all(n % 2 == 0 for n in counts.values())
 
 
-@TEMPLATE_DEFECT
-def test_non_manifold_edges_only_occur_at_stabilizer_cutouts(orientation_model, orientation_mesh):
-    """Characterisation of the template defect: the layered stabilizer sections
-    touch along a few vertical edges, so those edges carry four faces.  It must
-    stay confined to stabilizer keys and never be worse than four faces."""
-    counts = edge_counts(orientation_mesh)
-    bad = [edge for edge, n in counts.items() if n != 2]
-    assert all(counts[e] == 4 for e in bad)
-    centres = np.array(orientation_model.centers)
-    for edge in bad:
-        mid = orientation_mesh.vertices[list(edge)].mean(axis=0)[:2]
-        nearest = int(np.argmin(np.hypot(*(centres - mid).T)))
-        assert orientation_model.kinds[nearest] != fpg.KIND_NORMAL
-
-
-@TEMPLATE_DEFECT
-def test_exported_stl_is_strictly_watertight(orientation_mesh):
-    assert orientation_mesh.is_watertight
+@pytest.mark.parametrize("mesh_name", ["orientation_mesh", "full_mesh"])
+def test_exported_stl_is_strictly_watertight(request, mesh_name):
+    """With exact templates the exported plate has no open and no shared edges."""
+    assert request.getfixturevalue(mesh_name).is_watertight
 
 
 # --------------------------------------------------------------------------

@@ -24,7 +24,8 @@ REAL_TEMPLATES = [
     ("switch_socket.stl", "socket"),
     ("stabilizer.stl", "stabilizer"),
     ("stabilzer_spacebar.stl", "spacebar"),
-    ("stabilzer_spacebar_off-center.stl", "spacebar"),
+    ("stabilzer_spacebar_off-center_left.stl", "spacebar"),
+    ("stabilzer_spacebar_off-center_right.stl", "spacebar"),
 ]
 
 

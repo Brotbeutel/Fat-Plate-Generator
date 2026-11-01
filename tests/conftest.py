@@ -20,14 +20,20 @@ ORIENTATION_LAYOUT = REPO_ROOT / "tests" / "layouts" / "stabilizer_orientation.j
 FULL_LAYOUT = REPO_ROOT / "keyboard-layout.json"
 
 
+def spacebar_paths(root: Path = REPO_ROOT) -> dict:
+    """The spacebar templates of the repository, by switch position."""
+    return {"centered": root / fpg.DEFAULT_SPACEBAR_CENTERED,
+            "off-centered-left": root / fpg.DEFAULT_SPACEBAR_OFF_CENTERED_LEFT,
+            "off-centered-right": root / fpg.DEFAULT_SPACEBAR_OFF_CENTERED_RIGHT}
+
+
 def build_model(layout: Path, **kwargs):
     """build_plate_model() with the repository's template STLs."""
     return fpg.build_plate_model(
         layout,
         REPO_ROOT / fpg.DEFAULT_SOCKET,
         REPO_ROOT / fpg.DEFAULT_STABILIZER,
-        REPO_ROOT / fpg.DEFAULT_SPACEBAR_CENTERED,
-        REPO_ROOT / fpg.DEFAULT_SPACEBAR_OFF_CENTERED,
+        spacebar_paths(),
         **kwargs)
 
 

@@ -32,6 +32,7 @@ python .\tools\preview.py plate.stl --layout my_layout.json --output plate.png
 
 - Keine Werte runden, auf ein Raster snappen oder glätten. Alles bleibt präzise und exakt. Ungenauigkeiten werden an der Quelle behoben (Blender-Dateien, Templates), nicht im Code kaschiert. Mängel in Templates im Bericht melden, nicht verstecken.
 - Transformationsreihenfolge: Rotation je Stabilizer um dessen Switch-Zentrum, dann Gesamttransformation um den Ursprung, dann Verschiebung, sodass die Bounding-Box bei (0, 0) beginnt. Rotationen und Spiegelung sind exakte Integer-Matrizen auf den 2D-Daten, es entstehen keine gespiegelten CAD-Körper.
+- Die Stabilizer-Ausschnitte werden nur gedreht, nie gespiegelt (die Spiegelung der Ganzplatten-Transformation gilt nur für Tasten und Plattenumriss).
 - Die Orientierungs-Defaults stehen zentral in `OrientationConfig`. Die Werte hat der Nutzer nach Sichtprüfung festgelegt; nicht ohne Auftrag ändern.
 - Die exportierte STL wird nur im Speicher geprüft, nie repariert, nach Komponenten gefiltert oder neu exportiert.
 - Socket, Stabilizer und Spacebar laufen durch denselben Code. Keine Sonderwege je Template, keine stille Glättung von Schrägen, keine Konturen weglassen.
@@ -48,7 +49,7 @@ python .\tools\preview.py plate.stl --layout my_layout.json --output plate.png
 
 - `python -m pytest` vor jedem Abschluss. Der Lauf dauert mehrere Minuten, weil das 100%-Layout einmal pro Lauf gebaut wird.
 - Neue Funktionalität bekommt Tests. Erwartungen wenn möglich aus der Konfiguration ableiten, statt Zahlen festzuschreiben.
-- Tests, die exakte Templates voraussetzen, tragen den Marker `TEMPLATE_DEFECT` (xfail, nicht strikt). Marker nur mit Begründung und Eintrag in `ROADMAP.md` setzen und entfernen, sobald die Templates exakt sind.
+- Tests, die exakte Templates voraussetzen, dürfen nur mit einem Marker (xfail, nicht strikt) versehen werden, wenn der Mangel an den Templates liegt, mit Begründung und Eintrag in `ROADMAP.md`; der Marker wird entfernt, sobald die Templates exakt sind. Derzeit gibt es keinen solchen Marker.
 
 ## Kompatibilität und Doku
 

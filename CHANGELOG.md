@@ -5,6 +5,8 @@ All notable changes to this project are documented in this file.
 ## Unreleased
 
 ### Added
+- `--single-mesh` generates the plate as one connected mesh without gaps: the gaps between separated parts (for example F-row, main block and numpad) are closed with the smallest radius that joins all parts, and voids enclosed by the outline are filled. Without the option the plate is generated as before.
+- `--spacebar-position off-centered-left` and `off-centered-right` (with `--spacebar-off-centered-left` / `--spacebar-off-centered-right` for the files) replace `off-centered`; the template `stabilzer_spacebar_off-center.stl` was split into `stabilzer_spacebar_off-center_left.stl` and `..._right.stl`.
 - `--stab-rotation-horizontal`, `--stab-rotation-vertical` and `--stab-rotation-spacebar` (0/90/180/270) set the stabilizer orientation per key class.
 - `--no-global-transform` skips the whole-plate transform (for comparison with older plates).
 - `--version` prints the version (`VERSION` in `fat_plate_generator.py`, 0.11, same as the README title).
@@ -16,6 +18,9 @@ All notable changes to this project are documented in this file.
 - Workflow files `AGENTS.md`, `ROADMAP.md`; `TODO.txt` was folded into `ROADMAP.md`.
 
 ### Changed
+- The cutouts are only turned, never mirrored: the mirror of the whole-plate transform now moves only the keys and the plate outline, the cutouts get just its rotation (`plate_rotation_matrix()`). The default vertical stabilizer rotation is 90° instead of 270° because of that; for the symmetric stabilizers the plate is unchanged.
+- Fixed bounding boxes: stabilizer 38.1 × 19.05 mm, spacebar 114.3015 × 19.05 mm (socket unchanged: 19.05 × 19.05 mm).
+- `build_plate_model()` and `generate()` take the spacebar templates as one dict (`spacebar_paths`, by switch position) and the new argument `single_mesh`.
 - Stabilizer cutouts now follow the key direction. The templates were made horizontal in an earlier commit, but the generator still turned horizontal keys by 90° and left vertical keys at 0°. Defaults: horizontal 180°, vertical 270°, spacebar 180°.
 - The plate is rotated by 180° around Z, mirrored along X (together this is the KLE Y flip) and moved so its bounding box starts at (0, 0), which replaces the manual Blender corrections. Existing plates are therefore mirrored compared to earlier output.
 - Socket, stabilizer and spacebar cutouts are read and built by one exact loader (`load_template()`, `template_cutter()`). Every layer is a ruled loft from its lower to its upper contour, so the slopes (z = -1.8 ... -1.5) are exact. Before, the stabilizer replaced a slope by one step of half the height (up to 0.13 mm off), and the socket was reduced to a single square size.
@@ -32,5 +37,8 @@ All notable changes to this project are documented in this file.
 - Voxel wording and the unused `wire_at()` helper.
 - `fat_plate_generator_wp1.py`; its changes are part of `fat_plate_generator.py`.
 
+### Fixed
+- Spacebar (and every other) stabilizer cutout was mirrored horizontally by the whole-plate transform; a left spacebar template came out as a right one.
+
 ### Known issues
-- The template STLs carry coordinate differences of 10 to 20 nm (in places up to 1 µm) between the layers of a cutout, and `stabilizer.stl` has a wall that leans by 1 µm. The plate is built from them exactly as they are; a few edges where two layers touch are shared by four faces, and the check prints the warning `not watertight`. `switch_socket.stl` is 19.0478 mm wide instead of 19.05 mm. The templates are being rebuilt; tests that need exact templates are marked `xfail` until then (see `ROADMAP.md`).
+- None known. With the rebuilt templates the generator reports no warnings, and the exported plates are watertight.
