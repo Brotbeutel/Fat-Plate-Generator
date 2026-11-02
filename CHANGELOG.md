@@ -50,3 +50,4 @@ All notable changes to this project are documented in this file.
 ### Known issues
 
 - Adding a Keyboard Name and Author to the KLE-JSON causes extra keys to appear.
+- Keys with a width of 1,75 units get a stabilizer added.

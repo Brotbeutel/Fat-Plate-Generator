@@ -28,7 +28,7 @@ from shapely.ops import unary_union
 VERSION = "0.11"
 UNIT = 19.05
 DEFAULT_MARGIN = 1
-DEFAULT_JSON = "keyboard-layout.json"
+DEFAULT_JSON = "KLE-exports/keyboard-layout.json"
 DEFAULT_SOCKET = "switch_socket.stl"
 DEFAULT_SOCKET_WIDE_SHIFT = "switch_socket_wide-shift.stl"
 DEFAULT_STABILIZER = "stabilizer.stl"
