@@ -6,8 +6,6 @@ You can export your keyboard layout from [https://www.keyboard-layout-editor.com
 
 This is still a WIP, but with some 3D editing (for example Blender) you can already make use of it.
 
-
-
 ## !! Disclaimer !!
 
 This is not a finished product!
@@ -16,10 +14,6 @@ It has not yet been tested, if the generated plate fits a real keyboard and swit
 Spacebar stabilizer cutouts are now supported with centered and off-centered (left or right) switch-position options, which is needed for a classic Cherry G80-3000.
 
 If a template STL is not exact (for example one you designed yourself), the generator prints warnings (see *Common Errors*); the STL is written anyway and can be inspected.
-
-
-
-
 
 ## Content
 
@@ -91,15 +85,28 @@ The folder should look roughly like this:
 
 ```text
 Fat-Plate-Generator
+|
+└── kle-jsons
+    ├── keyboard-layout.json
+    ├── keyboard-layout_040-percent_jd40.json
+    ├── keyboard-layout_100-percent_ansi_104-keys.json
+    ├── keyboard-layout_100-percent-iso-105-keys.json
+    ├── keyboard-layout_100-percent-iso-105-keys_g80-3000.json
+    ├── keyboard-layout_100-percent-iso-105-keys_stepped-capslock-.json
+    ├── keyboard-layout_100-percent-iso-105-keys_stepped-capslock_g80-1800.json
+    ├── keyboard-layout_numpad_21-keys_stars21.json
+    └── stepped-capslock.json    
+└── stl-templates
+    ├── switch_socket.stl
+    ├── stabilizer.stl
+    ├── stabilzer_spacebar.stl
+    ├── stabilzer_spacebar_off-center_left.stl
+    ├── stabilzer_spacebar_off-center_right.stl
+    ├── switch_socket_wide-shift.stl
 ├── fat_plate_generator.py
 ├── requirements.txt
-├── README.md
-├── switch_socket.stl
-├── stabilizer.stl
-├── stabilzer_spacebar.stl
-├── stabilzer_spacebar_off-center_left.stl
-├── stabilzer_spacebar_off-center_right.stl
-└── keyboard-layout.json
+└── README.md
+
 ```
 
 ---
@@ -301,12 +308,12 @@ Caps Lock is intentionally **not** treated as a stabilized key. It always receiv
 
 The outer size of every template is fixed. If you design a new template (for example in Blender), build it inside this box and do not change the box:
 
-| Template | Size X × Y | Height Z |
-| --- | --- | --- |
-| socket | 19.05 × 19.05 mm | −5.0 … 1.2 mm |
-| stabilizer | 38.1 × 19.05 mm | −5.0 … 1.2 mm |
-| spacebar (all variants) | 114.3015 × 19.05 mm | −5.0 … 1.2 mm |
-| wide-shift socket | not fixed yet (only the height is checked) | −5.0 … 1.2 mm |
+| Template                | Size X × Y                                 | Height Z      |
+| ----------------------- | ------------------------------------------ | ------------- |
+| socket                  | 19.05 × 19.05 mm                           | −5.0 … 1.2 mm |
+| stabilizer              | 38.1 × 19.05 mm                            | −5.0 … 1.2 mm |
+| spacebar (all variants) | 114.3015 × 19.05 mm                        | −5.0 … 1.2 mm |
+| wide-shift socket       | not fixed yet (only the height is checked) | −5.0 … 1.2 mm |
 
 The plate is exactly 6.2 mm thick (z from −5.0 to 1.2); this comes from the fixed values, not from a template. 19.05 mm is the pitch of a 1u key; the lengths of the stabilizer and spacebar box are the sizes of the current templates.
 

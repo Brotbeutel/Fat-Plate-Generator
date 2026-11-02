@@ -28,13 +28,13 @@ from shapely.ops import unary_union
 VERSION = "0.25"
 UNIT = 19.05
 DEFAULT_MARGIN = 1
-DEFAULT_JSON = "KLE-exports/keyboard-layout.json"
-DEFAULT_SOCKET = "STL-templates/switch_socket.stl"
-DEFAULT_SOCKET_WIDE_SHIFT = "STL-templates/switch_socket_wide-shift.stl"
-DEFAULT_STABILIZER = "STL-templates/stabilizer.stl"
-DEFAULT_SPACEBAR_CENTERED = "STL-templates/stabilzer_spacebar.stl"
-DEFAULT_SPACEBAR_OFF_CENTERED_LEFT = "STL-templates/stabilzer_spacebar_off-center_left.stl"
-DEFAULT_SPACEBAR_OFF_CENTERED_RIGHT = "STL-templates/stabilzer_spacebar_off-center_right.stl"
+DEFAULT_JSON = "kle-layout-jsons/keyboard-layout.json"
+DEFAULT_SOCKET = "stl-templates/switch_socket.stl"
+DEFAULT_SOCKET_WIDE_SHIFT = "stl-templates/switch_socket_wide-shift.stl"
+DEFAULT_STABILIZER = "stl-templates/stabilizer.stl"
+DEFAULT_SPACEBAR_CENTERED = "stl-templates/stabilzer_spacebar.stl"
+DEFAULT_SPACEBAR_OFF_CENTERED_LEFT = "stl-templates/stabilzer_spacebar_off-center_left.stl"
+DEFAULT_SPACEBAR_OFF_CENTERED_RIGHT = "stl-templates/stabilzer_spacebar_off-center_right.stl"
 # Switch position of the spacebar template, as seen from above with the typist
 # at the bottom of the plate (x to the right).
 SPACEBAR_POSITIONS = ("centered", "off-centered-left", "off-centered-right")

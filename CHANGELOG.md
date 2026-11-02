@@ -35,6 +35,7 @@ All notable changes to this project are documented in this file.
 - `generate()` is split into `build_plate_model()` and the STL export; key classification lives in `classify_key()`.
 - README: file names (`switch_socket.stl`), folder structure, validation, error message and project status brought up to date.
 - Spacebar template STLs re-exported (four layers instead of three).
+- Folder structure and filepaths
 
 ### Removed
 
@@ -50,4 +51,4 @@ All notable changes to this project are documented in this file.
 ### Known issues
 
 - Adding a Keyboard Name and Author to the KLE-JSON causes extra keys to appear.
-- Keys with a width of 1,75 units get a stabilizer added.
+- Keys with a width of 1,75 units get a stabilizer added. (Tested with keyboard-layout_040-percent_jd40.json)
