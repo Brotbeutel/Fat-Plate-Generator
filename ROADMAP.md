@@ -19,6 +19,7 @@ Status: `[ ]` offen, `[~]` in Arbeit, `[x]` erledigt.
   - [ ] robustere Spacebar-/Caps-Lock-Erkennung (zurückgestellt; jetzt möglich, die Spacebar-Templates stehen)
 - [ ] **WP-03** Testdruck: Mini-Testplatte drucken, Passung und Toleranzen prüfen
 - [~] **WP-04** Layout-Features
+  - [x] Stepped Caps Lock (`"l": true`): `--stepped-key standard` (normales Socket bei `w`) oder `wide-shift` (Template `switch_socket_wide-shift.stl` bei `w2`)
   - [x] Option `--single-mesh`: die Platte als ein zusammenhängendes Mesh ohne Lücken (Standard bleibt: getrennte Teile)
   - F-Row als ein Mesh (für die ganze Platte durch `--single-mesh` abgedeckt; als eigene Option noch offen)
   - getrennte Meshes → mehrere STL-Dateien
@@ -29,6 +30,7 @@ Status: `[ ]` offen, `[~]` in Arbeit, `[x]` erledigt.
 
 ## Laufend (Nutzer)
 
+- [ ] **Wide-Shift-Template**: `switch_socket_wide-shift.stl` bauen und ins Repo legen; die feste Bounding Box festlegen (`TEMPLATE_BOUNDING_BOXES["wide-shift"]`, bis dahin wird nur die Höhe geprüft). Danach die Drehung prüfen (`--wide-shift-rotation`, Standard 180 = Template wie entworfen).
 - [x] **Template-Neubau**: Die Templates sind exakt neu gebaut (Socket 19,05 × 19,05 mm, Stabilizer 38,1 × 19,05 mm, Spacebar 114,3015 × 19,05 mm; Spacebar zusätzlich als links/rechts versetzte Varianten). Der Generator meldet keine Warnungen mehr, die Platten sind watertight, die `TEMPLATE_DEFECT`-Marker sind entfernt.
   - `FLAT_WALL_TOLERANCE` (50 nm) lässt sich noch nicht senken: bei 1e-6 und 1e-7 ändern sich die Eckenzahlen von `stabilizer.stl` (Punkte auf geraden Wänden weichen 1e-6 bis 5e-5 mm von der Geraden ab), bei 1e-9 lässt sich `stabilizer.stl` nicht mehr loften. Möglich wäre es erst, wenn die Wände der Templates bis auf Float32-Genauigkeit exakt gerade sind.
   - Offen: `fat_plate_export_example.stl` mit dem aktuellen Stand neu erzeugen.

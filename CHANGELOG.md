@@ -5,6 +5,8 @@ All notable changes to this project are documented in this file.
 ## Unreleased
 
 ### Added
+
+- Stepped keys: the KLE flag `"l": true` (a stepped Caps Lock) is read. `--stepped-key standard` (default, as before) uses the normal socket at the center of `w`; `--stepped-key wide-shift` uses the new template `switch_socket_wide-shift.stl` (`--socket-wide-shift` to name another file) at the center of `w2`, turned by `--wide-shift-rotation` (default 180, never mirrored). The plate outline covers both rectangles in either mode. The wide-shift template is only read when a stepped key needs it; its bounding box is not fixed yet, only its height is checked.
 - `--single-mesh` generates the plate as one connected mesh without gaps: the space between keys that face each other (horizontally or vertically, whatever the gap: Esc and F1, F-row, main block and numpad) is filled, parts that are still separate are joined with the smallest radius that connects them, and voids enclosed by the outline are filled. Without the option the plate is generated as before.
 - `--spacebar-position off-centered-left` and `off-centered-right` (with `--spacebar-off-centered-left` / `--spacebar-off-centered-right` for the files) replace `off-centered`; the template `stabilzer_spacebar_off-center.stl` was split into `stabilzer_spacebar_off-center_left.stl` and `..._right.stl`.
 - `--stab-rotation-horizontal`, `--stab-rotation-vertical` and `--stab-rotation-spacebar` (0/90/180/270) set the stabilizer orientation per key class.
@@ -18,6 +20,9 @@ All notable changes to this project are documented in this file.
 - Workflow files `AGENTS.md`, `ROADMAP.md`; `TODO.txt` was folded into `ROADMAP.md`.
 
 ### Changed
+
+- `classify_key()`, `stabilizer_rotation()` and `switch_center()` know stepped keys (`stepped` and `second` arguments); `build_plate_model()` and `generate()` take `stepped_key` and `wide_shift_socket_path`.
+- The help text of `--single-mesh` describes the current behavior.
 - The cutouts are only turned, never mirrored: the mirror of the whole-plate transform now moves only the keys and the plate outline, the cutouts get just its rotation (`plate_rotation_matrix()`). The default vertical stabilizer rotation is 90° instead of 270° because of that; for the symmetric stabilizers the plate is unchanged.
 - Fixed bounding boxes: stabilizer 38.1 × 19.05 mm, spacebar 114.3015 × 19.05 mm (socket unchanged: 19.05 × 19.05 mm).
 - `build_plate_model()` and `generate()` take the spacebar templates as one dict (`spacebar_paths`, by switch position) and the new argument `single_mesh`.
@@ -32,13 +37,16 @@ All notable changes to this project are documented in this file.
 - Spacebar template STLs re-exported (four layers instead of three).
 
 ### Removed
+
 - All rounding and tolerances of the old template reading: points rounded to 1e-6, heights rounded to 1e-5 and merged within 2 um, layers thinner than 2 um skipped, `SIZE_TOL` of 0.08 mm, `remove_collinear` and the rule to keep only the largest contour of a layer. The remaining tolerances are listed in the README.
 - The stabilizer stretch function: `--stabilizer-scale`, the scale modes and their code. Templates are always used exactly as supplied.
 - Voxel wording and the unused `wire_at()` helper.
 - `fat_plate_generator_wp1.py`; its changes are part of `fat_plate_generator.py`.
 
 ### Fixed
+
 - Spacebar (and every other) stabilizer cutout was mirrored horizontally by the whole-plate transform; a left spacebar template came out as a right one.
 
 ### Known issues
-- None known. With the rebuilt templates the generator reports no warnings, and the exported plates are watertight.
+
+- Adding a Keyboard Name and Author to the KLE-JSON causes extra keys to appear.

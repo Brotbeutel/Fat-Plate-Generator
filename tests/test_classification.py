@@ -71,7 +71,7 @@ def test_documented_defaults():
 
 
 @pytest.mark.parametrize("field", ["stab_rotation_horizontal", "stab_rotation_vertical",
-                                   "stab_rotation_spacebar", "global_rotation"])
+                                   "stab_rotation_spacebar", "wide_shift_rotation", "global_rotation"])
 @pytest.mark.parametrize("value", [45, 360, -90])
 def test_invalid_rotation_is_rejected(field, value):
     with pytest.raises(ValueError):

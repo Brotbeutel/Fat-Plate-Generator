@@ -30,6 +30,7 @@ UNIT = 19.05
 DEFAULT_MARGIN = 1
 DEFAULT_JSON = "keyboard-layout.json"
 DEFAULT_SOCKET = "switch_socket.stl"
+DEFAULT_SOCKET_WIDE_SHIFT = "switch_socket_wide-shift.stl"
 DEFAULT_STABILIZER = "stabilizer.stl"
 DEFAULT_SPACEBAR_CENTERED = "stabilzer_spacebar.stl"
 DEFAULT_SPACEBAR_OFF_CENTERED_LEFT = "stabilzer_spacebar_off-center_left.stl"
@@ -37,6 +38,11 @@ DEFAULT_SPACEBAR_OFF_CENTERED_RIGHT = "stabilzer_spacebar_off-center_right.stl"
 # Switch position of the spacebar template, as seen from above with the typist
 # at the bottom of the plate (x to the right).
 SPACEBAR_POSITIONS = ("centered", "off-centered-left", "off-centered-right")
+# What a stepped key (KLE "l": true, for example a stepped Caps Lock) gets:
+#   standard   the normal socket, at the centre of the first rectangle (w)
+#   wide-shift the wide-shift socket template, at the centre of the second rectangle (w2)
+# The plate outline always covers both rectangles.
+STEPPED_MODES = ("standard", "wide-shift")
 DEFAULT_OUTPUT = "fat_plate_export.stl"
 EPS = 0.02
 
@@ -86,6 +92,9 @@ class OrientationConfig:
     3. Everything is shifted so the plate's bounding box (including margin)
        starts at (0, 0).
 
+    The wide-shift socket template of stepped keys is turned like a stabilizer
+    (``wide_shift_rotation``); with the default 180 it comes out as designed.
+
     Defaults
     --------
     horizontal 180, vertical 90, spacebar 180, whole plate 180 deg + mirror X.
@@ -107,13 +116,14 @@ class OrientationConfig:
     stab_rotation_horizontal: int = 180
     stab_rotation_vertical: int = 90
     stab_rotation_spacebar: int = 180
+    wide_shift_rotation: int = 180
     global_transform: bool = True
     global_rotation: int = 180
     global_mirror_x: bool = True
 
     def __post_init__(self):
         for name in ("stab_rotation_horizontal", "stab_rotation_vertical",
-                     "stab_rotation_spacebar", "global_rotation"):
+                     "stab_rotation_spacebar", "wide_shift_rotation", "global_rotation"):
             value = getattr(self, name)
             if value not in ROTATION_CHOICES:
                 raise ValueError(f"{name} must be one of {ROTATION_CHOICES}, got {value!r}")
@@ -163,7 +173,7 @@ def parse_kle(data):
     x = y = 0.0
     reset_x = reset_y = 0.0
     p = {"w": 1.0, "h": 1.0, "x2": 0.0, "y2": 0.0,
-         "w2": 1.0, "h2": 1.0, "r": 0.0, "rx": 0.0, "ry": 0.0}
+         "w2": 1.0, "h2": 1.0, "l": False, "r": 0.0, "rx": 0.0, "ry": 0.0}
 
     for row in data:
         for item in row:
@@ -186,11 +196,12 @@ def parse_kle(data):
                 p["y2"] = item.get("y2", 0.0)
                 p["w2"] = item.get("w2", p["w"])
                 p["h2"] = item.get("h2", p["h"])
+                p["l"] = bool(item.get("l", False))          # stepped key (e.g. Caps Lock)
                 continue
 
             keys.append({"label": item, **p, "x": x, "y": y})
             x += p["w"]
-            p.update(w=1.0, h=1.0, x2=0.0, y2=0.0, w2=1.0, h2=1.0)
+            p.update(w=1.0, h=1.0, x2=0.0, y2=0.0, w2=1.0, h2=1.0, l=False)
         x = reset_x
         y += 1.0
     return keys
@@ -218,9 +229,19 @@ def local_key_rectangles(k):
     return rectangles
 
 
-def switch_center(k):
-    cx = k["x"] + k["w"] / 2.0
-    cy = k["y"] + k["h"] / 2.0
+def switch_center(k, second=False):
+    """Switch centre of a key in mm (KLE frame).
+
+    By default the centre of the first rectangle (x, y, w, h).  With ``second``
+    the centre of the second rectangle (x2, y2, w2, h2), which is the wider part
+    of a stepped key.
+    """
+    if second:
+        cx = k["x"] + k["x2"] + k["w2"] / 2.0
+        cy = k["y"] + k["y2"] + k["h2"] / 2.0
+    else:
+        cx = k["x"] + k["w"] / 2.0
+        cy = k["y"] + k["h"] / 2.0
     if abs(k["r"]) > 1e-12:
         a = math.radians(k["r"])
         dx, dy = cx - k["rx"], cy - k["ry"]
@@ -244,6 +265,8 @@ TEMPLATE_BOUNDING_BOXES = {      # x, y size in mm
     "socket": (19.05, 19.05),
     "stabilizer": (38.1, 19.05),
     "spacebar": (114.3015, 19.05),
+    # Not defined yet: only the height (z) of this template is checked.
+    "wide-shift": (None, None),
 }
 BOUNDING_BOX_TOLERANCE = 0.001   # mm; only decides whether a warning is printed
 # STL stores float32, so one horizontal plane shows up with slightly different
@@ -498,6 +521,8 @@ def _bounding_box_warnings(name, kind, bounds):
     extents = bounds[1] - bounds[0]
     problems = []
     for axis, label, spec in ((0, "x", spec_x), (1, "y", spec_y)):
+        if spec is None:
+            continue
         deviation = abs(extents[axis] - spec)
         if deviation > BOUNDING_BOX_TOLERANCE:
             problems.append(f"{name}: bounding box {label} is {extents[axis]:.4f} mm, the fixed "
@@ -727,24 +752,35 @@ def is_stabilized_key(k, min_units):
 KIND_NORMAL = "normal"
 KIND_STABILIZED = "stabilized"
 KIND_SPACEBAR = "spacebar"
+KIND_WIDE_SHIFT = "wide-shift"
 
 
-def classify_key(k, min_units=1.75):
-    """Return KIND_SPACEBAR, KIND_STABILIZED or KIND_NORMAL for a parsed key."""
+def classify_key(k, min_units=1.75, stepped="standard"):
+    """Return KIND_SPACEBAR, KIND_STABILIZED, KIND_WIDE_SHIFT or KIND_NORMAL.
+
+    A stepped key (``"l": true``) that would get a normal socket is a
+    KIND_WIDE_SHIFT key when ``stepped`` is ``"wide-shift"``.  Stabilized keys and
+    the spacebar keep their cutouts whether they are stepped or not.
+    """
     if is_spacebar_key(k):
         return KIND_SPACEBAR
     if is_stabilized_key(k, min_units):
         return KIND_STABILIZED
+    if stepped == "wide-shift" and k.get("l", False):
+        return KIND_WIDE_SHIFT
     return KIND_NORMAL
 
 
-def stabilizer_rotation(k, orientation: "OrientationConfig", min_units=1.75):
+def stabilizer_rotation(k, orientation: "OrientationConfig", min_units=1.75, stepped="standard"):
     """Rotation (degrees, counter-clockwise, KLE frame) of a key's cutout.
 
     Returns ``None`` for keys with a normal switch socket.  Stabilized keys
-    that are wider than tall count as horizontal, all others as vertical.
+    that are wider than tall count as horizontal, all others as vertical.  The
+    wide-shift socket of a stepped key is turned by ``wide_shift_rotation``.
     """
-    kind = classify_key(k, min_units)
+    kind = classify_key(k, min_units, stepped)
+    if kind == KIND_WIDE_SHIFT:
+        return orientation.wide_shift_rotation
     if kind == KIND_SPACEBAR:
         return orientation.stab_rotation_spacebar
     if kind == KIND_STABILIZED:
@@ -775,7 +811,8 @@ def build_plate_model(kle_path: Path, socket_path: Path, stabilizer_path: Path,
                       spacebar_paths: dict, spacebar_position="centered",
                       margin=DEFAULT_MARGIN, stabilizer_min_unit=1.75,
                       orientation: OrientationConfig | None = None,
-                      single_mesh=False) -> PlateModel:
+                      single_mesh=False, stepped_key="standard",
+                      wide_shift_socket_path: Path | None = None) -> PlateModel:
     """Build the plate solid without exporting it.
 
     Transformation order (see ``OrientationConfig``): per-stabilizer rotation
@@ -791,6 +828,13 @@ def build_plate_model(kle_path: Path, socket_path: Path, stabilizer_path: Path,
     enclosed by the outline are filled, so the plate is one connected piece
     without gaps (see ``plate_footprint``); otherwise the plate follows the keys
     and falls apart where they are far from each other.
+
+    A stepped key (KLE ``"l": true``) gets, depending on ``stepped_key``, the
+    normal socket at the centre of its first rectangle (``"standard"``, w) or the
+    wide-shift socket at the centre of its second rectangle (``"wide-shift"``, w2).
+    The plate outline covers both rectangles in either case.  The wide-shift
+    template is only read if a stepped key needs it; by default it is looked up
+    next to the socket template.
     """
     orientation = orientation or OrientationConfig()
     data = json.loads(kle_path.read_text(encoding="utf-8"))
@@ -802,8 +846,12 @@ def build_plate_model(kle_path: Path, socket_path: Path, stabilizer_path: Path,
         raise ValueError(f"spacebar_position must be one of {SPACEBAR_POSITIONS}, "
                          f"got {spacebar_position!r}")
     spacebar_path = Path(spacebar_paths[spacebar_position])
+    if stepped_key not in STEPPED_MODES:
+        raise ValueError(f"stepped_key must be one of {STEPPED_MODES}, got {stepped_key!r}")
+    if wide_shift_socket_path is None:
+        wide_shift_socket_path = Path(socket_path).with_name(DEFAULT_SOCKET_WIDE_SHIFT)
     template_paths = {"socket": socket_path, "stabilizer": stabilizer_path,
-                      "spacebar": spacebar_path}
+                      "spacebar": spacebar_path, "wide-shift": wide_shift_socket_path}
     templates = {}
 
     gm = global_matrix(orientation)
@@ -812,9 +860,11 @@ def build_plate_model(kle_path: Path, socket_path: Path, stabilizer_path: Path,
     minx, miny = footprint.bounds[0], footprint.bounds[1]
     footprint = translate(footprint, xoff=-minx, yoff=-miny)
 
+    kinds = [classify_key(k, stabilizer_min_unit, stepped_key) for k in keys]
+    rotations = [stabilizer_rotation(k, orientation, stabilizer_min_unit, stepped_key) for k in keys]
     centers = []
-    for k in keys:
-        cx, cy = apply_matrix(gm, *switch_center(k))
+    for k, kind in zip(keys, kinds):
+        cx, cy = apply_matrix(gm, *switch_center(k, second=(kind == KIND_WIDE_SHIFT)))
         centers.append((cx - minx, cy - miny))
 
     plate = extruded_footprint(footprint, PLATE_Z_MIN, PLATE_Z_MAX - PLATE_Z_MIN)
@@ -822,14 +872,10 @@ def build_plate_model(kle_path: Path, socket_path: Path, stabilizer_path: Path,
     # Socket, stabilizer and spacebar cutouts are built by the same code.  The
     # templates are used exactly as supplied (nothing is scaled); the spacebar
     # templates keep their internal switch position (centered/off-centered).
-    kinds, rotations, cavities, cutters = [], [], [], {}
-    for k, (cx, cy) in zip(keys, centers):
-        kind = classify_key(k, stabilizer_min_unit)
-        rotation = stabilizer_rotation(k, orientation, stabilizer_min_unit)
-        kinds.append(kind)
-        rotations.append(rotation)
+    cavities, cutters = [], {}
+    for kind, rotation, (cx, cy) in zip(kinds, rotations, centers):
         template_kind = {KIND_NORMAL: "socket", KIND_STABILIZED: "stabilizer",
-                         KIND_SPACEBAR: "spacebar"}[kind]
+                         KIND_SPACEBAR: "spacebar", KIND_WIDE_SHIFT: "wide-shift"}[kind]
         if template_kind not in templates:
             templates[template_kind] = load_template(template_paths[template_kind], template_kind)
         # Step 1 (rotation about the switch centre), then step 2 (rotation of the
@@ -970,13 +1016,15 @@ def generate(kle_path: Path, socket_path: Path, stabilizer_path: Path,
              output: Path = Path(DEFAULT_OUTPUT), margin=DEFAULT_MARGIN,
              stabilizer_min_unit=1.75,
              orientation: OrientationConfig | None = None,
-             single_mesh=False):
+             single_mesh=False, stepped_key="standard",
+             wide_shift_socket_path: Path | None = None):
     orientation = orientation or OrientationConfig()
     model = build_plate_model(
         kle_path, socket_path, stabilizer_path, spacebar_paths,
         spacebar_position=spacebar_position,
         margin=margin, stabilizer_min_unit=stabilizer_min_unit,
-        orientation=orientation, single_mesh=single_mesh)
+        orientation=orientation, single_mesh=single_mesh, stepped_key=stepped_key,
+        wide_shift_socket_path=wide_shift_socket_path)
     keys = model.keys
 
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -1012,6 +1060,12 @@ def generate(kle_path: Path, socket_path: Path, stabilizer_path: Path,
         print(f"Template {kind + ':':11s} {template.path.name}, {len(template.layers)} layers, "
               f"{template.vertex_count} contour vertices")
     print("Caps Lock:       normal switch cutout")
+    stepped = sum(1 for k in keys if k.get("l", False))
+    if stepped and stepped_key == "wide-shift":
+        print(f"Stepped keys:    {stepped}, wide-shift socket at the centre of w2 "
+              f"(rotation {orientation.wide_shift_rotation} deg)")
+    elif stepped:
+        print(f"Stepped keys:    {stepped}, standard socket at the centre of w")
     print(f"Stab rotation:   horizontal {orientation.stab_rotation_horizontal} deg, "
           f"vertical {orientation.stab_rotation_vertical} deg, "
           f"spacebar {orientation.stab_rotation_spacebar} deg")
@@ -1033,6 +1087,8 @@ def main():
     base = Path(__file__).resolve().parent
     parser.add_argument("--json", type=Path, default=base / DEFAULT_JSON)
     parser.add_argument("--socket", type=Path, default=base / DEFAULT_SOCKET)
+    parser.add_argument("--socket-wide-shift", type=Path, default=base / DEFAULT_SOCKET_WIDE_SHIFT,
+                        help="socket template for stepped keys with --stepped-key wide-shift")
     parser.add_argument("--stabilizer", type=Path, default=base / DEFAULT_STABILIZER)
     parser.add_argument("--spacebar-centered", type=Path, default=base / DEFAULT_SPACEBAR_CENTERED)
     parser.add_argument("--spacebar-off-centered-left", type=Path,
@@ -1057,10 +1113,17 @@ def main():
     parser.add_argument("--stab-rotation-spacebar", type=int, choices=ROTATION_CHOICES,
                         default=defaults.stab_rotation_spacebar,
                         help="rotation of the spacebar cutout in degrees (default: %(default)s)")
+    parser.add_argument("--stepped-key", choices=STEPPED_MODES, default="standard",
+                        help="socket of a stepped key (KLE \"l\": true, for example a stepped Caps "
+                             "Lock): standard = the normal socket at the centre of w; wide-shift = "
+                             "the wide-shift socket at the centre of w2 (default: %(default)s)")
+    parser.add_argument("--wide-shift-rotation", type=int, choices=ROTATION_CHOICES,
+                        default=defaults.wide_shift_rotation,
+                        help="rotation of the wide-shift socket in degrees (default: %(default)s)")
     parser.add_argument("--single-mesh", action="store_true",
-                        help="close the gaps between separated parts of the plate (for example "
-                             "F-row, main block and numpad) so that the plate is one connected "
-                             "mesh; without it those parts stay separate")
+                        help="generate the plate as one connected mesh without gaps: the space "
+                             "between keys that face each other is filled and enclosed voids are "
+                             "closed; without it the plate falls apart where the keys are far apart")
     parser.add_argument("--no-global-transform", action="store_true",
                         help="skip the whole-plate transform (KLE y flip); "
                              "mainly for comparison with older output")
@@ -1069,6 +1132,7 @@ def main():
         stab_rotation_horizontal=args.stab_rotation_horizontal,
         stab_rotation_vertical=args.stab_rotation_vertical,
         stab_rotation_spacebar=args.stab_rotation_spacebar,
+        wide_shift_rotation=args.wide_shift_rotation,
         global_transform=not args.no_global_transform)
 
     try:
@@ -1079,7 +1143,9 @@ def main():
                  spacebar_position=args.spacebar_position,
                  output=args.output, margin=args.margin,
                  stabilizer_min_unit=args.stabilizer_min_unit,
-                 orientation=orientation, single_mesh=args.single_mesh)
+                 orientation=orientation, single_mesh=args.single_mesh,
+                 stepped_key=args.stepped_key,
+                 wide_shift_socket_path=args.socket_wide_shift)
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         raise

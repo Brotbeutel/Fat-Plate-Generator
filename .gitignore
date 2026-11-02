@@ -1,5 +1,7 @@
 .venv
 
+*.zip
+
 *.blend1
 
 TODO.txt
