@@ -28,7 +28,7 @@ If a template STL is not exact (for example one you designed yourself), the gene
 - `stabilzer_spacebar_off-center_left.stl` – spacebar template with the switch left of the center
 - `stabilzer_spacebar_off-center_right.stl` – spacebar template with the switch right of the center
 - `keyboard-layout.json` – example layout
-- `KLE-exports/` – more example layouts (40%, 100% ISO and ANSI)
+- `kle-exports/` – more example layouts (40%, 100% ISO and ANSI)
 - `fat_plate_export_example.stl` – example output
 - `tools/preview.py` – top-view preview of a generated STL
 - `tests/` – automated tests (`python -m pytest`)
