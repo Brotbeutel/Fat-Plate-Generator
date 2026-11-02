@@ -36,6 +36,8 @@ All notable changes to this project are documented in this file.
 - README: file names (`switch_socket.stl`), folder structure, validation, error message and project status brought up to date.
 - Spacebar template STLs re-exported (four layers instead of three).
 - Folder structure and filepaths
+- Added 7u Spacebar template
+- Renamed wide-shift to wide-caps
 
 ### Removed
 
