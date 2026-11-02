@@ -1,4 +1,4 @@
-# Fat Plate Generator V.0.11
+# Fat Plate Generator V.0.25
 
 The Fat Plate Generator creates a 3D-printable keyboard "fat" plate as an STL from a **KLE Raw Data JSON**.
 
@@ -106,7 +106,6 @@ Fat-Plate-Generator
 ├── fat_plate_generator.py
 ├── requirements.txt
 └── README.md
-
 ```
 
 ---
