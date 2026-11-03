@@ -14,8 +14,7 @@ from tests.conftest import REPO_ROOT, build_model
 from tests.test_plate import projected_outline, run_cli
 from tests.test_templates import L_OUTLINE, box_mesh, l_shape_mesh, write_mesh
 
-STEPPED_LAYOUT = REPO_ROOT / "tests" / "layouts" / "stepped_capslock.json"
-STEPPED_JSON = REPO_ROOT / "kle-jsons" / "stepped-capslock.json"
+STEPPED_LAYOUT = REPO_ROOT / "kle-jsons" / "stepped-capslock.json"
 
 
 def keys_of(text):
@@ -44,7 +43,7 @@ def test_keys_without_the_flag_are_not_stepped():
 
 
 def test_the_exported_stepped_caps_lock_json():
-    keys = fpg.parse_kle(json.loads(STEPPED_JSON.read_text(encoding="utf-8")))
+    keys = fpg.parse_kle(json.loads(STEPPED_LAYOUT.read_text(encoding="utf-8")))
     stepped = [k for k in keys if k["l"]]
     assert [(k["label"], k["w"], k["w2"]) for k in stepped] == [("Caps Lock", 1.25, 1.75)]
     a = [k for k in keys if k["label"] == "A"][0]
@@ -161,13 +160,15 @@ def test_the_wide_caps_template_is_only_needed_when_it_is_used(tmp_path):
 
 def test_the_wide_caps_template_is_looked_up_next_to_the_socket(tmp_path, wide_caps_template):
     folder = tmp_path / "templates"
-    folder.mkdir()
-    (folder / Path(fpg.DEFAULT_SOCKET_WIDE_CAPS).name).write_bytes(wide_caps_template.read_bytes())
-    (folder / fpg.DEFAULT_SOCKET).write_bytes((REPO_ROOT / fpg.DEFAULT_SOCKET).read_bytes())
-    model = fpg.build_plate_model(STEPPED_LAYOUT, folder / fpg.DEFAULT_SOCKET, REPO_ROOT / fpg.DEFAULT_STABILIZER,
+    socket_path = folder / fpg.DEFAULT_SOCKET
+    socket_path.parent.mkdir(parents=True)
+    wide_caps_path = socket_path.with_name(Path(fpg.DEFAULT_SOCKET_WIDE_CAPS).name)
+    wide_caps_path.write_bytes(wide_caps_template.read_bytes())
+    socket_path.write_bytes((REPO_ROOT / fpg.DEFAULT_SOCKET).read_bytes())
+    model = fpg.build_plate_model(STEPPED_LAYOUT, socket_path, REPO_ROOT / fpg.DEFAULT_STABILIZER,
                                   {p: REPO_ROOT / fpg.DEFAULT_SPACEBAR_CENTERED for p in fpg.SPACEBAR_POSITIONS},
                                   stepped_key="wide-caps")
-    assert model.templates["wide-caps"].path == folder / Path(fpg.DEFAULT_SOCKET_WIDE_CAPS).name
+    assert model.templates["wide-caps"].path == wide_caps_path
 
 
 def test_an_unknown_stepped_mode_is_refused():

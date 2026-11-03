@@ -68,13 +68,13 @@ def spacebar_layout(tmp_path):
     return layout
 
 
-@pytest.mark.parametrize("position, name", [
-    ("centered", fpg.DEFAULT_SPACEBAR_CENTERED),
-    ("off-centered-left", fpg.DEFAULT_SPACEBAR_OFF_CENTERED_LEFT),
-    ("off-centered-right", fpg.DEFAULT_SPACEBAR_OFF_CENTERED_RIGHT),
+@pytest.mark.parametrize("position, expected_path", [
+    ("centered", REPO_ROOT / fpg.DEFAULT_SPACEBAR_CENTERED),
+    ("off-centered-left", REPO_ROOT / fpg.DEFAULT_SPACEBAR_OFF_CENTERED_LEFT),
+    ("off-centered-right", REPO_ROOT / fpg.DEFAULT_SPACEBAR_OFF_CENTERED_RIGHT),
 ])
-def test_spacebar_position_picks_the_template(spacebar_layout, position, name):
-    assert build_model(spacebar_layout, spacebar_position=position).spacebar_path.name == name
+def test_spacebar_position_picks_the_template(spacebar_layout, position, expected_path):
+    assert build_model(spacebar_layout, spacebar_position=position).spacebar_path == expected_path
 
 
 def test_unknown_spacebar_position_is_refused(spacebar_layout):
