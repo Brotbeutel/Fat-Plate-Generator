@@ -110,7 +110,7 @@ def test_a_gap_between_two_keys_with_a_key_below_is_closed():
 
 
 def test_the_gap_between_esc_and_f1_of_the_100_percent_layout_is_closed(repo_root):
-    keys = fpg.parse_kle(json.loads((repo_root / "keyboard-layout.json").read_text(encoding="utf-8")))
+    keys = fpg.parse_kle(json.loads((repo_root / fpg.DEFAULT_JSON).read_text(encoding="utf-8")))
     by_label = {k["label"]: k for k in keys}
     (x0, y0), (x1, y1) = (fpg.switch_center(by_label["Esc"]), fpg.switch_center(by_label["F1"]))
     middle = Point((x0 + x1) / 2, (y0 + y1) / 2)         # in the gap between the two keys
@@ -123,7 +123,7 @@ def test_the_gap_between_esc_and_f1_of_the_100_percent_layout_is_closed(repo_roo
 
 def test_the_step_above_the_numpad_stays(repo_root):
     """No key faces the numpad from above, so nothing is filled there."""
-    keys = fpg.parse_kle(json.loads((repo_root / "keyboard-layout.json").read_text(encoding="utf-8")))
+    keys = fpg.parse_kle(json.loads((repo_root / fpg.DEFAULT_JSON).read_text(encoding="utf-8")))
     by_label = {k["label"]: k for k in keys}
     cx, cy = fpg.switch_center(by_label["Num Lock"])
     above = Point(cx, cy - fpg.UNIT * 1.5)                # one and a half keys above Num Lock

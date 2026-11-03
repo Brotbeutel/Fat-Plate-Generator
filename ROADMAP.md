@@ -4,6 +4,8 @@ Status: `[ ]` offen, `[~]` in Arbeit, `[x]` erledigt.
 
 ## Arbeitspakete
 
+- [x] **WP-07** Repo-Reparatur: Default-Pfade korrigiert, wide-caps-Bezeichnungen vereinheitlicht, Pfad- und Default-Stepped-Key-Tests ergänzt, Dokumentation aktualisiert.
+
 - [x] **WP-01** Stabilizer-Orientierung + Preview/Tests
   - Orientierung zentral konfigurierbar (`OrientationConfig`: horizontal / vertical / spacebar getrennt, Ganzplatten-Transformation)
   - Preview-Tool (`tools/preview.py`) und pytest-Suite

@@ -14,7 +14,7 @@ Gilt für alle Agenten/Implementer, die an diesem Repository arbeiten.
 ## Projektüberblick
 
 - `fat_plate_generator.py`: die Anwendung. Kern: `build_plate_model()` (Platte bauen), `generate()` (Export), `check_exported_stl()` (Prüfung, warnt nur), `OrientationConfig` (zentrale Orientierungs-Defaults), `classify_key()` (normal / stabilized / spacebar).
-- `switch_socket.stl`, `switch_socket_wide-shift.stl`, `stabilizer.stl`, `stabilzer_spacebar*.stl`: Template-STLs. Die Quellen liegen in `blender-files/`. Ein Loader (`load_template()`) und ein Cutter-Bauer (`template_cutter()`) behandeln alle drei gleich.
+- `stl-templates/switch_socket.stl`, `stl-templates/switch_socket_wide-caps.stl`, `stl-templates/stabilizer.stl`, `stl-templates/stabilzer_spacebar*.stl`: Template-STLs. Die Quellen liegen in `blender-files/`. Ein Loader (`load_template()`) und ein Cutter-Bauer (`template_cutter()`) behandeln alle drei gleich.
 - `tools/preview.py`: Draufsicht-PNG einer erzeugten STL.
 - `tests/`: pytest-Suite. `tests/layouts/stabilizer_orientation.json` ist das Testlayout.
 - `docs/`: Preview-Bilder. `ROADMAP.md`, `CHANGELOG.md`, `README.md`: Plan, Änderungen, Anleitung.
