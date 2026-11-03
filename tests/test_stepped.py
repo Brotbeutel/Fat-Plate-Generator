@@ -162,12 +162,12 @@ def test_the_wide_caps_template_is_only_needed_when_it_is_used(tmp_path):
 def test_the_wide_caps_template_is_looked_up_next_to_the_socket(tmp_path, wide_caps_template):
     folder = tmp_path / "templates"
     folder.mkdir()
-    (folder / fpg.DEFAULT_SOCKET_WIDE_CAPS).write_bytes(wide_caps_template.read_bytes())
+    (folder / Path(fpg.DEFAULT_SOCKET_WIDE_CAPS).name).write_bytes(wide_caps_template.read_bytes())
     (folder / fpg.DEFAULT_SOCKET).write_bytes((REPO_ROOT / fpg.DEFAULT_SOCKET).read_bytes())
     model = fpg.build_plate_model(STEPPED_LAYOUT, folder / fpg.DEFAULT_SOCKET, REPO_ROOT / fpg.DEFAULT_STABILIZER,
                                   {p: REPO_ROOT / fpg.DEFAULT_SPACEBAR_CENTERED for p in fpg.SPACEBAR_POSITIONS},
                                   stepped_key="wide-caps")
-    assert model.templates["wide-caps"].path == folder / fpg.DEFAULT_SOCKET_WIDE_CAPS
+    assert model.templates["wide-caps"].path == folder / Path(fpg.DEFAULT_SOCKET_WIDE_CAPS).name
 
 
 def test_an_unknown_stepped_mode_is_refused():
