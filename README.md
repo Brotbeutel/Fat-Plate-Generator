@@ -86,7 +86,7 @@ The folder should look roughly like this:
 ```text
 Fat-Plate-Generator
 |
-└── kle-jsons
+├── kle-jsons
     ├── keyboard-layout.json
     ├── keyboard-layout_040-percent_jd40.json
     ├── keyboard-layout_100-percent_ansi_104-keys.json
@@ -96,10 +96,11 @@ Fat-Plate-Generator
     ├── keyboard-layout_100-percent-iso-105-keys_stepped-capslock_g80-1800.json
     ├── keyboard-layout_numpad_21-keys_stars21.json
     └── stepped-capslock.json    
-└── stl-templates
+├── stl-templates
     ├── switch_socket.stl
     ├── stabilizer.stl
     ├── stabilzer_spacebar.stl
+    ├── stabilzer_spacebar_centered.stl
     ├── stabilzer_spacebar_off-center_left.stl
     ├── stabilzer_spacebar_off-center_right.stl
     ├── switch_socket_wide-caps.stl
@@ -193,7 +194,7 @@ A notice such as `A new release of pip is available` can be ignored. It only say
 An example is included in the package:
 
 ```text
-keyboard-layout.json
+kle-jsons/keyboard-layout.json
 ```
 
 Simply run it with:
@@ -205,10 +206,10 @@ python .\fat_plate_generator.py
 The generator automatically uses:
 
 ```text
-keyboard-layout.json
-switch_socket.stl
-stabilizer.stl
-stabilzer_spacebar.stl
+kle-jsons/keyboard-layout.json
+stl-templates/switch_socket.stl
+stl-templates/stabilizer.stl
+stl-templates/stabilzer_spacebar.stl
 ```
 
 and generates:
