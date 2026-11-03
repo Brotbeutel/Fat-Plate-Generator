@@ -6,7 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
-- Stepped keys: the KLE flag `"l": true` (a stepped Caps Lock) is read. `--stepped-key standard` (default, as before) uses the normal socket at the center of `w`; `--stepped-key wide-shift` uses the new template `switch_socket_wide-shift.stl` (`--socket-wide-shift` to name another file) at the center of `w2`, turned by `--wide-shift-rotation` (default 180, never mirrored). The plate outline covers both rectangles in either mode. The wide-shift template is only read when a stepped key needs it; its bounding box is not fixed yet, only its height is checked.
+- Stepped keys: the KLE flag `"l": true` (a stepped Caps Lock) is read. `--stepped-key standard` (default, as before) uses the normal socket at the center of `w`; `--stepped-key wide-caps` uses the new template `switch_socket_wide-caps.stl` (`--socket-wide-caps` to name another file) at the center of `w2`, turned by `--wide-caps-rotation` (default 180, never mirrored). The plate outline covers both rectangles in either mode. The wide-caps template is only read when a stepped key needs it; its bounding box is not fixed yet, only its height is checked.
 - `--single-mesh` generates the plate as one connected mesh without gaps: the space between keys that face each other (horizontally or vertically, whatever the gap: Esc and F1, F-row, main block and numpad) is filled, parts that are still separate are joined with the smallest radius that connects them, and voids enclosed by the outline are filled. Without the option the plate is generated as before.
 - `--spacebar-position off-centered-left` and `off-centered-right` (with `--spacebar-off-centered-left` / `--spacebar-off-centered-right` for the files) replace `off-centered`; the template `stabilzer_spacebar_off-center.stl` was split into `stabilzer_spacebar_off-center_left.stl` and `..._right.stl`.
 - `--stab-rotation-horizontal`, `--stab-rotation-vertical` and `--stab-rotation-spacebar` (0/90/180/270) set the stabilizer orientation per key class.
@@ -21,7 +21,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
-- `classify_key()`, `stabilizer_rotation()` and `switch_center()` know stepped keys (`stepped` and `second` arguments); `build_plate_model()` and `generate()` take `stepped_key` and `wide_shift_socket_path`.
+- `classify_key()`, `stabilizer_rotation()` and `switch_center()` know stepped keys (`stepped` and `second` arguments); `build_plate_model()` and `generate()` take `stepped_key` and `wide_caps_socket_path`.
 - The help text of `--single-mesh` describes the current behavior.
 - The cutouts are only turned, never mirrored: the mirror of the whole-plate transform now moves only the keys and the plate outline, the cutouts get just its rotation (`plate_rotation_matrix()`). The default vertical stabilizer rotation is 90° instead of 270° because of that; for the symmetric stabilizers the plate is unchanged.
 - Fixed bounding boxes: stabilizer 38.1 × 19.05 mm, spacebar 114.3015 × 19.05 mm (socket unchanged: 19.05 × 19.05 mm).
@@ -37,7 +37,7 @@ All notable changes to this project are documented in this file.
 - Spacebar template STLs re-exported (four layers instead of three).
 - Folder structure and filepaths
 - Added 7u Spacebar template
-- Renamed wide-shift to wide-caps
+- Renamed wide-caps to wide-caps
 
 ### Removed
 
@@ -48,6 +48,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- Corrected the default KLE layout path and the default wide-caps template lookup; aligned path-dependent tests and added guards for exact repository path casing and default stepped-key generation.
 - Spacebar (and every other) stabilizer cutout was mirrored horizontally by the whole-plate transform; a left spacebar template came out as a right one.
 
 ### Known issues

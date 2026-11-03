@@ -28,7 +28,7 @@ from shapely.ops import unary_union
 VERSION = "0.25"
 UNIT = 19.05
 DEFAULT_MARGIN = 1
-DEFAULT_JSON = "kle-layout-jsons/keyboard-layout.json"
+DEFAULT_JSON = "kle-jsons/keyboard-layout.json"
 DEFAULT_SOCKET = "stl-templates/switch_socket.stl"
 DEFAULT_SOCKET_WIDE_CAPS = "stl-templates/switch_socket_wide-caps.stl"
 DEFAULT_STABILIZER = "stl-templates/stabilizer.stl"
@@ -849,7 +849,7 @@ def build_plate_model(kle_path: Path, socket_path: Path, stabilizer_path: Path,
     if stepped_key not in STEPPED_MODES:
         raise ValueError(f"stepped_key must be one of {STEPPED_MODES}, got {stepped_key!r}")
     if wide_caps_socket_path is None:
-        wide_caps_socket_path = Path(socket_path).with_name(DEFAULT_SOCKET_WIDE_CAPS)
+        wide_caps_socket_path = Path(socket_path).with_name(Path(DEFAULT_SOCKET_WIDE_CAPS).name)
     template_paths = {"socket": socket_path, "stabilizer": stabilizer_path,
                       "spacebar": spacebar_path, "wide-caps": wide_caps_socket_path}
     templates = {}

@@ -21,11 +21,12 @@ from fat_plate_generator import TemplateError
 ROOT = Path(fpg.__file__).parent
 STL_RESOLUTION = 1e-6     # STL stores float32: 7.28 is stored as 7.2800002
 REAL_TEMPLATES = [
-    ("switch_socket.stl", "socket"),
-    ("stabilizer.stl", "stabilizer"),
-    ("stabilzer_spacebar.stl", "spacebar"),
-    ("stabilzer_spacebar_off-center_left.stl", "spacebar"),
-    ("stabilzer_spacebar_off-center_right.stl", "spacebar"),
+    (fpg.DEFAULT_SOCKET, "socket"),
+    (fpg.DEFAULT_STABILIZER, "stabilizer"),
+    (fpg.DEFAULT_SPACEBAR_CENTERED, "spacebar"),
+    (fpg.DEFAULT_SPACEBAR_OFF_CENTERED_LEFT, "spacebar"),
+    (fpg.DEFAULT_SPACEBAR_OFF_CENTERED_RIGHT, "spacebar"),
+    (fpg.DEFAULT_SOCKET_WIDE_CAPS, "wide-caps"),
 ]
 
 
