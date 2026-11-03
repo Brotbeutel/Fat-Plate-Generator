@@ -24,7 +24,7 @@ If a template STL is not exact (for example one you designed yourself), the gene
 - `stl-templates/switch_socket_wide-caps.stl` – template for stepped keys such as a stepped Caps Lock (see *Stepped Keys*)
 - `stl-templates/stabilizer.stl` – template for standard stabilized keys
 - `stl-templates/stabilzer_spacebar.stl` – centered spacebar template
-- `stabilzer_spacebar_centered.stl` – identical copy of the centered template (not read by the generator)
+- `stl-templates/stabilzer_spacebar_centered.stl` – identical copy of the centered template (not read by the generator)
 - `stl-templates/stabilzer_spacebar_off-center_left.stl` – spacebar template with the switch left of the center
 - `stl-templates/stabilzer_spacebar_off-center_right.stl` – spacebar template with the switch right of the center
 - `kle-jsons/keyboard-layout.json` – default example layout
