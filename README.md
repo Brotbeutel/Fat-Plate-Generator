@@ -87,23 +87,23 @@ The folder should look roughly like this:
 Fat-Plate-Generator
 |
 ├── kle-jsons
-    ├── keyboard-layout.json
-    ├── keyboard-layout_040-percent_jd40.json
+│   ├── keyboard-layout.json
+│   ├── keyboard-layout_040-percent_jd40.json
     ├── keyboard-layout_100-percent_ansi_104-keys.json
     ├── keyboard-layout_100-percent-iso-105-keys.json
     ├── keyboard-layout_100-percent-iso-105-keys_g80-3000.json
     ├── keyboard-layout_100-percent-iso-105-keys_stepped-capslock-.json
     ├── keyboard-layout_100-percent-iso-105-keys_stepped-capslock_g80-1800.json
     ├── keyboard-layout_numpad_21-keys_stars21.json
-    └── stepped-capslock.json    
+│   └── stepped-capslock.json    
 ├── stl-templates
-    ├── switch_socket.stl
-    ├── stabilizer.stl
-    ├── stabilzer_spacebar.stl
+│   ├── switch_socket.stl
+│   ├── stabilizer.stl
+│   ├── stabilzer_spacebar.stl
     ├── stabilzer_spacebar_centered.stl
     ├── stabilzer_spacebar_off-center_left.stl
     ├── stabilzer_spacebar_off-center_right.stl
-    ├── switch_socket_wide-caps.stl
+│   └── switch_socket_wide-caps.stl
 ├── fat_plate_generator.py
 ├── requirements.txt
 └── README.md
@@ -253,7 +253,7 @@ Important: Use the KLE **Raw Data JSON**, not another JSON export format.
 You can explicitly specify the socket and stabilizer files:
 
 ```powershell
-python .\fat_plate_generator.py --json my_keyboard.json --socket switch_socket.stl --stabilizer stabilizer.stl --output my_keyboard.stl
+python .\fat_plate_generator.py --json my_keyboard.json --socket stl-templates/switch_socket.stl --stabilizer stl-templates/stabilizer.stl --output my_keyboard.stl
 ```
 
 This explicitly defines which files are being used.
@@ -302,7 +302,7 @@ The default is **centered**. The supplied templates are used exactly as they are
 
 ### Caps Lock
 
-Caps Lock is intentionally **not** treated as a stabilized key. It always receives the normal `switch_socket.stl` switch cutout, even though it is 1.75u wide.
+Caps Lock is intentionally **not** treated as a stabilized key. It always receives the normal `stl-templates/switch_socket.stl` switch cutout, even though it is 1.75u wide.
 
 ## Fixed bounding boxes
 
@@ -350,13 +350,13 @@ The template is cut at every horizontal plane of the mesh. Between two planes ea
 ### Socket
 
 ```powershell
---socket switch_socket.stl
+--socket stl-templates/switch_socket.stl
 ```
 
 ### Stabilizer
 
 ```powershell
---stabilizer stabilizer.stl
+--stabilizer stl-templates/stabilizer.stl
 ```
 
 ### Spacebar switch position
@@ -437,13 +437,13 @@ The plate outline always covers both rectangles of such a key (here 1.75u). The 
 --stepped-key standard
 ```
 
-The normal `switch_socket.stl`, with the switch at the center of the first rectangle (`w`, here 1.25u). This is the default and the behavior of earlier versions.
+The normal `stl-templates/switch_socket.stl`, with the switch at the center of the first rectangle (`w`, here 1.25u). This is the default and the behavior of earlier versions.
 
 ```powershell
 --stepped-key wide-caps
 ```
 
-The wide-caps socket `stl-templates/switch_socket_wide-caps.stl`, with the switch at the center of the second rectangle (`w2`, here 1.75u). The file is looked up next to `switch_socket.stl`, or you name it with `--socket-wide-caps my_socket.stl`. Because that template is not symmetric, it can be turned in 90° steps like a stabilizer:
+The wide-caps socket `stl-templates/switch_socket_wide-caps.stl`, with the switch at the center of the second rectangle (`w2`, here 1.75u). The file is looked up next to `stl-templates/switch_socket.stl`, or you name it with `--socket-wide-caps my_socket.stl`. Because that template is not symmetric, it can be turned in 90° steps like a stabilizer:
 
 ```powershell
 --wide-caps-rotation 180
