@@ -17,7 +17,7 @@ if str(REPO_ROOT) not in sys.path:
 import fat_plate_generator as fpg  # noqa: E402
 
 ORIENTATION_LAYOUT = REPO_ROOT / "tests" / "layouts" / "stabilizer_orientation.json"
-FULL_LAYOUT = REPO_ROOT / "keyboard-layout.json"
+FULL_LAYOUT = REPO_ROOT / fpg.DEFAULT_JSON
 
 
 def spacebar_paths(root: Path = REPO_ROOT) -> dict:
