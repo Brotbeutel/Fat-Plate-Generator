@@ -15,7 +15,7 @@ from tests.test_plate import projected_outline, run_cli
 from tests.test_templates import L_OUTLINE, box_mesh, l_shape_mesh, write_mesh
 
 STEPPED_LAYOUT = REPO_ROOT / "tests" / "layouts" / "stepped_capslock.json"
-STEPPED_JSON = REPO_ROOT / "KLE-exports" / "keyboard-layout_ISO_105_stepped_capslock.json"
+STEPPED_JSON = REPO_ROOT / "kle-jsons" / "stepped-capslock.json"
 
 
 def keys_of(text):
