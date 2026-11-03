@@ -25,5 +25,5 @@ __pycache__/
 !stabilzer_spacebar_7u.stl
 !fat_plate_export_example.stl
 
-old_STLs/*
-new_STLs/*
+old_stls/*
+new_stls/*
