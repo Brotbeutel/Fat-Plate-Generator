@@ -22,9 +22,9 @@ def keys_of(text):
 
 
 @pytest.fixture
-def wide_shift_template(tmp_path):
-    """An asymmetric stand-in for switch_socket_wide-shift.stl (an L)."""
-    return write_mesh(l_shape_mesh(), tmp_path / "wide-shift.stl")
+def wide_caps_template(tmp_path):
+    """An asymmetric stand-in for switch_socket_wide-caps.stl (an L)."""
+    return write_mesh(l_shape_mesh(), tmp_path / "wide-caps.stl")
 
 
 # --------------------------------------------------------------------------
@@ -59,7 +59,7 @@ def key(label="x", **kwargs):
 
 
 @pytest.mark.parametrize("stepped, kind", [
-    ("standard", fpg.KIND_NORMAL), ("wide-shift", fpg.KIND_WIDE_SHIFT)])
+    ("standard", fpg.KIND_NORMAL), ("wide-caps", fpg.KIND_WIDE_CAPS)])
 def test_a_stepped_key_is_classified_by_the_mode(stepped, kind):
     caps = key("Caps Lock", w=1.25, w2=1.75, l=True)
     assert fpg.classify_key(caps, stepped=stepped) == kind
@@ -94,18 +94,18 @@ def test_the_rotation_applies_to_the_second_centre_too():
 # --------------------------------------------------------------------------
 # the plate
 # --------------------------------------------------------------------------
-def test_standard_mode_keeps_the_normal_socket_at_w(wide_shift_template):
-    model = build_model(STEPPED_LAYOUT, stepped_key="standard", wide_shift_socket_path=wide_shift_template)
+def test_standard_mode_keeps_the_normal_socket_at_w(wide_caps_template):
+    model = build_model(STEPPED_LAYOUT, stepped_key="standard", wide_caps_socket_path=wide_caps_template)
     assert model.kinds == [fpg.KIND_NORMAL] * 3
-    assert "wide-shift" not in model.templates
+    assert "wide-caps" not in model.templates
     outline = projected_outline(model.cavities[0])
     assert outline.centroid.x == pytest.approx(model.centers[0][0], abs=1e-3)      # symmetric socket
 
 
-def test_wide_shift_mode_moves_the_switch_to_the_centre_of_w2(wide_shift_template):
+def test_wide_caps_mode_moves_the_switch_to_the_centre_of_w2(wide_caps_template):
     standard = build_model(STEPPED_LAYOUT, stepped_key="standard")
-    wide = build_model(STEPPED_LAYOUT, stepped_key="wide-shift", wide_shift_socket_path=wide_shift_template)
-    assert wide.kinds == [fpg.KIND_WIDE_SHIFT, fpg.KIND_NORMAL, fpg.KIND_NORMAL]
+    wide = build_model(STEPPED_LAYOUT, stepped_key="wide-caps", wide_caps_socket_path=wide_caps_template)
+    assert wide.kinds == [fpg.KIND_WIDE_CAPS, fpg.KIND_NORMAL, fpg.KIND_NORMAL]
     assert wide.rotations[0] == 180 and wide.rotations[1:] == [None, None]
     assert wide.centers[0][0] - standard.centers[0][0] == pytest.approx(0.25 * fpg.UNIT)   # 1.75u - 1.25u, halved
     assert wide.centers[0][1] == pytest.approx(standard.centers[0][1])
@@ -113,9 +113,9 @@ def test_wide_shift_mode_moves_the_switch_to_the_centre_of_w2(wide_shift_templat
         assert other_wide == pytest.approx(other_standard)
 
 
-def test_the_plate_outline_covers_both_rectangles_in_every_mode(wide_shift_template):
+def test_the_plate_outline_covers_both_rectangles_in_every_mode(wide_caps_template):
     standard = build_model(STEPPED_LAYOUT, stepped_key="standard")
-    wide = build_model(STEPPED_LAYOUT, stepped_key="wide-shift", wide_shift_socket_path=wide_shift_template)
+    wide = build_model(STEPPED_LAYOUT, stepped_key="wide-caps", wide_caps_socket_path=wide_caps_template)
     assert standard.footprint.symmetric_difference(wide.footprint).area < 1e-9
     width = standard.footprint.bounds[2] - standard.footprint.bounds[0]
     assert width == pytest.approx((1.75 + 1.0 + 1.0 + 0.0) * fpg.UNIT + 2 * fpg.DEFAULT_MARGIN)  # 1.75u, A, S
@@ -127,46 +127,46 @@ def affine(polygon, matrix):
 
 
 @pytest.mark.parametrize("global_rotation", [0, 180])
-@pytest.mark.parametrize("wide_shift_rotation", [0, 90, 180, 270])
-def test_the_wide_shift_socket_is_turned_never_mirrored(wide_shift_template, global_rotation, wide_shift_rotation):
-    config = OrientationConfig(global_rotation=global_rotation, wide_shift_rotation=wide_shift_rotation)
-    model = build_model(STEPPED_LAYOUT, stepped_key="wide-shift",
-                        wide_shift_socket_path=wide_shift_template, orientation=config)
+@pytest.mark.parametrize("wide_caps_rotation", [0, 90, 180, 270])
+def test_the_wide_caps_socket_is_turned_never_mirrored(wide_caps_template, global_rotation, wide_caps_rotation):
+    config = OrientationConfig(global_rotation=global_rotation, wide_caps_rotation=wide_caps_rotation)
+    model = build_model(STEPPED_LAYOUT, stepped_key="wide-caps",
+                        wide_caps_socket_path=wide_caps_template, orientation=config)
     cx, cy = model.centers[0]
-    turned = fpg.matrix_multiply(fpg.plate_rotation_matrix(config), fpg.rotation_matrix(wide_shift_rotation))
+    turned = fpg.matrix_multiply(fpg.plate_rotation_matrix(config), fpg.rotation_matrix(wide_caps_rotation))
     expected = translate(affine(Polygon(L_OUTLINE), turned), cx, cy)
     found = projected_outline(model.cavities[0])
     assert found.symmetric_difference(expected).area < 1e-6
     mirrored = translate(affine(Polygon(L_OUTLINE), fpg.matrix_multiply(model.matrix,
-                                                                      fpg.rotation_matrix(wide_shift_rotation))), cx, cy)
+                                                                      fpg.rotation_matrix(wide_caps_rotation))), cx, cy)
     assert found.symmetric_difference(mirrored).area > 1.0
 
 
-def test_by_default_the_wide_shift_template_comes_out_as_designed(wide_shift_template):
-    model = build_model(STEPPED_LAYOUT, stepped_key="wide-shift", wide_shift_socket_path=wide_shift_template)
+def test_by_default_the_wide_caps_template_comes_out_as_designed(wide_caps_template):
+    model = build_model(STEPPED_LAYOUT, stepped_key="wide-caps", wide_caps_socket_path=wide_caps_template)
     cx, cy = model.centers[0]
     found = projected_outline(model.cavities[0])
     assert found.symmetric_difference(translate(Polygon(L_OUTLINE), cx, cy)).area < 1e-6
 
 
-def test_the_wide_shift_template_is_only_needed_when_it_is_used(tmp_path):
+def test_the_wide_caps_template_is_only_needed_when_it_is_used(tmp_path):
     missing = tmp_path / "missing.stl"
-    build_model(STEPPED_LAYOUT, stepped_key="standard", wide_shift_socket_path=missing)       # no error
+    build_model(STEPPED_LAYOUT, stepped_key="standard", wide_caps_socket_path=missing)       # no error
     build_model(REPO_ROOT / "tests" / "layouts" / "stabilizer_orientation.json",
-                stepped_key="wide-shift", wide_shift_socket_path=missing)                    # no stepped key
+                stepped_key="wide-caps", wide_caps_socket_path=missing)                    # no stepped key
     with pytest.raises(TemplateError, match="not found"):
-        build_model(STEPPED_LAYOUT, stepped_key="wide-shift", wide_shift_socket_path=missing)
+        build_model(STEPPED_LAYOUT, stepped_key="wide-caps", wide_caps_socket_path=missing)
 
 
-def test_the_wide_shift_template_is_looked_up_next_to_the_socket(tmp_path, wide_shift_template):
+def test_the_wide_caps_template_is_looked_up_next_to_the_socket(tmp_path, wide_caps_template):
     folder = tmp_path / "templates"
     folder.mkdir()
-    (folder / fpg.DEFAULT_SOCKET_WIDE_SHIFT).write_bytes(wide_shift_template.read_bytes())
+    (folder / fpg.DEFAULT_SOCKET_WIDE_CAPS).write_bytes(wide_caps_template.read_bytes())
     (folder / fpg.DEFAULT_SOCKET).write_bytes((REPO_ROOT / fpg.DEFAULT_SOCKET).read_bytes())
     model = fpg.build_plate_model(STEPPED_LAYOUT, folder / fpg.DEFAULT_SOCKET, REPO_ROOT / fpg.DEFAULT_STABILIZER,
                                   {p: REPO_ROOT / fpg.DEFAULT_SPACEBAR_CENTERED for p in fpg.SPACEBAR_POSITIONS},
-                                  stepped_key="wide-shift")
-    assert model.templates["wide-shift"].path == folder / fpg.DEFAULT_SOCKET_WIDE_SHIFT
+                                  stepped_key="wide-caps")
+    assert model.templates["wide-caps"].path == folder / fpg.DEFAULT_SOCKET_WIDE_CAPS
 
 
 def test_an_unknown_stepped_mode_is_refused():
@@ -175,43 +175,43 @@ def test_an_unknown_stepped_mode_is_refused():
 
 
 # --------------------------------------------------------------------------
-# bounding box of the wide-shift template: only the height is fixed so far
+# bounding box of the wide-caps template: only the height is fixed so far
 # --------------------------------------------------------------------------
-def test_the_wide_shift_box_is_not_checked_in_x_and_y(tmp_path):
+def test_the_wide_caps_box_is_not_checked_in_x_and_y(tmp_path):
     path = write_mesh(box_mesh(23.0, 17.0, fpg.PLATE_Z_MIN, fpg.PLATE_Z_MAX), tmp_path / "w.stl")
-    assert fpg.load_template(path, "wide-shift").warnings == []
+    assert fpg.load_template(path, "wide-caps").warnings == []
 
 
-def test_the_wide_shift_height_is_checked(tmp_path):
+def test_the_wide_caps_height_is_checked(tmp_path):
     path = write_mesh(box_mesh(23.0, 17.0, fpg.PLATE_Z_MIN, fpg.PLATE_Z_MAX + 0.5), tmp_path / "w.stl")
-    assert any("bounding box top" in w for w in fpg.load_template(path, "wide-shift").warnings)
+    assert any("bounding box top" in w for w in fpg.load_template(path, "wide-caps").warnings)
 
 
 # --------------------------------------------------------------------------
 # configuration and CLI
 # --------------------------------------------------------------------------
-def test_the_wide_shift_rotation_default_and_validation():
-    assert OrientationConfig().wide_shift_rotation == 180
+def test_the_wide_caps_rotation_default_and_validation():
+    assert OrientationConfig().wide_caps_rotation == 180
     with pytest.raises(ValueError):
-        OrientationConfig(wide_shift_rotation=45)
+        OrientationConfig(wide_caps_rotation=45)
 
 
-def test_cli_standard_mode_needs_no_wide_shift_template(repo_root, tmp_path):
+def test_cli_standard_mode_needs_no_wide_caps_template(repo_root, tmp_path):
     result = run_cli(repo_root, "--json", str(STEPPED_LAYOUT), "--output", str(tmp_path / "x.stl"))
     assert result.returncode == 0, result.stderr
     assert "Stepped keys:    1, standard socket at the centre of w" in result.stdout
 
 
-def test_cli_wide_shift_mode(repo_root, tmp_path, wide_shift_template):
+def test_cli_wide_caps_mode(repo_root, tmp_path, wide_caps_template):
     result = run_cli(repo_root, "--json", str(STEPPED_LAYOUT), "--output", str(tmp_path / "x.stl"),
-                     "--stepped-key", "wide-shift", "--socket-wide-shift", str(wide_shift_template),
-                     "--wide-shift-rotation", "90")
+                     "--stepped-key", "wide-caps", "--socket-wide-caps", str(wide_caps_template),
+                     "--wide-caps-rotation", "90")
     assert result.returncode == 0, result.stderr
-    assert "Stepped keys:    1, wide-shift socket at the centre of w2 (rotation 90 deg)" in result.stdout
+    assert "Stepped keys:    1, wide-caps socket at the centre of w2 (rotation 90 deg)" in result.stdout
 
 
-def test_cli_wide_shift_mode_without_the_template_says_so(repo_root, tmp_path):
+def test_cli_wide_caps_mode_without_the_template_says_so(repo_root, tmp_path):
     result = run_cli(repo_root, "--json", str(STEPPED_LAYOUT), "--output", str(tmp_path / "x.stl"),
-                     "--stepped-key", "wide-shift", "--socket-wide-shift", str(tmp_path / "missing.stl"))
+                     "--stepped-key", "wide-caps", "--socket-wide-caps", str(tmp_path / "missing.stl"))
     assert result.returncode != 0
     assert "template STL not found" in result.stderr
