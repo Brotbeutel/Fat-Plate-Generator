@@ -263,19 +263,19 @@ This explicitly defines which files are being used.
 
 A template is a plate cell with the cutout in it, centered on the switch. The generator reads the **contour of the cutout** from it and builds the cutter for every key from that contour. Socket, stabilizer and spacebar are read and built in exactly the same way.
 
-## `switch_socket.stl`
+## `stl-templates/switch_socket.stl`
 
 This file defines the cutout for a standard key or switch.
 
-## `switch_socket_wide-caps.stl`
+## `stl-templates/switch_socket_wide-caps.stl`
 
 This file defines the cutout for a stepped key (for example a stepped Caps Lock). It is only used with `--stepped-key wide-caps` (see *Stepped Keys*), and only if the layout has a stepped key. Like the other templates it is centered on the switch, and it is turned like a stabilizer (`--wide-caps-rotation`), never mirrored.
 
-## `stabilizer.stl`
+## `stl-templates/stabilizer.stl`
 
 This file contains the **switch socket + stabilizer cutout**.
 
-## `stabilzer_spacebar.stl`, `stabilzer_spacebar_off-center_left.stl` and `stabilzer_spacebar_off-center_right.stl`
+## `stl-templates/stabilzer_spacebar.stl`, `stl-templates/stabilzer_spacebar_off-center_left.stl` and `stl-templates/stabilzer_spacebar_off-center_right.stl`
 
 These files define the dedicated 6.25u spacebar cutout. The templates contain the same overall spacebar geometry, but place the switch position differently: centered, left of the center or right of the center, seen from above with the typist at the bottom of the plate.
 
@@ -442,7 +442,7 @@ The normal `switch_socket.stl`, with the switch at the center of the first recta
 --stepped-key wide-caps
 ```
 
-The wide-caps socket `switch_socket_wide-caps.stl`, with the switch at the center of the second rectangle (`w2`, here 1.75u). The file is looked up next to `switch_socket.stl`, or you name it with `--socket-wide-caps my_socket.stl`. Because that template is not symmetric, it can be turned in 90° steps like a stabilizer:
+The wide-caps socket `stl-templates/switch_socket_wide-caps.stl`, with the switch at the center of the second rectangle (`w2`, here 1.75u). The file is looked up next to `switch_socket.stl`, or you name it with `--socket-wide-caps my_socket.stl`. Because that template is not symmetric, it can be turned in 90° steps like a stabilizer:
 
 ```powershell
 --wide-caps-rotation 180
