@@ -20,15 +20,15 @@ If a template STL is not exact (for example one you designed yourself), the gene
 - `fat_plate_generator.py` – the application
 - `requirements.txt` – required Python packages
 - `requirements-dev.txt` – additional packages for the preview tool and the tests
-- `switch_socket.stl` – template for standard switch sockets
-- `switch_socket_wide-shift.stl` – template for stepped keys such as a stepped Caps Lock (see *Stepped Keys*; not included yet, you add it)
-- `stabilizer.stl` – template for standard stabilized keys
-- `stabilzer_spacebar.stl` – centered spacebar template
+- `stl-templates/switch_socket.stl` – template for standard switch sockets
+- `stl-templates/switch_socket_wide-caps.stl` – template for stepped keys such as a stepped Caps Lock (see *Stepped Keys*)
+- `stl-templates/stabilizer.stl` – template for standard stabilized keys
+- `stl-templates/stabilzer_spacebar.stl` – centered spacebar template
 - `stabilzer_spacebar_centered.stl` – identical copy of the centered template (not read by the generator)
-- `stabilzer_spacebar_off-center_left.stl` – spacebar template with the switch left of the center
-- `stabilzer_spacebar_off-center_right.stl` – spacebar template with the switch right of the center
-- `keyboard-layout.json` – example layout
-- `kle-exports/` – more example layouts (40%, 100% ISO and ANSI)
+- `stl-templates/stabilzer_spacebar_off-center_left.stl` – spacebar template with the switch left of the center
+- `stl-templates/stabilzer_spacebar_off-center_right.stl` – spacebar template with the switch right of the center
+- `kle-jsons/keyboard-layout.json` – default example layout
+- `kle-jsons/` – more example layouts (40%, 100% ISO and ANSI)
 - `fat_plate_export_example.stl` – example output
 - `tools/preview.py` – top-view preview of a generated STL
 - `tests/` – automated tests (`python -m pytest`)
@@ -102,7 +102,7 @@ Fat-Plate-Generator
     ├── stabilzer_spacebar.stl
     ├── stabilzer_spacebar_off-center_left.stl
     ├── stabilzer_spacebar_off-center_right.stl
-    ├── switch_socket_wide-shift.stl
+    ├── switch_socket_wide-caps.stl
 ├── fat_plate_generator.py
 ├── requirements.txt
 └── README.md
@@ -267,9 +267,9 @@ A template is a plate cell with the cutout in it, centered on the switch. The ge
 
 This file defines the cutout for a standard key or switch.
 
-## `switch_socket_wide-shift.stl`
+## `switch_socket_wide-caps.stl`
 
-This file defines the cutout for a stepped key (for example a stepped Caps Lock). It is only used with `--stepped-key wide-shift` (see *Stepped Keys*), and only if the layout has a stepped key. Like the other templates it is centered on the switch, and it is turned like a stabilizer (`--wide-shift-rotation`), never mirrored.
+This file defines the cutout for a stepped key (for example a stepped Caps Lock). It is only used with `--stepped-key wide-caps` (see *Stepped Keys*), and only if the layout has a stepped key. Like the other templates it is centered on the switch, and it is turned like a stabilizer (`--wide-caps-rotation`), never mirrored.
 
 ## `stabilizer.stl`
 
@@ -312,7 +312,7 @@ The outer size of every template is fixed. If you design a new template (for exa
 | socket                  | 19.05 × 19.05 mm                           | −5.0 … 1.2 mm |
 | stabilizer              | 38.1 × 19.05 mm                            | −5.0 … 1.2 mm |
 | spacebar (all variants) | 114.3015 × 19.05 mm                        | −5.0 … 1.2 mm |
-| wide-shift socket       | not fixed yet (only the height is checked) | −5.0 … 1.2 mm |
+| wide-caps socket       | not fixed yet (only the height is checked) | −5.0 … 1.2 mm |
 
 The plate is exactly 6.2 mm thick (z from −5.0 to 1.2); this comes from the fixed values, not from a template. 19.05 mm is the pitch of a 1u key; the lengths of the stabilizer and spacebar box are the sizes of the current templates.
 
@@ -439,13 +439,13 @@ The plate outline always covers both rectangles of such a key (here 1.75u). The 
 The normal `switch_socket.stl`, with the switch at the center of the first rectangle (`w`, here 1.25u). This is the default and the behavior of earlier versions.
 
 ```powershell
---stepped-key wide-shift
+--stepped-key wide-caps
 ```
 
-The wide-shift socket `switch_socket_wide-shift.stl`, with the switch at the center of the second rectangle (`w2`, here 1.75u). The file is looked up next to `switch_socket.stl`, or you name it with `--socket-wide-shift my_socket.stl`. Because that template is not symmetric, it can be turned in 90° steps like a stabilizer:
+The wide-caps socket `switch_socket_wide-caps.stl`, with the switch at the center of the second rectangle (`w2`, here 1.75u). The file is looked up next to `switch_socket.stl`, or you name it with `--socket-wide-caps my_socket.stl`. Because that template is not symmetric, it can be turned in 90° steps like a stabilizer:
 
 ```powershell
---wide-shift-rotation 180
+--wide-caps-rotation 180
 ```
 
 The default is `180`, which makes the template come out as designed (seen from above with the typist at the bottom of the plate). A stepped key that is wide enough for a stabilizer, and the spacebar, keep their own cutouts.
@@ -688,7 +688,7 @@ Currently, the generator supports in particular:
 - STL export with automatic validation
 - Top-view preview of generated plates (`tools/preview.py`)
 - Optional single connected plate without gaps (`--single-mesh`)
-- Stepped keys (stepped Caps Lock): normal socket or wide-shift socket (`--stepped-key`)
+- Stepped keys (stepped Caps Lock): normal socket or wide-caps socket (`--stepped-key`)
 
 Planned or currently in development (details in `ROADMAP.md`):
 
