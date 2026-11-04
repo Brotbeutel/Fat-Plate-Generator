@@ -4,6 +4,7 @@ Status: `[ ]` offen, `[~]` in Arbeit, `[x]` erledigt.
 
 ## Arbeitspakete
 
+- [x] **WP-08** Stabilizer-Schwelle auf 2u gesetzt, KLE-Metadaten ignoriert, Raw-Data-Validierung und Parser-/Klassifikations-Tests ergänzt.
 - [x] **WP-07** Repo-Reparatur: Default-Pfade korrigiert, wide-caps-Bezeichnungen vereinheitlicht, Pfad- und Default-Stepped-Key-Tests ergänzt, Dokumentation aktualisiert.
 
 - [x] **WP-01** Stabilizer-Orientierung + Preview/Tests

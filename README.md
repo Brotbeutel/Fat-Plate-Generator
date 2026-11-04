@@ -244,7 +244,7 @@ Then run:
 python .\fat_plate_generator.py --json my_keyboard.json --output my_keyboard.stl
 ```
 
-Important: Use the KLE **Raw Data JSON**, not another JSON export format.
+Important: Use the KLE **Raw Data JSON**, not another JSON export format. A `name` and `author` metadata object at the beginning of the Raw Data is allowed and ignored. Other JSON formats are rejected.
 
 ---
 
@@ -302,7 +302,7 @@ The default is **centered**. The supplied templates are used exactly as they are
 
 ### Caps Lock
 
-Caps Lock is intentionally **not** treated as a stabilized key. It always receives the normal `stl-templates/switch_socket.stl` switch cutout, even though it is 1.75u wide.
+Caps Lock is intentionally **not** treated as a stabilized key. It always receives the normal `stl-templates/switch_socket.stl` switch cutout, regardless of its width.
 
 ## Fixed bounding boxes
 
@@ -403,10 +403,12 @@ Default: `1 mm`
 
 ### Minimum Size for Stabilizer Keys
 
-Default: `1.75u`
+Default: `2u`
+
+The stabilizer applies from `2u` in either the key's width or height. Keys with both dimensions below `2u` receive a normal switch socket. This means 1.75u keys (for example Shift and Enter in some 40% layouts) get a normal socket by default. To give them a stabilizer cutout instead, lower the threshold:
 
 ```powershell
---stabilizer-min-unit 2
+--stabilizer-min-unit 1.75
 ```
 
 ### Stabilizer Orientation
