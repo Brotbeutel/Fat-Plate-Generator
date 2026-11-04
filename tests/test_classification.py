@@ -47,6 +47,7 @@ def test_classify_key_rules():
     assert fpg.classify_key(key("Shift", w=2.0)) == fpg.KIND_STABILIZED
     assert fpg.classify_key(key("Shift", w=1.5)) == fpg.KIND_NORMAL
     assert fpg.classify_key(key("Shift", w=1.5), min_units=1.5) == fpg.KIND_STABILIZED
+    assert fpg.classify_key(key("Shift", w=1.75), min_units=1.5) == fpg.KIND_STABILIZED
     assert fpg.classify_key(key("+", h=2)) == fpg.KIND_STABILIZED
     assert fpg.classify_key(key("Caps Lock", w=1.75)) == fpg.KIND_NORMAL
     assert fpg.classify_key(key("Caps Lock", w=2.0)) == fpg.KIND_NORMAL
