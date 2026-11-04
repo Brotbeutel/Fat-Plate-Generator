@@ -405,7 +405,7 @@ Default: `1 mm`
 
 Default: `2u`
 
-Keys narrower than `2u` receive a normal switch socket. This means 1.75u keys (for example Shift and Enter in some 40% layouts) get a normal socket by default. To give them a stabilizer cutout instead, lower the threshold:
+The stabilizer applies from `2u` in either the key's width or height. Keys with both dimensions below `2u` receive a normal switch socket. This means 1.75u keys (for example Shift and Enter in some 40% layouts) get a normal socket by default. To give them a stabilizer cutout instead, lower the threshold:
 
 ```powershell
 --stabilizer-min-unit 1.75
