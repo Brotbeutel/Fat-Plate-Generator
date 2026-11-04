@@ -34,9 +34,10 @@ def test_non_raw_data_shapes_are_rejected(data):
         fpg.parse_kle(data)
 
 
-def test_invalid_row_error_names_its_index():
+@pytest.mark.parametrize("invalid_row", ["not a row", {"name": "Misplaced metadata"}])
+def test_invalid_row_error_names_its_index(invalid_row):
     with pytest.raises(ValueError, match=r"row at index 1"):
-        fpg.parse_kle([["Q"], "not a row"])
+        fpg.parse_kle([["Q"], invalid_row])
 
 
 @pytest.mark.parametrize("layout_path", sorted((REPO_ROOT / "kle-jsons").glob("*.json")),
