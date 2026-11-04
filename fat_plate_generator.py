@@ -28,6 +28,7 @@ from shapely.ops import unary_union
 VERSION = "0.25"
 UNIT = 19.05
 DEFAULT_MARGIN = 1
+DEFAULT_STABILIZER_MIN_UNIT = 2.0
 DEFAULT_JSON = "kle-jsons/keyboard-layout.json"
 DEFAULT_SOCKET = "stl-templates/switch_socket.stl"
 DEFAULT_SOCKET_WIDE_CAPS = "stl-templates/switch_socket_wide-caps.stl"
@@ -169,13 +170,25 @@ def apply_matrix(matrix, x, y):
 
 
 def parse_kle(data):
+    if not isinstance(data, list):
+        raise ValueError(
+            "Expected KLE Raw Data from Keyboard Layout Editor as a list of rows."
+        )
+
     keys = []
     x = y = 0.0
-    reset_x = reset_y = 0.0
+    reset_x = 0.0
     p = {"w": 1.0, "h": 1.0, "x2": 0.0, "y2": 0.0,
          "w2": 1.0, "h2": 1.0, "l": False, "r": 0.0, "rx": 0.0, "ry": 0.0}
 
-    for row in data:
+    for row_index, row in enumerate(data):
+        if row_index == 0 and isinstance(row, dict):
+            continue
+        if not isinstance(row, list):
+            raise ValueError(
+                "Expected KLE Raw Data from Keyboard Layout Editor; "
+                f"row at index {row_index} must be a list."
+            )
         for item in row:
             if isinstance(item, dict):
                 if "r" in item:
@@ -186,8 +199,7 @@ def parse_kle(data):
                     x = reset_x
                 if "ry" in item:
                     p["ry"] = item["ry"]
-                    reset_y = p["ry"]
-                    y = reset_y
+                    y = p["ry"]
                 x += item.get("x", 0)
                 y += item.get("y", 0)
                 p["w"] = item.get("w", 1.0)
@@ -755,7 +767,7 @@ KIND_SPACEBAR = "spacebar"
 KIND_WIDE_CAPS = "wide-caps"
 
 
-def classify_key(k, min_units=1.75, stepped="standard"):
+def classify_key(k, min_units=DEFAULT_STABILIZER_MIN_UNIT, stepped="standard"):
     """Return KIND_SPACEBAR, KIND_STABILIZED, KIND_WIDE_CAPS or KIND_NORMAL.
 
     A stepped key (``"l": true``) that would get a normal socket is a
@@ -771,7 +783,7 @@ def classify_key(k, min_units=1.75, stepped="standard"):
     return KIND_NORMAL
 
 
-def stabilizer_rotation(k, orientation: "OrientationConfig", min_units=1.75, stepped="standard"):
+def stabilizer_rotation(k, orientation: "OrientationConfig", min_units=DEFAULT_STABILIZER_MIN_UNIT, stepped="standard"):
     """Rotation (degrees, counter-clockwise, KLE frame) of a key's cutout.
 
     Returns ``None`` for keys with a normal switch socket.  Stabilized keys
@@ -779,6 +791,11 @@ def stabilizer_rotation(k, orientation: "OrientationConfig", min_units=1.75, ste
     wide-caps socket of a stepped key is turned by ``wide_caps_rotation``.
     """
     kind = classify_key(k, min_units, stepped)
+    return rotation_for_kind(k, kind, orientation)
+
+
+def rotation_for_kind(k, kind, orientation: "OrientationConfig"):
+    """Return the cutout rotation for a previously classified key kind."""
     if kind == KIND_WIDE_CAPS:
         return orientation.wide_caps_rotation
     if kind == KIND_SPACEBAR:
@@ -809,7 +826,7 @@ class PlateModel:
 
 def build_plate_model(kle_path: Path, socket_path: Path, stabilizer_path: Path,
                       spacebar_paths: dict, spacebar_position="centered",
-                      margin=DEFAULT_MARGIN, stabilizer_min_unit=1.75,
+                      margin=DEFAULT_MARGIN, stabilizer_min_unit=DEFAULT_STABILIZER_MIN_UNIT,
                       orientation: OrientationConfig | None = None,
                       single_mesh=False, stepped_key="standard",
                       wide_caps_socket_path: Path | None = None) -> PlateModel:
@@ -861,7 +878,7 @@ def build_plate_model(kle_path: Path, socket_path: Path, stabilizer_path: Path,
     footprint = translate(footprint, xoff=-minx, yoff=-miny)
 
     kinds = [classify_key(k, stabilizer_min_unit, stepped_key) for k in keys]
-    rotations = [stabilizer_rotation(k, orientation, stabilizer_min_unit, stepped_key) for k in keys]
+    rotations = [rotation_for_kind(k, kind, orientation) for k, kind in zip(keys, kinds)]
     centers = []
     for k, kind in zip(keys, kinds):
         cx, cy = apply_matrix(gm, *switch_center(k, second=(kind == KIND_WIDE_CAPS)))
@@ -1014,7 +1031,7 @@ def report_stl_check(mesh, problems, stl_path: Path):
 def generate(kle_path: Path, socket_path: Path, stabilizer_path: Path,
              spacebar_paths: dict, spacebar_position="centered",
              output: Path = Path(DEFAULT_OUTPUT), margin=DEFAULT_MARGIN,
-             stabilizer_min_unit=1.75,
+             stabilizer_min_unit=DEFAULT_STABILIZER_MIN_UNIT,
              orientation: OrientationConfig | None = None,
              single_mesh=False, stepped_key="standard",
              wide_caps_socket_path: Path | None = None):
@@ -1101,7 +1118,8 @@ def main():
                              "(default: %(default)s).")
     parser.add_argument("--output", type=Path, default=base / DEFAULT_OUTPUT)
     parser.add_argument("--margin", type=float, default=DEFAULT_MARGIN)
-    parser.add_argument("--stabilizer-min-unit", type=float, default=1.75)
+    parser.add_argument("--stabilizer-min-unit", type=float, default=DEFAULT_STABILIZER_MIN_UNIT,
+                        help="minimum key width or height for a stabilizer cutout (default: %(default)s)")
     defaults = OrientationConfig()
     parser.add_argument("--stab-rotation-horizontal", type=int, choices=ROTATION_CHOICES,
                         default=defaults.stab_rotation_horizontal,

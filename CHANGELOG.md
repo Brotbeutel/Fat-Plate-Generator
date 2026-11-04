@@ -21,6 +21,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- The default `--stabilizer-min-unit` is now `2.0`: 1.75u keys (for example Enter and Shift in the JD40 layout) receive a normal socket. Use `--stabilizer-min-unit 1.75` to give them a stabilizer cutout.
 - `classify_key()`, `stabilizer_rotation()` and `switch_center()` know stepped keys (`stepped` and `second` arguments); `build_plate_model()` and `generate()` take `stepped_key` and `wide_caps_socket_path`.
 - The help text of `--single-mesh` describes the current behavior.
 - The cutouts are only turned, never mirrored: the mirror of the whole-plate transform now moves only the keys and the plate outline, the cutouts get just its rotation (`plate_rotation_matrix()`). The default vertical stabilizer rotation is 90° instead of 270° because of that; for the symmetric stabilizers the plate is unchanged.
@@ -48,10 +49,6 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- KLE `name` and `author` metadata at the beginning of Raw Data is now ignored instead of being parsed as extra keys.
 - Corrected the default KLE layout path and the default wide-caps template lookup; aligned path-dependent tests and added guards for exact repository path casing and default stepped-key generation.
 - Spacebar (and every other) stabilizer cutout was mirrored horizontally by the whole-plate transform; a left spacebar template came out as a right one.
-
-### Known issues
-
-- Adding a Keyboard Name and Author to the KLE-JSON causes extra keys to appear.
-- Keys with a width of 1,75 units get a stabilizer added. (Tested with keyboard-layout_040-percent_jd40.json)
