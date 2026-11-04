@@ -1031,7 +1031,7 @@ def report_stl_check(mesh, problems, stl_path: Path):
 def generate(kle_path: Path, socket_path: Path, stabilizer_path: Path,
              spacebar_paths: dict, spacebar_position="centered",
              output: Path = Path(DEFAULT_OUTPUT), margin=DEFAULT_MARGIN,
-             stabilizer_min_unit=1.75,
+             stabilizer_min_unit=DEFAULT_STABILIZER_MIN_UNIT,
              orientation: OrientationConfig | None = None,
              single_mesh=False, stepped_key="standard",
              wide_caps_socket_path: Path | None = None):
@@ -1118,7 +1118,8 @@ def main():
                              "(default: %(default)s).")
     parser.add_argument("--output", type=Path, default=base / DEFAULT_OUTPUT)
     parser.add_argument("--margin", type=float, default=DEFAULT_MARGIN)
-    parser.add_argument("--stabilizer-min-unit", type=float, default=DEFAULT_STABILIZER_MIN_UNIT,\n                        help="minimum key width or height for a stabilizer cutout (default: %(default)s)")
+    parser.add_argument("--stabilizer-min-unit", type=float, default=DEFAULT_STABILIZER_MIN_UNIT,
+                        help="minimum key width or height for a stabilizer cutout (default: %(default)s)")
     defaults = OrientationConfig()
     parser.add_argument("--stab-rotation-horizontal", type=int, choices=ROTATION_CHOICES,
                         default=defaults.stab_rotation_horizontal,
