@@ -50,8 +50,7 @@ def test_every_repository_layout_parses_and_has_no_false_small_stabilizers(layou
         for key, kind in zip(keys, kinds)
         if max(float(key["w"]), float(key["h"])) < fpg.DEFAULT_STABILIZER_MIN_UNIT
     )
-    if not any(key["label"] in ("name", "author") for key in keys):
-        assert not any(key["label"] in ("name", "author") for key in keys)
+    assert not any(key["label"] in ("name", "author") for key in keys)
 
 
 def test_jd40_enter_and_shift_at_1_75u_are_normal_sockets():
