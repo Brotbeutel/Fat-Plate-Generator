@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 
 import pytest
@@ -217,3 +218,81 @@ def test_cli_wide_caps_mode_without_the_template_says_so(repo_root, tmp_path):
                      "--stepped-key", "wide-caps", "--socket-wide-caps", str(tmp_path / "missing.stl"))
     assert result.returncode != 0
     assert "template STL not found" in result.stderr
+
+
+# --------------------------------------------------------------------------
+# integration tests with real templates and KLE layouts
+# --------------------------------------------------------------------------
+STEPPED_LAYOUTS = [
+    p for p in sorted((REPO_ROOT / "kle-jsons").glob("*.json"))
+    if any(k.get("l", False) for k in fpg.parse_kle(json.loads(p.read_text(encoding="utf-8"))))
+]
+
+
+@pytest.mark.parametrize("layout_path", STEPPED_LAYOUTS, ids=lambda p: p.name)
+def test_all_stepped_layouts_classify_correctly(layout_path):
+    keys = fpg.parse_kle(json.loads(layout_path.read_text(encoding="utf-8")))
+
+    kinds_wide = [fpg.classify_key(k, stepped="wide-caps") for k in keys]
+    for k, kind in zip(keys, kinds_wide):
+        is_stepped = k.get("l", False)
+        is_space = fpg.is_spacebar_key(k)
+        is_stab = fpg.is_stabilized_key(k, fpg.DEFAULT_STABILIZER_MIN_UNIT)
+        if is_stepped and not is_space and not is_stab:
+            assert kind == fpg.KIND_WIDE_CAPS
+        else:
+            assert kind != fpg.KIND_WIDE_CAPS
+
+    kinds_standard = [fpg.classify_key(k, stepped="standard") for k in keys]
+    assert fpg.KIND_WIDE_CAPS not in kinds_standard
+
+
+@pytest.mark.parametrize("width", [
+    fpg.DEFAULT_STABILIZER_MIN_UNIT,
+    fpg.DEFAULT_STABILIZER_MIN_UNIT + 0.25,
+])
+def test_stepped_key_with_stabilizer_width_keeps_stabilizer(width):
+    k = key("Shift", w=width, l=True)
+    assert fpg.classify_key(k, stepped="wide-caps") == fpg.KIND_STABILIZED
+    assert fpg.classify_key(k, stepped="standard") == fpg.KIND_STABILIZED
+
+
+@pytest.mark.parametrize("rot", [0, 90, 180, 270])
+def test_stepped_capslock_builds_and_does_not_overlap_neighbors(rot):
+    cfg = OrientationConfig(wide_caps_rotation=rot)
+    model = build_model(STEPPED_LAYOUT, stepped_key="wide-caps", orientation=cfg)
+    stepped_idx = [i for i, k in enumerate(model.keys) if k.get("l", False)][0]
+    cavity = projected_outline(model.cavities[stepped_idx])
+
+    for i, other in enumerate(model.cavities):
+        if i != stepped_idx:
+            other_poly = projected_outline(other)
+            assert cavity.intersection(other_poly).area < 1e-6
+            assert cavity.distance(other_poly) > 0
+
+    if rot in (0, 180):
+        assert cavity.difference(model.footprint).area < 1e-6
+        assert model.footprint.boundary.distance(cavity) > 0
+
+
+def test_060_iso_stepped_builds_in_wide_caps_mode():
+    layout_path = REPO_ROOT / "kle-jsons" / "keyboard-layout_060-percent-iso_stepped-capslock.json"
+    model = build_model(layout_path, stepped_key="wide-caps")
+    assert model.kinds.count(fpg.KIND_WIDE_CAPS) == 1
+
+    stepped_idx = model.kinds.index(fpg.KIND_WIDE_CAPS)
+    cavity = projected_outline(model.cavities[stepped_idx])
+
+    assert cavity.difference(model.footprint).area < 1e-6
+    assert model.footprint.boundary.distance(cavity) > 0
+
+    caps_center = model.centers[stepped_idx]
+    nearby_indices = [
+        i for i, c in enumerate(model.centers)
+        if i != stepped_idx and math.hypot(c[0] - caps_center[0], c[1] - caps_center[1]) < 2.0 * fpg.UNIT
+    ]
+    assert len(nearby_indices) > 0
+    for i in nearby_indices:
+        other_poly = projected_outline(model.cavities[i])
+        assert cavity.intersection(other_poly).area < 1e-6
+        assert cavity.distance(other_poly) > 0
