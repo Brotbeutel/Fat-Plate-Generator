@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- Tests for stepped keys / wide-caps classification across all stepped KLE layouts, stabilizer retention for stepped keys with width >= 2u, CAD overlap and margin tests, and top-view preview renders in `docs/wide-caps-test/` (WP-09).
+
 - Stepped keys: the KLE flag `"l": true` (a stepped Caps Lock) is read. `--stepped-key standard` (default, as before) uses the normal socket at the center of `w`; `--stepped-key wide-caps` uses the new template `switch_socket_wide-caps.stl` (`--socket-wide-caps` to name another file) at the center of `w2`, turned by `--wide-caps-rotation` (default 180, never mirrored). The plate outline covers both rectangles in either mode. The wide-caps template is only read when a stepped key needs it; its bounding box is not fixed yet, only its height is checked.
 - `--single-mesh` generates the plate as one connected mesh without gaps: the space between keys that face each other (horizontally or vertically, whatever the gap: Esc and F1, F-row, main block and numpad) is filled, parts that are still separate are joined with the smallest radius that connects them, and voids enclosed by the outline are filled. Without the option the plate is generated as before.
 - `--spacebar-position off-centered-left` and `off-centered-right` (with `--spacebar-off-centered-left` / `--spacebar-off-centered-right` for the files) replace `off-centered`; the template `stabilzer_spacebar_off-center.stl` was split into `stabilzer_spacebar_off-center_left.stl` and `..._right.stl`.

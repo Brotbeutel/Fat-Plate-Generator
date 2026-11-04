@@ -6,7 +6,7 @@ Stand: `main` @ `26982fa` (WP-07 und WP-08 gemerged, Tests grün; geprüft vom P
 
 ## Reihenfolge
 
-~~WP-07~~ → ~~WP-08~~ → WP-09 → WP-10 → WP-11 → WP-12 → WP-13. WP-11 bis WP-13 bauen auf dem Settings-Objekt und der Config aus WP-10 auf; ihre Prompts folgen nach WP-10.
+~~WP-07~~ → ~~WP-08~~ → ~~WP-09~~ → WP-10 → WP-11 → WP-12 → WP-13. WP-11 bis WP-13 bauen auf dem Settings-Objekt und der Config aus WP-10 auf; ihre Prompts folgen nach WP-10.
 
 ## Arbeitspakete
 
@@ -37,7 +37,7 @@ Stand: `main` @ `26982fa` (WP-07 und WP-08 gemerged, Tests grün; geprüft vom P
 
 - [x] **WP-07** Repo-Reparatur: Standardpfade, Wide-Caps-Lookup, Tests und Doku wieder konsistent (`wide-shift` → `wide-caps`); Wächter-Tests für die `DEFAULT_*`-Pfade
 - [x] **WP-08** Fixes: Stabilizer erst ab 2 u (`DEFAULT_STABILIZER_MIN_UNIT`), KLE-Metadaten (Name/Autor) werden ignoriert, Raw-Data-Validierung, Parser-/Klassifikationstests
-- [ ] **WP-09** Wide-Caps-Feature testen (`--stepped-key wide-caps`) (Prompt: `WP-09_prompt.md`)
+- [x] **WP-09** Wide-Caps-Feature testen (`--stepped-key wide-caps`) (Prüfbericht im WP-09 Abschlussbericht)
   - Prüf-WP, **keine Änderung am Generator**: Prüfmatrix (alle Stepped-Layouts × Modus × Rotation), Vorschaubilder in `docs/wide-caps-test/`, Testlücken schließen, Fehler nur berichten
   - Gemessen: Position des Schalterzentrums, Abstand zum Umriss, Stegbreite zu den Nachbar-Cavities, Überlappung
   - Nutzer: feste Bounding Box des Templates bestätigen (gemessen: 23,8125 × 19,05 mm, `TEMPLATE_BOUNDING_BOXES["wide-caps"]` steht noch auf `None`) und anhand der Bilder die Standard-Rotation bestätigen
