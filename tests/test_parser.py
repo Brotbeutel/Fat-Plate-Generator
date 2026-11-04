@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 
 import pytest
 
@@ -65,9 +67,6 @@ def test_jd40_enter_and_shift_at_1_75u_are_normal_sockets():
 
 
 def test_main_reports_invalid_raw_data_as_an_error(tmp_path):
-    import subprocess
-    import sys
-
     invalid = tmp_path / "not-raw-data.json"
     invalid.write_text('{"name": "wrong export"}', encoding="utf-8")
     result = subprocess.run(
