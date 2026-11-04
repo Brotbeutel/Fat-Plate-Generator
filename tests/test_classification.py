@@ -1,6 +1,11 @@
 """Key classification, chosen stabilizer rotation and orientation config."""
 from __future__ import annotations
 
+import inspect
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 
 import fat_plate_generator as fpg
@@ -37,11 +42,14 @@ def test_default_classification_and_rotation(orientation_model, label):
 
 def test_classify_key_rules():
     assert fpg.classify_key(key("A")) == fpg.KIND_NORMAL
-    assert fpg.classify_key(key("Shift", w=1.75)) == fpg.KIND_STABILIZED
+    assert fpg.classify_key(key("Shift", w=1.75)) == fpg.KIND_NORMAL
+    assert fpg.classify_key(key("Shift", w=1.75), min_units=1.75) == fpg.KIND_STABILIZED
+    assert fpg.classify_key(key("Shift", w=2.0)) == fpg.KIND_STABILIZED
     assert fpg.classify_key(key("Shift", w=1.5)) == fpg.KIND_NORMAL
     assert fpg.classify_key(key("Shift", w=1.5), min_units=1.5) == fpg.KIND_STABILIZED
     assert fpg.classify_key(key("+", h=2)) == fpg.KIND_STABILIZED
     assert fpg.classify_key(key("Caps Lock", w=1.75)) == fpg.KIND_NORMAL
+    assert fpg.classify_key(key("Caps Lock", w=2.0)) == fpg.KIND_NORMAL
     assert fpg.classify_key(key("", w=6.25)) == fpg.KIND_SPACEBAR
     # A wide key with a legend is not a spacebar (current behaviour, see WP-02).
     assert fpg.classify_key(key("Space", w=6.25)) == fpg.KIND_STABILIZED
@@ -99,3 +107,22 @@ def test_preview_uses_the_same_global_matrix():
 
     assert preview.GLOBAL_MATRIX == fpg.global_matrix(OrientationConfig())
     assert preview.IDENTITY_MATRIX == fpg.IDENTITY_MATRIX
+
+ 
+def test_stabilizer_minimum_default_is_centralized():
+    assert fpg.DEFAULT_STABILIZER_MIN_UNIT == 2.0
+    for function in (fpg.classify_key, fpg.stabilizer_rotation,
+                     fpg.build_plate_model, fpg.generate):
+        parameter = ("min_units" if function in (fpg.classify_key, fpg.stabilizer_rotation)
+                     else "stabilizer_min_unit")
+        assert inspect.signature(function).parameters[parameter].default == (
+            fpg.DEFAULT_STABILIZER_MIN_UNIT
+        )
+
+    root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [sys.executable, str(root / "fat_plate_generator.py"), "--help"],
+        capture_output=True, text=True, cwd=root, check=True,
+    )
+    assert "--stabilizer-min-unit" in result.stdout
+    assert "(default: 2.0)" in result.stdout
