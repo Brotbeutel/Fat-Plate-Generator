@@ -60,6 +60,8 @@ def test_horizontal_vs_vertical_rule():
     cfg = OrientationConfig(stab_rotation_horizontal=0, stab_rotation_vertical=270,
                             stab_rotation_spacebar=90)
     assert fpg.stabilizer_rotation(key("Shift", w=2.25), cfg) == 0
+    assert fpg.stabilizer_rotation(key("Shift", w=1.75), cfg) is None
+    assert fpg.stabilizer_rotation(key("Shift", w=1.75), cfg, min_units=1.75) == 0
     assert fpg.stabilizer_rotation(key("+", h=2), cfg) == 270
     # Square keys count as vertical (w > h is the horizontal rule); unchanged.
     assert fpg.stabilizer_rotation(key("big", w=2, h=2), cfg) == 270
