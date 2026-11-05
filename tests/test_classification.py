@@ -114,13 +114,11 @@ def test_preview_uses_the_same_global_matrix():
  
 def test_stabilizer_minimum_default_is_centralized():
     assert fpg.DEFAULT_STABILIZER_MIN_UNIT == 2.0
-    for function in (fpg.classify_key, fpg.stabilizer_rotation,
-                     fpg.build_plate_model, fpg.generate):
-        parameter = ("min_units" if function in (fpg.classify_key, fpg.stabilizer_rotation)
-                     else "stabilizer_min_unit")
-        assert inspect.signature(function).parameters[parameter].default == (
+    for function in (fpg.classify_key, fpg.stabilizer_rotation):
+        assert inspect.signature(function).parameters["min_units"].default == (
             fpg.DEFAULT_STABILIZER_MIN_UNIT
         )
+    assert fpg.Settings().stabilizer_min_unit == fpg.DEFAULT_STABILIZER_MIN_UNIT
 
     root = Path(__file__).resolve().parents[1]
     result = subprocess.run(
