@@ -217,6 +217,125 @@ class Settings:
         return replace(self, **kwargs)
 
 
+# ---------------------------------------------------------------------------
+# Configuration file (TOML)
+# ---------------------------------------------------------------------------
+# Every key is optional; what is missing keeps its built-in default.  The
+# names are the CLI option names with an underscore instead of a hyphen.  The
+# input and output file (--json, --output) are not part of a config file: the
+# same config is meant to serve different layouts.
+CONFIG_KEYS = {                   # key -> kind of value
+    "margin": "number",
+    "stabilizer_min_unit": "number",
+    "single_mesh": "boolean",
+    "spacebar_position": "string",
+    "stepped_key": "string",
+}
+CONFIG_ORIENTATION_KEYS = {
+    "stab_rotation_horizontal": "integer",
+    "stab_rotation_vertical": "integer",
+    "stab_rotation_spacebar": "integer",
+    "wide_caps_rotation": "integer",
+    "global_transform": "boolean",
+    "global_rotation": "integer",
+    "global_mirror_x": "boolean",
+}
+CONFIG_TEMPLATE_KEYS = {key: "path" for key in (
+    "socket", "wide_caps", "stabilizer", "spacebar_centered",
+    "spacebar_off_centered_left", "spacebar_off_centered_right")}
+CONFIG_TABLES = {"orientation": CONFIG_ORIENTATION_KEYS, "templates": CONFIG_TEMPLATE_KEYS}
+_CONFIG_KIND_TEXT = {"number": "a number", "integer": "an integer", "boolean": "true or false",
+                     "string": "a string", "path": "a path (string)"}
+
+
+def _toml_module():
+    """The standard library TOML reader, imported only when a config file is used."""
+    try:
+        import tomllib
+    except ImportError as exc:
+        raise ValueError("config files need Python 3.11 or newer "
+                         "(the standard library module 'tomllib' is not available)") from exc
+    return tomllib
+
+
+def _config_value(file_name, key, value, kind):
+    """``value`` if it has the type ``kind`` (bool is not a number), else a ValueError."""
+    if kind == "number":
+        valid = isinstance(value, (int, float)) and not isinstance(value, bool)
+    elif kind == "integer":
+        valid = isinstance(value, int) and not isinstance(value, bool)
+    elif kind == "boolean":
+        valid = isinstance(value, bool)
+    else:                                   # string and path
+        valid = isinstance(value, str) and value != ""
+    if not valid:
+        raise ValueError(f"{file_name}: '{key}' must be {_CONFIG_KIND_TEXT[kind]}, "
+                         f"got {value!r} ({type(value).__name__})")
+    return value
+
+
+def _config_table(file_name, name, table, keys):
+    """The checked values of one table: unknown keys and wrong types are errors."""
+    if not isinstance(table, dict):
+        raise ValueError(f"{file_name}: '{name}' must be a table ([{name}]), "
+                         f"got {table!r} ({type(table).__name__})")
+    unknown = sorted(set(table) - set(keys))
+    if unknown:
+        raise ValueError(f"{file_name}: unknown key '{name}.{unknown[0]}' "
+                         f"(allowed in [{name}]: {', '.join(keys)})")
+    return {key: _config_value(file_name, f"{name}.{key}", value, keys[key])
+            for key, value in table.items()}
+
+
+def settings_from_mapping(raw: dict, config_path: Path, base: Settings | None = None) -> Settings:
+    """``base`` (default: the built-in defaults) with the values of a parsed config applied.
+
+    Relative template paths are relative to the folder of the config file.  Any
+    unknown key, wrong type, invalid value or missing template file is a
+    ValueError that names the file, the key and what is expected.
+    """
+    base = base or Settings()
+    config_path = Path(config_path)
+    name = config_path.name
+    unknown = sorted(set(raw) - set(CONFIG_KEYS) - set(CONFIG_TABLES))
+    if unknown:
+        allowed = ", ".join([*CONFIG_KEYS, *(f"[{table}]" for table in CONFIG_TABLES)])
+        raise ValueError(f"{name}: unknown key '{unknown[0]}' (allowed: {allowed})")
+
+    changes = {key: _config_value(name, key, raw[key], kind)
+               for key, kind in CONFIG_KEYS.items() if key in raw}
+    orientation = _config_table(name, "orientation", raw.get("orientation", {}), CONFIG_ORIENTATION_KEYS)
+    templates = _config_table(name, "templates", raw.get("templates", {}), CONFIG_TEMPLATE_KEYS)
+
+    folder = config_path.resolve().parent
+    for key, value in templates.items():
+        path = folder / value                  # an absolute path stays as it is
+        if not path.is_file():
+            raise ValueError(f"{name}: 'templates.{key}' must name an existing template STL, "
+                             f"file not found: {path}")
+        templates[key] = path
+
+    try:
+        return replace(base, orientation=replace(base.orientation, **orientation),
+                       templates=replace(base.templates, **templates), **changes)
+    except ValueError as exc:
+        raise ValueError(f"{name}: {exc}") from exc
+
+
+def load_config(path: Path, base: Settings | None = None) -> Settings:
+    """Read a TOML config file; see ``settings_from_mapping`` for the rules."""
+    path = Path(path)
+    tomllib = _toml_module()
+    if not path.is_file():
+        raise ValueError(f"config file not found: {path}")
+    try:
+        with path.open("rb") as handle:
+            raw = tomllib.load(handle)
+    except (tomllib.TOMLDecodeError, UnicodeDecodeError) as exc:
+        raise ValueError(f"{path.name}: not a valid TOML file: {exc}") from exc
+    return settings_from_mapping(raw, path, base)
+
+
 def matrix_multiply(outer, inner):
     """Linear map that applies ``inner`` first and then ``outer``."""
     a, b, d, e = outer
@@ -1105,7 +1224,9 @@ def report_stl_check(mesh, problems, stl_path: Path):
           "(see README, 'Common Errors').", file=sys.stderr)
 
 
-def generate(kle_path: Path, settings: Settings, output: Path = Path(DEFAULT_OUTPUT)):
+def generate(kle_path: Path, settings: Settings, output: Path = Path(DEFAULT_OUTPUT),
+             config_path: Path | None = None):
+    """Build the plate and export it.  ``config_path`` is only reported in the header."""
     model = build_plate_model(kle_path, settings)
     keys = model.keys
 
@@ -1124,6 +1245,7 @@ def generate(kle_path: Path, settings: Settings, output: Path = Path(DEFAULT_OUT
 
     print(f"\nFat Plate Generator v{VERSION}")
     print("----------------------")
+    print(f"Config:          {config_path if config_path is not None else 'none'}")
     print(f"KLE:             {kle_path}")
     print(f"Socket:          {settings.templates.socket}")
     print(f"Stabilizer:      {settings.templates.stabilizer}")
@@ -1163,78 +1285,114 @@ def generate(kle_path: Path, settings: Settings, output: Path = Path(DEFAULT_OUT
     print("\nDone." if not (problems or model.warnings) else "\nDone, with warnings.")
 
 
-def main():
+def build_parser():
+    """The command line parser.
+
+    Options that a config file can also set have ``default=None``: that is how
+    ``settings_from_args`` tells "not given" from "given", so that the order is
+    command line > config file > built-in default.  The help texts name the
+    built-in defaults.
+    """
+    defaults = Settings()
+    orientation = defaults.orientation
     parser = argparse.ArgumentParser(description="Generate a clean Fat Plate STL from KLE JSON.")
     parser.add_argument("--version", action="version", version=f"Fat Plate Generator {VERSION}")
-    base = Path(__file__).resolve().parent
-    parser.add_argument("--json", type=Path, default=base / DEFAULT_JSON)
-    parser.add_argument("--socket", type=Path, default=base / DEFAULT_SOCKET)
-    parser.add_argument("--socket-wide-caps", type=Path, default=base / DEFAULT_SOCKET_WIDE_CAPS,
-                         help="socket template for stepped keys with --stepped-key wide-caps")
-    parser.add_argument("--stabilizer", type=Path, default=base / DEFAULT_STABILIZER)
-    parser.add_argument("--spacebar-centered", type=Path, default=base / DEFAULT_SPACEBAR_CENTERED)
-    parser.add_argument("--spacebar-off-centered-left", type=Path,
-                        default=base / DEFAULT_SPACEBAR_OFF_CENTERED_LEFT)
-    parser.add_argument("--spacebar-off-centered-right", type=Path,
-                        default=base / DEFAULT_SPACEBAR_OFF_CENTERED_RIGHT)
-    parser.add_argument("--spacebar-position", choices=SPACEBAR_POSITIONS, default="centered",
+    parser.add_argument("--config", type=Path, default=None,
+                        help="TOML config file with the settings below (see fat_plate_config.example.toml); "
+                             "options on the command line override it")
+    parser.add_argument("--json", type=Path, default=SCRIPT_DIR / DEFAULT_JSON)
+    parser.add_argument("--socket", type=Path, default=None,
+                        help=f"socket template (default: {DEFAULT_SOCKET})")
+    parser.add_argument("--socket-wide-caps", type=Path, default=None,
+                        help="socket template for stepped keys with --stepped-key wide-caps "
+                             f"(default: {DEFAULT_SOCKET_WIDE_CAPS})")
+    parser.add_argument("--stabilizer", type=Path, default=None,
+                        help=f"stabilizer template (default: {DEFAULT_STABILIZER})")
+    parser.add_argument("--spacebar-centered", type=Path, default=None,
+                        help=f"centered spacebar template (default: {DEFAULT_SPACEBAR_CENTERED})")
+    parser.add_argument("--spacebar-off-centered-left", type=Path, default=None,
+                        help=f"left spacebar template (default: {DEFAULT_SPACEBAR_OFF_CENTERED_LEFT})")
+    parser.add_argument("--spacebar-off-centered-right", type=Path, default=None,
+                        help=f"right spacebar template (default: {DEFAULT_SPACEBAR_OFF_CENTERED_RIGHT})")
+    parser.add_argument("--spacebar-position", choices=SPACEBAR_POSITIONS, default=None,
                         help="Spacebar switch position, seen from above with the typist at the "
                              "bottom: centered, off-centered-left or off-centered-right "
-                             "(default: %(default)s).")
-    parser.add_argument("--output", type=Path, default=base / DEFAULT_OUTPUT)
-    parser.add_argument("--margin", type=float, default=DEFAULT_MARGIN)
-    parser.add_argument("--stabilizer-min-unit", type=float, default=DEFAULT_STABILIZER_MIN_UNIT,
-                        help="minimum key width or height for a stabilizer cutout (default: %(default)s)")
-    defaults = OrientationConfig()
-    parser.add_argument("--stab-rotation-horizontal", type=int, choices=ROTATION_CHOICES,
-                        default=defaults.stab_rotation_horizontal,
+                             f"(default: {defaults.spacebar_position}).")
+    parser.add_argument("--output", type=Path, default=SCRIPT_DIR / DEFAULT_OUTPUT)
+    parser.add_argument("--margin", type=float, default=None,
+                        help=f"margin around the keys in mm (default: {defaults.margin})")
+    parser.add_argument("--stabilizer-min-unit", type=float, default=None,
+                        help="minimum key width or height for a stabilizer cutout "
+                             f"(default: {defaults.stabilizer_min_unit})")
+    parser.add_argument("--stab-rotation-horizontal", type=int, choices=ROTATION_CHOICES, default=None,
                         help="rotation of horizontal stabilizer cutouts in degrees, counter-clockwise "
-                             "(default: %(default)s)")
-    parser.add_argument("--stab-rotation-vertical", type=int, choices=ROTATION_CHOICES,
-                        default=defaults.stab_rotation_vertical,
-                        help="rotation of vertical stabilizer cutouts in degrees (default: %(default)s)")
-    parser.add_argument("--stab-rotation-spacebar", type=int, choices=ROTATION_CHOICES,
-                        default=defaults.stab_rotation_spacebar,
-                        help="rotation of the spacebar cutout in degrees (default: %(default)s)")
-    parser.add_argument("--stepped-key", choices=STEPPED_MODES, default="standard",
+                             f"(default: {orientation.stab_rotation_horizontal})")
+    parser.add_argument("--stab-rotation-vertical", type=int, choices=ROTATION_CHOICES, default=None,
+                        help="rotation of vertical stabilizer cutouts in degrees "
+                             f"(default: {orientation.stab_rotation_vertical})")
+    parser.add_argument("--stab-rotation-spacebar", type=int, choices=ROTATION_CHOICES, default=None,
+                        help=f"rotation of the spacebar cutout in degrees (default: {orientation.stab_rotation_spacebar})")
+    parser.add_argument("--stepped-key", choices=STEPPED_MODES, default=None,
                         help="socket of a stepped key (KLE \"l\": true, for example a stepped Caps "
                              "Lock): standard = the normal socket at the centre of w; wide-caps = "
-                             "the wide-caps socket at the centre of w2 (default: %(default)s)")
-    parser.add_argument("--wide-caps-rotation", type=int, choices=ROTATION_CHOICES,
-                        default=defaults.wide_caps_rotation,
-                        help="rotation of the wide-caps socket in degrees (default: %(default)s)")
-    parser.add_argument("--single-mesh", action="store_true",
+                             f"the wide-caps socket at the centre of w2 (default: {defaults.stepped_key})")
+    parser.add_argument("--wide-caps-rotation", type=int, choices=ROTATION_CHOICES, default=None,
+                        help=f"rotation of the wide-caps socket in degrees (default: {orientation.wide_caps_rotation})")
+    parser.add_argument("--single-mesh", action=argparse.BooleanOptionalAction, default=None,
                         help="generate the plate as one connected mesh without gaps: the space "
                              "between keys that face each other is filled and enclosed voids are "
-                             "closed; without it the plate falls apart where the keys are far apart")
-    parser.add_argument("--no-global-transform", action="store_true",
+                             "closed; without it the plate falls apart where the keys are far apart "
+                             "(--no-single-mesh overrides a config file; default: off)")
+    parser.add_argument("--no-global-transform", action="store_true", default=None,
                         help="skip the whole-plate transform (KLE y flip); "
                              "mainly for comparison with older output")
-    args = parser.parse_args()
-    orientation = OrientationConfig(
+    parser.add_argument("--global-rotation", type=int, choices=ROTATION_CHOICES, default=None,
+                        help="rotation of the whole plate in degrees, before the mirror "
+                             f"(default: {orientation.global_rotation})")
+    parser.add_argument("--global-mirror-x", action=argparse.BooleanOptionalAction, default=None,
+                        help="mirror the plate along X after the rotation; with the default rotation "
+                             f"this is the KLE y flip (default: {'on' if orientation.global_mirror_x else 'off'})")
+    return parser
+
+
+def settings_from_args(args: argparse.Namespace) -> Settings:
+    """Settings from the parsed command line: command line > config file > default."""
+    settings = load_config(args.config) if args.config is not None else Settings()
+
+    def given(**options):
+        return {key: value for key, value in options.items() if value is not None}
+
+    orientation = given(
         stab_rotation_horizontal=args.stab_rotation_horizontal,
         stab_rotation_vertical=args.stab_rotation_vertical,
         stab_rotation_spacebar=args.stab_rotation_spacebar,
         wide_caps_rotation=args.wide_caps_rotation,
-        global_transform=not args.no_global_transform)
-    templates = TemplateSet(
+        global_transform=False if args.no_global_transform else None,
+        global_rotation=args.global_rotation,
+        global_mirror_x=args.global_mirror_x)
+    templates = given(
         socket=args.socket,
         wide_caps=args.socket_wide_caps,
         stabilizer=args.stabilizer,
         spacebar_centered=args.spacebar_centered,
         spacebar_off_centered_left=args.spacebar_off_centered_left,
         spacebar_off_centered_right=args.spacebar_off_centered_right)
-    settings = Settings(
-        margin=args.margin,
-        stabilizer_min_unit=args.stabilizer_min_unit,
-        spacebar_position=args.spacebar_position,
-        stepped_key=args.stepped_key,
-        single_mesh=args.single_mesh,
-        orientation=orientation,
-        templates=templates)
+    return replace(
+        settings,
+        orientation=replace(settings.orientation, **orientation),
+        templates=replace(settings.templates, **templates),
+        **given(margin=args.margin,
+                stabilizer_min_unit=args.stabilizer_min_unit,
+                spacebar_position=args.spacebar_position,
+                stepped_key=args.stepped_key,
+                single_mesh=args.single_mesh))
 
+
+def main():
+    args = build_parser().parse_args()
     try:
-        generate(args.json, settings, output=args.output)
+        settings = settings_from_args(args)
+        generate(args.json, settings, output=args.output, config_path=args.config)
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         raise
