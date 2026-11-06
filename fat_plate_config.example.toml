@@ -39,7 +39,8 @@ stab_rotation_vertical = 90
 stab_rotation_spacebar = 180
 wide_caps_rotation = 180
 
-# Whole-plate transform: false skips it completely (CLI: --no-global-transform).
+# Whole-plate transform: false skips it completely (CLI: --global-transform,
+# --no-global-transform).
 global_transform = true
 
 # Rotation of the whole plate in degrees (0, 90, 180, 270), then the optional

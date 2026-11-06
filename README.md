@@ -483,7 +483,7 @@ To switch the transform off, for example to compare with older plates:
 --no-global-transform
 ```
 
-(In a config file this is `global_transform = false`.)
+`--global-transform` switches it on again, for example if a config file has turned it off. The default is on. (In a config file this is `global_transform = false` or `true`.)
 
 ### Plate as One Connected Mesh
 
@@ -547,7 +547,7 @@ spacebar_off_centered_right = "stl-templates/stabilzer_spacebar_off-center_right
 | `orientation.stab_rotation_vertical` | `--stab-rotation-vertical` |
 | `orientation.stab_rotation_spacebar` | `--stab-rotation-spacebar` |
 | `orientation.wide_caps_rotation` | `--wide-caps-rotation` |
-| `orientation.global_transform` | `--no-global-transform` |
+| `orientation.global_transform` | `--global-transform` / `--no-global-transform` |
 | `orientation.global_rotation` | `--global-rotation` |
 | `orientation.global_mirror_x` | `--global-mirror-x` / `--no-global-mirror-x` |
 | `templates.socket` | `--socket` |
@@ -561,7 +561,7 @@ The input and output file (`--json`, `--output`) are not part of a config file: 
 
 ## Which Value Wins
 
-**Command line option > config file > built-in default.** A setting that is not given on the command line keeps the value of the config file, and a key that is missing in the file keeps the built-in default. Switches can be turned off again on the command line: `--no-single-mesh` overrides `single_mesh = true`, and `--no-global-mirror-x` overrides `global_mirror_x = true`. `--no-global-transform` overrides the config as well.
+**Command line option > config file > built-in default.** A setting that is not given on the command line keeps the value of the config file, and a key that is missing in the file keeps the built-in default. Switches can be turned off again on the command line: `--no-single-mesh` overrides `single_mesh = true`, and `--no-global-mirror-x` overrides `global_mirror_x = true`, and `--global-transform` / `--no-global-transform` override `global_transform` in both directions.
 
 A config file is only used if you name it with `--config`. The generator never looks for one by itself, so the result never depends on a file you did not ask for. The header of the output shows which one was used (`Config: ...`, or `Config: none`).
 

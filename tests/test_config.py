@@ -129,11 +129,19 @@ def test_orientation_switches_and_the_new_options(tmp_path):
     assert settings("--global-mirror-x").orientation.global_mirror_x is True
 
 
-def test_no_global_transform_overrides_the_config_and_stays_off_without_it(tmp_path):
+def test_global_transform_has_both_forms_and_the_usual_precedence(tmp_path):
+    off = write_config(tmp_path, "[orientation]\nglobal_transform = false\n", "off.toml")
+    on = write_config(tmp_path, "[orientation]\nglobal_transform = true\n", "on.toml")
+    # without a config: the default is on; the old form still switches it off
     assert settings().orientation.global_transform is True
+    assert settings("--global-transform").orientation.global_transform is True
     assert settings("--no-global-transform").orientation.global_transform is False
-    config = write_config(tmp_path, "[orientation]\nglobal_transform = false\n")
-    assert settings("--config", config).orientation.global_transform is False
+    # the config is used when no option is given
+    assert settings("--config", off).orientation.global_transform is False
+    assert settings("--config", on).orientation.global_transform is True
+    # the command line wins in both directions
+    assert settings("--config", off, "--global-transform").orientation.global_transform is True
+    assert settings("--config", on, "--no-global-transform").orientation.global_transform is False
 
 
 # --------------------------------------------------------------------------

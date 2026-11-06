@@ -8,6 +8,7 @@ All notable changes to this project are documented in this file.
 
 - `--config PATH` reads all settings from a TOML file (`tomllib`, Python 3.11 or newer). Precedence: command line option > config file > built-in default. The config is only used if named (no automatic search); relative paths in it are relative to the config folder; unknown keys, wrong types, invalid values and missing template files are errors that name the file and the key. The output header shows `Config: <path>` or `Config: none`. `--json` and `--output` are not part of a config.
 - `--global-rotation {0,90,180,270}` and `--global-mirror-x` / `--no-global-mirror-x` (before, these were only reachable in code), and `--no-single-mesh`. Their defaults are unchanged.
+- `--global-transform` as the positive form of `--no-global-transform` (`--global-transform/--no-global-transform`), so that a config with `global_transform = false` can be overridden on the command line. `--no-global-transform` works as before.
 - `fat_plate_config.example.toml` with every setting at its built-in default (a test makes sure it stays equal to the defaults).
 - `tools/preview.py --config PATH` reads the margin and the whole-plate transform from the same config, through the generator's own functions.
 

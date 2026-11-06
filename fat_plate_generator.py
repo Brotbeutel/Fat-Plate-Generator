@@ -1343,9 +1343,10 @@ def build_parser():
                              "between keys that face each other is filled and enclosed voids are "
                              "closed; without it the plate falls apart where the keys are far apart "
                              "(--no-single-mesh overrides a config file; default: off)")
-    parser.add_argument("--no-global-transform", action="store_true", default=None,
-                        help="skip the whole-plate transform (KLE y flip); "
-                             "mainly for comparison with older output")
+    parser.add_argument("--global-transform", action=argparse.BooleanOptionalAction, default=None,
+                        help="apply the whole-plate transform (KLE y flip), or skip it with "
+                             "--no-global-transform, mainly for comparison with older output "
+                             f"(default: {'on' if orientation.global_transform else 'off'})")
     parser.add_argument("--global-rotation", type=int, choices=ROTATION_CHOICES, default=None,
                         help="rotation of the whole plate in degrees, before the mirror "
                              f"(default: {orientation.global_rotation})")
@@ -1367,7 +1368,7 @@ def settings_from_args(args: argparse.Namespace) -> Settings:
         stab_rotation_vertical=args.stab_rotation_vertical,
         stab_rotation_spacebar=args.stab_rotation_spacebar,
         wide_caps_rotation=args.wide_caps_rotation,
-        global_transform=False if args.no_global_transform else None,
+        global_transform=args.global_transform,
         global_rotation=args.global_rotation,
         global_mirror_x=args.global_mirror_x)
     templates = given(
