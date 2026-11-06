@@ -34,8 +34,9 @@ DEFAULT_SOCKET = "stl-templates/switch_socket.stl"
 DEFAULT_SOCKET_WIDE_CAPS = "stl-templates/switch_socket_wide-caps.stl"
 DEFAULT_STABILIZER = "stl-templates/stabilizer.stl"
 DEFAULT_SPACEBAR_CENTERED = "stl-templates/stabilzer_spacebar.stl"
-DEFAULT_SPACEBAR_OFF_CENTERED_LEFT = "stl-templates/stabilzer_spacebar_off-center_left.stl"
-DEFAULT_SPACEBAR_OFF_CENTERED_RIGHT = "stl-templates/stabilzer_spacebar_off-center_right.stl"
+# The off-centered template is the LEFT one, as designed; the right variant is its
+# exact mirror image (see ``TemplateSet.spacebar_for``).
+DEFAULT_SPACEBAR_OFF_CENTERED = "stl-templates/stabilzer_spacebar_off-center_left.stl"
 # Switch position of the spacebar template, as seen from above with the typist
 # at the bottom of the plate (x to the right).
 SPACEBAR_POSITIONS = ("centered", "off-centered-left", "off-centered-right")
@@ -92,7 +93,10 @@ class OrientationConfig:
        without any further turn of the plate.  The cutouts get only the
        ROTATION of this transform, never the mirror: a mirrored stabilizer
        would be a different part, so every cutout is the template as designed,
-       turned in steps of 90 deg.
+       turned in steps of 90 deg.  The one exception is the right off-centered
+       spacebar, which IS the left template mirrored: an exact integer matrix in
+       the template's own coordinates (x -> -x), applied before step 1, so that
+       it stays the mirror image of the left one for every rotation.
     3. Everything is shifted so the plate's bounding box (including margin)
        starts at (0, 0).
 
@@ -141,8 +145,7 @@ class TemplateSet:
     wide_caps: Path
     stabilizer: Path
     spacebar_centered: Path
-    spacebar_off_centered_left: Path
-    spacebar_off_centered_right: Path
+    spacebar_off_centered: Path
 
     def __post_init__(self):
         if self.wide_caps is None:
@@ -159,27 +162,24 @@ class TemplateSet:
             wide_caps=base / DEFAULT_SOCKET_WIDE_CAPS,
             stabilizer=base / DEFAULT_STABILIZER,
             spacebar_centered=base / DEFAULT_SPACEBAR_CENTERED,
-            spacebar_off_centered_left=base / DEFAULT_SPACEBAR_OFF_CENTERED_LEFT,
-            spacebar_off_centered_right=base / DEFAULT_SPACEBAR_OFF_CENTERED_RIGHT,
+            spacebar_off_centered=base / DEFAULT_SPACEBAR_OFF_CENTERED,
         )
 
-    def spacebar_for(self, position: str) -> Path:
+    def spacebar_for(self, position: str) -> tuple[Path, bool]:
+        """Template file and mirror flag for a spacebar switch position.
+
+        There is one off-centered template (the left one).  The right position
+        is that template mirrored; ``True`` in the second item says so.  This
+        is the only place that maps a position to a file.
+        """
         mapping = {
-            "centered": self.spacebar_centered,
-            "off-centered-left": self.spacebar_off_centered_left,
-            "off-centered-right": self.spacebar_off_centered_right,
+            "centered": (self.spacebar_centered, False),
+            "off-centered-left": (self.spacebar_off_centered, False),
+            "off-centered-right": (self.spacebar_off_centered, True),
         }
         if position not in mapping:
             raise ValueError(f"spacebar_position must be one of {SPACEBAR_POSITIONS}, got {position!r}")
         return mapping[position]
-
-    @property
-    def spacebar_paths(self) -> dict[str, Path]:
-        return {
-            "centered": self.spacebar_centered,
-            "off-centered-left": self.spacebar_off_centered_left,
-            "off-centered-right": self.spacebar_off_centered_right,
-        }
 
     def replace(self, **kwargs) -> "TemplateSet":
         return replace(self, **kwargs)
@@ -241,8 +241,7 @@ CONFIG_ORIENTATION_KEYS = {
     "global_mirror_x": "boolean",
 }
 CONFIG_TEMPLATE_KEYS = {key: "path" for key in (
-    "socket", "wide_caps", "stabilizer", "spacebar_centered",
-    "spacebar_off_centered_left", "spacebar_off_centered_right")}
+    "socket", "wide_caps", "stabilizer", "spacebar_centered", "spacebar_off_centered")}
 CONFIG_TABLES = {"orientation": CONFIG_ORIENTATION_KEYS, "templates": CONFIG_TEMPLATE_KEYS}
 _CONFIG_KIND_TEXT = {"number": "a number", "integer": "an integer", "boolean": "true or false",
                      "string": "a string", "path": "a path (string)"}
@@ -1020,6 +1019,7 @@ class PlateModel:
     keys: list          # parsed KLE keys
     kinds: list         # classify_key() result per key
     rotations: list     # stabilizer rotation per key in degrees, None if normal
+    mirrored: list      # True where the cutout is the mirrored template (right off-centered spacebar only)
     centers: list       # switch centre per key (mm)
     footprint: object   # shapely (Multi)Polygon of the plate outline
     cavities: list      # one CAD solid per key, same order as ``keys``
@@ -1039,7 +1039,9 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
     (0, 0).  Rotations and the mirror are exact integer matrices applied to
     the 2D data (footprint, switch centres, cutout sections) before anything
     is extruded; no mirrored CAD solid is ever created.  The cutouts are only
-    rotated, never mirrored.
+    rotated, never mirrored, with one exception: the right off-centered spacebar
+    is the left template mirrored (exact integer matrix in the template's own
+    coordinates, applied before the rotation; ``PlateModel.mirrored`` says where).
 
     With ``settings.single_mesh`` the space between keys that face each other
     and voids enclosed by the outline are filled, so the plate is one connected
@@ -1058,7 +1060,7 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
     if not keys:
         raise ValueError("KLE JSON contains no keys.")
 
-    spacebar_path = settings.templates.spacebar_for(settings.spacebar_position)
+    spacebar_path, spacebar_mirrored = settings.templates.spacebar_for(settings.spacebar_position)
     template_paths = {
         "socket": settings.templates.socket,
         "stabilizer": settings.templates.stabilizer,
@@ -1075,6 +1077,9 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
 
     kinds = [classify_key(k, settings.stabilizer_min_unit, settings.stepped_key) for k in keys]
     rotations = [rotation_for_kind(k, kind, orientation) for k, kind in zip(keys, kinds)]
+    # The one exception to "cutouts are only turned": the right off-centered
+    # spacebar is the left template mirrored (see below).  Nothing else is.
+    mirrored = [spacebar_mirrored and kind == KIND_SPACEBAR for kind in kinds]
     centers = []
     for k, kind in zip(keys, kinds):
         cx, cy = apply_matrix(gm, *switch_center(k, second=(kind == KIND_WIDE_CAPS)))
@@ -1086,7 +1091,7 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
     # templates are used exactly as supplied (nothing is scaled); the spacebar
     # templates keep their internal switch position (centered/off-centered).
     cavities, cutters = [], {}
-    for kind, rotation, (cx, cy) in zip(kinds, rotations, centers):
+    for kind, rotation, mirror, (cx, cy) in zip(kinds, rotations, mirrored, centers):
         template_kind = {KIND_NORMAL: "socket", KIND_STABILIZED: "stabilizer",
                          KIND_SPACEBAR: "spacebar", KIND_WIDE_CAPS: "wide-caps"}[kind]
         if template_kind not in templates:
@@ -1094,6 +1099,15 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
         # Step 1 (rotation about the switch centre), then step 2 (rotation of the
         # whole plate).  The mirror of the whole-plate transform never reaches a cutout.
         m = pm if rotation is None else matrix_multiply(pm, rotation_matrix(rotation))
+        if mirror:
+            # Right off-centered spacebar: mirror the template in ITS OWN coordinate
+            # system, i.e. before the rotation.  The old right template file is the
+            # left one mirrored at the template's Y axis (x -> -x); only "mirror first,
+            # then rotate" gives exactly that file for every stab_rotation_spacebar and
+            # global_rotation.  Mirroring after the rotation would be a different mirror
+            # axis for 90 and 270 degrees.  The mirror is an exact integer matrix on the
+            # 2D contour (template_cutter reverses the ring order); no mirrored CAD solid.
+            m = matrix_multiply(m, MIRROR_X_MATRIX)
         if (template_kind, m) not in cutters:
             cutters[(template_kind, m)] = template_cutter(templates[template_kind], m)
         cavities.append(cutters[(template_kind, m)].moved(cq.Location(cq.Vector(cx, cy, 0))))
@@ -1109,7 +1123,7 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
         raise RuntimeError("Generated CAD solid is invalid.")
     result = result.clean()
 
-    return PlateModel(keys=keys, kinds=kinds, rotations=rotations, centers=centers,
+    return PlateModel(keys=keys, kinds=kinds, rotations=rotations, mirrored=mirrored, centers=centers,
                       footprint=footprint, cavities=cavities, plate=result,
                       templates=templates,
                       warnings=[w for t in templates.values() for w in t.warnings],
@@ -1249,7 +1263,8 @@ def generate(kle_path: Path, settings: Settings, output: Path = Path(DEFAULT_OUT
     print(f"KLE:             {kle_path}")
     print(f"Socket:          {settings.templates.socket}")
     print(f"Stabilizer:      {settings.templates.stabilizer}")
-    print(f"Spacebar:        {model.spacebar_path} ({settings.spacebar_position})")
+    mirrored_note = ", mirrored" if any(model.mirrored) else ""
+    print(f"Spacebar:        {model.spacebar_path} ({settings.spacebar_position}{mirrored_note})")
     print(f"Output:          {output}")
     print(f"Keys:            {len(keys)}")
     print(f"Stabilizer keys: {model.kinds.count(KIND_STABILIZED)}")
@@ -1310,10 +1325,10 @@ def build_parser():
                         help=f"stabilizer template (default: {DEFAULT_STABILIZER})")
     parser.add_argument("--spacebar-centered", type=Path, default=None,
                         help=f"centered spacebar template (default: {DEFAULT_SPACEBAR_CENTERED})")
-    parser.add_argument("--spacebar-off-centered-left", type=Path, default=None,
-                        help=f"left spacebar template (default: {DEFAULT_SPACEBAR_OFF_CENTERED_LEFT})")
-    parser.add_argument("--spacebar-off-centered-right", type=Path, default=None,
-                        help=f"right spacebar template (default: {DEFAULT_SPACEBAR_OFF_CENTERED_RIGHT})")
+    parser.add_argument("--spacebar-off-centered", type=Path, default=None,
+                        help="off-centered spacebar template, the left one as designed; "
+                             "off-centered-right uses it mirrored "
+                             f"(default: {DEFAULT_SPACEBAR_OFF_CENTERED})")
     parser.add_argument("--spacebar-position", choices=SPACEBAR_POSITIONS, default=None,
                         help="Spacebar switch position, seen from above with the typist at the "
                              "bottom: centered, off-centered-left or off-centered-right "
@@ -1376,8 +1391,7 @@ def settings_from_args(args: argparse.Namespace) -> Settings:
         wide_caps=args.socket_wide_caps,
         stabilizer=args.stabilizer,
         spacebar_centered=args.spacebar_centered,
-        spacebar_off_centered_left=args.spacebar_off_centered_left,
-        spacebar_off_centered_right=args.spacebar_off_centered_right)
+        spacebar_off_centered=args.spacebar_off_centered)
     return replace(
         settings,
         orientation=replace(settings.orientation, **orientation),
