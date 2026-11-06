@@ -6,6 +6,11 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- `--config PATH` reads all settings from a TOML file (`tomllib`, Python 3.11 or newer). Precedence: command line option > config file > built-in default. The config is only used if named (no automatic search); relative paths in it are relative to the config folder; unknown keys, wrong types, invalid values and missing template files are errors that name the file and the key. The output header shows `Config: <path>` or `Config: none`. `--json` and `--output` are not part of a config.
+- `--global-rotation {0,90,180,270}` and `--global-mirror-x` / `--no-global-mirror-x` (before, these were only reachable in code), and `--no-single-mesh`. Their defaults are unchanged.
+- `fat_plate_config.example.toml` with every setting at its built-in default (a test makes sure it stays equal to the defaults).
+- `tools/preview.py --config PATH` reads the margin and the whole-plate transform from the same config, through the generator's own functions.
+
 - Tests for stepped keys / wide-caps classification across all stepped KLE layouts, stabilizer retention for stepped keys with width >= 2u, CAD overlap and margin tests, and top-view preview renders in `docs/wide-caps-test/` (WP-09).
 
 - Stepped keys: the KLE flag `"l": true` (a stepped Caps Lock) is read. `--stepped-key standard` (default, as before) uses the normal socket at the center of `w`; `--stepped-key wide-caps` uses the new template `switch_socket_wide-caps.stl` (`--socket-wide-caps` to name another file) at the center of `w2`, turned by `--wide-caps-rotation` (default 180, never mirrored). The plate outline covers both rectangles in either mode. The wide-caps template is only read when a stepped key needs it; its bounding box is not fixed yet, only its height is checked.
@@ -23,6 +28,8 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- `generate()` and `build_plate_model()` take a `Settings` object (with a `TemplateSet` for the template paths) instead of long parameter lists: `build_plate_model(kle_path, settings)` and `generate(kle_path, settings, output, config_path=None)`. The generated STL is byte-identical to before (checked for the orientation test layout, the 40% layout and the stepped Caps Lock with `--stepped-key wide-caps`).
+- The command line options that a config can also set have no built-in default in the parser any more (that is how a given option is told from a missing one); the help texts still name the defaults.
 - The default `--stabilizer-min-unit` is now `2.0`: 1.75u keys (for example Enter and Shift in the JD40 layout) receive a normal socket. Use `--stabilizer-min-unit 1.75` to give them a stabilizer cutout.
 - `classify_key()`, `stabilizer_rotation()` and `switch_center()` know stepped keys (`stepped` and `second` arguments); `build_plate_model()` and `generate()` take `stepped_key` and `wide_caps_socket_path`.
 - The help text of `--single-mesh` describes the current behavior.

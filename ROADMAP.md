@@ -6,7 +6,7 @@ Stand: `main` @ `26982fa` (WP-07 und WP-08 gemerged, Tests grün; geprüft vom P
 
 ## Reihenfolge
 
-~~WP-07~~ → ~~WP-08~~ → ~~WP-09~~ → WP-10 → WP-11 → WP-12 → WP-13. WP-11 bis WP-13 bauen auf dem Settings-Objekt und der Config aus WP-10 auf; ihre Prompts folgen nach WP-10.
+~~WP-07~~ → ~~WP-08~~ → ~~WP-09~~ → ~~WP-10~~ → WP-11 → WP-12 → WP-13. WP-11 bis WP-13 bauen auf dem Settings-Objekt und der Config aus WP-10 auf; ihre Prompts folgen nach WP-10.
 
 ## Arbeitspakete
 
@@ -41,7 +41,7 @@ Stand: `main` @ `26982fa` (WP-07 und WP-08 gemerged, Tests grün; geprüft vom P
   - Prüf-WP, **keine Änderung am Generator**: Prüfmatrix (alle Stepped-Layouts × Modus × Rotation), Vorschaubilder in `docs/wide-caps-test/`, Testlücken schließen, Fehler nur berichten
   - Gemessen: Position des Schalterzentrums, Abstand zum Umriss, Stegbreite zu den Nachbar-Cavities, Überlappung
   - Nutzer: feste Bounding Box des Templates bestätigen (gemessen: 23,8125 × 19,05 mm, `TEMPLATE_BOUNDING_BOXES["wide-caps"]` steht noch auf `None`) und anhand der Bilder die Standard-Rotation bestätigen
-- [ ] **WP-10** Konfigurationsdatei (Prompt: `WP-10_prompt.md`)
+- [x] **WP-10** Konfigurationsdatei (Prompt: `WP-10_prompt.md`)
   - Teil A (reiner Umbau): `Settings` und `TemplateSet` statt der langen Parameterlisten in `generate()` / `build_plate_model()`; Nachweis: identische STLs vor und nach dem Umbau
   - Teil B: TOML (`tomllib`, Python ≥ 3.11), nur über `--config` (keine automatische Suche), Vorrang CLI > Config > Default, strenge Prüfung (unbekannte Schlüssel, Typen, Werte), Pfade relativ zum Config-Ordner
   - Neue CLI-Optionen für bisher nur im Code erreichbare Werte (`--global-rotation`, `--global-mirror-x`) und `--no-single-mesh`; Beispiel-Config `fat_plate_config.example.toml` (Test: entspricht den Defaults)

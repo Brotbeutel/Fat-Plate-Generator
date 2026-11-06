@@ -18,6 +18,7 @@ If a template STL is not exact (for example one you designed yourself), the gene
 ## Content
 
 - `fat_plate_generator.py` – the application
+- `fat_plate_config.example.toml` – example configuration file with every setting at its default (see *Configuration File*)
 - `requirements.txt` – required Python packages
 - `requirements-dev.txt` – additional packages for the preview tool and the tests
 - `stl-templates/switch_socket.stl` – template for standard switch sockets
@@ -347,6 +348,14 @@ The template is cut at every horizontal plane of the mesh. Between two planes ea
 --json my_layout.json
 ```
 
+### Config File
+
+```powershell
+--config my_config.toml
+```
+
+Reads all settings from a TOML file (see *Configuration File* below). Options on the command line override the file. Without `--config` no config file is used.
+
 ### Socket
 
 ```powershell
@@ -459,13 +468,22 @@ KLE counts Y downwards (towards the typist), CAD counts Y upwards. The generated
 
 The mirror of the whole-plate transform only moves the keys and the plate outline. The cutouts get just its rotation (they turn with the plate), so they are never mirrored.
 
-The whole-plate rotation is `global_rotation` in `OrientationConfig` (`fat_plate_generator.py`). If you want the plate turned further, change it to `90` or `270`; `90` gives the transform used in the first version of this tool.
+The whole-plate rotation and the mirror can be set with `--global-rotation` and `--global-mirror-x` (or `global_rotation` and `global_mirror_x` in a config file, see *Configuration File*):
+
+```powershell
+--global-rotation 180
+--global-mirror-x
+```
+
+Allowed rotations are `0`, `90`, `180` and `270`; the values above are the defaults. If you want the plate turned further, use `90` or `270`; `90` gives the transform used in the first version of this tool. `--no-global-mirror-x` leaves the mirror out.
 
 To switch the transform off, for example to compare with older plates:
 
 ```powershell
 --no-global-transform
 ```
+
+(In a config file this is `global_transform = false`.)
 
 ### Plate as One Connected Mesh
 
@@ -475,11 +493,95 @@ By default the plate follows the keys: where the distance between two groups of 
 --single-mesh
 ```
 
-the plate is one connected mesh without gaps. The space between two keys that face each other, horizontally or vertically, is filled over the whole gap, whatever its width (for example between Esc and F1, or between F-row, main block and numpad). Parts that are still separate after that are joined with the smallest radius that connects them, and voids that are enclosed by the plate outline are filled as well. Where no key faces another one (for example the step above the numpad of a 100% layout) the outline stays as it was. The key cutouts are not affected. Without the option the plate is generated as before.
+the plate is one connected mesh without gaps. The space between two keys that face each other, horizontally or vertically, is filled over the whole gap, whatever its width (for example between Esc and F1, or between F-row, main block and numpad). Parts that are still separate after that are joined with the smallest radius that connects them, and voids that are enclosed by the plate outline are filled as well. Where no key faces another one (for example the step above the numpad of a 100% layout) the outline stays as it was. The key cutouts are not affected. Without the option the plate is generated as before. `--no-single-mesh` switches it off again, for example if a config file turns it on.
 
 ---
 
-# 12. Preview Tool
+# 12. Configuration File
+
+All settings of the generator can be kept in a TOML file instead of being typed on every call:
+
+```powershell
+python .\fat_plate_generator.py --json my_keyboard.json --config .\fat_plate_config.example.toml --output my_keyboard.stl
+```
+
+The file is a convenience, not a different behavior: without `--config`, and with the example file as it is, the generator makes exactly the same plate as before. `fat_plate_config.example.toml` lists every setting with its built-in default and a short explanation. Copy it and keep only the keys you want to change; all keys are optional.
+
+## Format
+
+The key names are the option names with an underscore instead of a hyphen. Orientation and template settings are in their own tables:
+
+```toml
+margin = 1.0
+stabilizer_min_unit = 2.0
+single_mesh = false
+spacebar_position = "centered"      # centered | off-centered-left | off-centered-right
+stepped_key = "standard"            # standard | wide-caps
+
+[orientation]
+stab_rotation_horizontal = 180
+stab_rotation_vertical = 90
+stab_rotation_spacebar = 180
+wide_caps_rotation = 180
+global_transform = true
+global_rotation = 180
+global_mirror_x = true
+
+[templates]
+socket = "stl-templates/switch_socket.stl"
+wide_caps = "stl-templates/switch_socket_wide-caps.stl"
+stabilizer = "stl-templates/stabilizer.stl"
+spacebar_centered = "stl-templates/stabilzer_spacebar.stl"
+spacebar_off_centered_left = "stl-templates/stabilzer_spacebar_off-center_left.stl"
+spacebar_off_centered_right = "stl-templates/stabilzer_spacebar_off-center_right.stl"
+```
+
+| Config key | Command line option |
+| --- | --- |
+| `margin` | `--margin` |
+| `stabilizer_min_unit` | `--stabilizer-min-unit` |
+| `single_mesh` | `--single-mesh` / `--no-single-mesh` |
+| `spacebar_position` | `--spacebar-position` |
+| `stepped_key` | `--stepped-key` |
+| `orientation.stab_rotation_horizontal` | `--stab-rotation-horizontal` |
+| `orientation.stab_rotation_vertical` | `--stab-rotation-vertical` |
+| `orientation.stab_rotation_spacebar` | `--stab-rotation-spacebar` |
+| `orientation.wide_caps_rotation` | `--wide-caps-rotation` |
+| `orientation.global_transform` | `--no-global-transform` |
+| `orientation.global_rotation` | `--global-rotation` |
+| `orientation.global_mirror_x` | `--global-mirror-x` / `--no-global-mirror-x` |
+| `templates.socket` | `--socket` |
+| `templates.wide_caps` | `--socket-wide-caps` |
+| `templates.stabilizer` | `--stabilizer` |
+| `templates.spacebar_centered` | `--spacebar-centered` |
+| `templates.spacebar_off_centered_left` | `--spacebar-off-centered-left` |
+| `templates.spacebar_off_centered_right` | `--spacebar-off-centered-right` |
+
+The input and output file (`--json`, `--output`) are not part of a config file: the same config is meant to serve different layouts.
+
+## Which Value Wins
+
+**Command line option > config file > built-in default.** A setting that is not given on the command line keeps the value of the config file, and a key that is missing in the file keeps the built-in default. Switches can be turned off again on the command line: `--no-single-mesh` overrides `single_mesh = true`, and `--no-global-mirror-x` overrides `global_mirror_x = true`. `--no-global-transform` overrides the config as well.
+
+A config file is only used if you name it with `--config`. The generator never looks for one by itself, so the result never depends on a file you did not ask for. The header of the output shows which one was used (`Config: ...`, or `Config: none`).
+
+## Paths
+
+- Relative paths **in the config file** are relative to the folder of the config file.
+- Paths on the **command line** are relative to the folder you run the command in, as always.
+- Without either, the built-in defaults are relative to the folder of `fat_plate_generator.py`.
+
+## Errors
+
+The config is checked strictly. An unknown key (also in `[orientation]` and `[templates]`, so a typo does not go unnoticed), a value of the wrong type (for example `margin = "1"`), an invalid value (for example `stab_rotation_vertical = 45`) and a template file that does not exist stop the generator with an `ERROR:` line that names the file, the key and what is expected. Whole numbers are fine where a decimal number is expected (`margin = 1`).
+
+## Python Version
+
+Config files are read with `tomllib` from the Python standard library, which needs **Python 3.11 or newer**. With an older Python and `--config` the generator says `config files need Python 3.11 or newer`. Without `--config` nothing changes, and no extra package is needed.
+
+---
+
+# 13. Preview Tool
 
 `tools/preview.py` renders a top view of a generated STL as PNG: a horizontal section at half plate height with material in gray, cutouts in white, an axis cross at the origin, a scale bar and the key labels from your KLE JSON. It is meant for checking the orientation of the asymmetric stabilizer cutouts.
 
@@ -490,7 +592,7 @@ python -m pip install -r requirements-dev.txt
 python .\tools\preview.py my_plate.stl --layout my_layout.json --output my_plate.png
 ```
 
-Use `--no-global-transform` here as well if the STL was generated with that option. `docs/preview_before.png` and `docs/preview_after.png` show the test layout `tests/layouts/stabilizer_orientation.json` before and after the orientation fix.
+Use `--no-global-transform` here as well if the STL was generated with that option. If the plate was generated with a config file, pass it with `--config my_config.toml`: the preview then reads the margin and the whole-plate transform from it, the same way the generator does (`--margin` and `--no-global-transform` still win). `docs/preview_before.png` and `docs/preview_after.png` show the test layout `tests/layouts/stabilizer_orientation.json` before and after the orientation fix.
 
 The tests run with:
 
@@ -501,7 +603,7 @@ python -m pytest
 
 ---
 
-# 13. Most Important Commands
+# 14. Most Important Commands
 
 ### Create environment (once)
 
@@ -533,9 +635,15 @@ python .\fat_plate_generator.py
 python .\fat_plate_generator.py --json my_layout.json --output my_plate.stl
 ```
 
+### Generate with a config file
+
+```powershell
+python .\fat_plate_generator.py --json my_layout.json --config .\fat_plate_config.example.toml --output my_plate.stl
+```
+
 ---
 
-# 14. Common Errors
+# 15. Common Errors
 
 ## `python is not recognized`
 
@@ -621,7 +729,7 @@ python .\fat_plate_generator.py --json my_layout.json --socket my_socket.stl --s
 
 ---
 
-# 15. What Happens During Generation?
+# 16. What Happens During Generation?
 
 Simplified:
 
@@ -652,7 +760,7 @@ Individual keys are not simply placed side-by-side as independent STL files. The
 
 ---
 
-# 16. Checking the STL
+# 17. Checking the STL
 
 After successful generation, the STL file will be located in the specified output folder.
 
@@ -674,7 +782,7 @@ Before printing, you should verify:
 
 ---
 
-# 17. Current Project Status
+# 18. Current Project Status
 
 Currently, the generator supports in particular:
 
@@ -692,6 +800,7 @@ Currently, the generator supports in particular:
 - Top-view preview of generated plates (`tools/preview.py`)
 - Optional single connected plate without gaps (`--single-mesh`)
 - Stepped keys (stepped Caps Lock): normal socket or wide-caps socket (`--stepped-key`)
+- All settings in an optional TOML config file (`--config`)
 
 Planned or currently in development (details in `ROADMAP.md`):
 
@@ -702,7 +811,7 @@ Planned or currently in development (details in `ROADMAP.md`):
 
 ---
 
-# 18. In Case of an Error
+# 19. In Case of an Error
 
 If something does not work, copy the **entire error message from PowerShell**.
 

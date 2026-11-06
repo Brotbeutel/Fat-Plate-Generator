@@ -14,6 +14,8 @@ Gilt für alle Agenten/Implementer, die an diesem Repository arbeiten.
 ## Projektüberblick
 
 - `fat_plate_generator.py`: die Anwendung. Kern: `build_plate_model()` (Platte bauen), `generate()` (Export), `check_exported_stl()` (Prüfung, warnt nur), `OrientationConfig` (zentrale Orientierungs-Defaults), `classify_key()` (normal / stabilized / spacebar).
+- `Settings` und `TemplateSet` (in `fat_plate_generator.py`): alle Einstellungen und Template-Pfade in einem unveränderlichen Objekt; `build_plate_model(kle_path, settings)` und `generate(kle_path, settings, …)` nehmen nur dieses Objekt. Neue Einstellungen kommen als Feld dort hinein (mit Validierung in `__post_init__`), nicht als weiterer Funktionsparameter.
+- Konfigurationsdatei (TOML, `--config`): `load_config()` / `settings_from_mapping()` lesen sie, `build_parser()` / `settings_from_args()` setzen Vorrang CLI > Config > Default um. Eine neue Einstellung braucht den Schlüssel in `CONFIG_KEYS` bzw. `CONFIG_*_KEYS`, die CLI-Option (`default=None`), den Eintrag in `fat_plate_config.example.toml` (ein Test hält sie gleich den Defaults) und die README-Tabelle.
 - `stl-templates/switch_socket.stl`, `stl-templates/switch_socket_wide-caps.stl`, `stl-templates/stabilizer.stl`, `stl-templates/stabilzer_spacebar*.stl`: Template-STLs. Die Quellen liegen in `blender-files/`. Ein Loader (`load_template()`) und ein Cutter-Bauer (`template_cutter()`) behandeln alle drei gleich.
 - `tools/preview.py`: Draufsicht-PNG einer erzeugten STL.
 - `tests/`: pytest-Suite. `tests/layouts/stabilizer_orientation.json` ist das Testlayout.
@@ -25,6 +27,7 @@ Gilt für alle Agenten/Implementer, die an diesem Repository arbeiten.
 python -m pip install -r requirements-dev.txt   # einmalig, inkl. Tests und Preview
 python -m pytest                                # Tests
 python .\fat_plate_generator.py                 # Beispiel erzeugen
+python .\fat_plate_generator.py --config .\fat_plate_config.example.toml   # mit Config-Datei
 python .\tools\preview.py plate.stl --layout my_layout.json --output plate.png
 ```
 
