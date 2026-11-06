@@ -20,11 +20,6 @@ ORIENTATION_LAYOUT = REPO_ROOT / "tests" / "layouts" / "stabilizer_orientation.j
 FULL_LAYOUT = REPO_ROOT / fpg.DEFAULT_JSON
 
 
-def spacebar_paths(root: Path = REPO_ROOT) -> dict:
-    """The spacebar templates of the repository, by switch position."""
-    return fpg.TemplateSet.defaults(root).spacebar_paths
-
-
 def build_model(layout: Path, **kwargs):
     """build_plate_model() with the repository's template STLs."""
     templates = kwargs.pop("templates", None)
@@ -33,7 +28,7 @@ def build_model(layout: Path, **kwargs):
 
     tmpl_kwargs = {}
     for name in ("socket", "wide_caps", "stabilizer",
-                 "spacebar_centered", "spacebar_off_centered_left", "spacebar_off_centered_right"):
+                 "spacebar_centered", "spacebar_off_centered"):
         if name in kwargs:
             tmpl_kwargs[name] = kwargs.pop(name)
     if tmpl_kwargs:
