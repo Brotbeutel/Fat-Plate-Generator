@@ -2,11 +2,11 @@
 
 Status: `[ ]` offen, `[~]` in Arbeit, `[x]` erledigt.
 
-Stand: `main` @ `26982fa` (WP-07 und WP-08 gemerged, Tests grün; geprüft vom Planner in einem frischen Clone).
+Stand: `main` @ `1574f50` (WP-07 bis WP-09 gemerged). WP-10 liegt auf dem Branch `wp-10-config-file`: Teil A ist gepusht (`14e311b`), Teil B ist laut Abschlussbericht fertig, aber noch nicht auf GitHub.
 
 ## Reihenfolge
 
-~~WP-07~~ → ~~WP-08~~ → ~~WP-09~~ → ~~WP-10~~ → WP-11 → WP-12 → WP-13. WP-11 bis WP-13 bauen auf dem Settings-Objekt und der Config aus WP-10 auf; ihre Prompts folgen nach WP-10.
+~~WP-07~~ → ~~WP-08~~ → ~~WP-09~~ → WP-10 (+ Nachtrag) → WP-11 → WP-12 → WP-13. WP-11 bis WP-13 bauen auf dem Settings-Objekt und der Config aus WP-10 auf. Der Prompt für WP-12 folgt, sobald WP-11 gemerged ist.
 
 ## Arbeitspakete
 
@@ -41,15 +41,17 @@ Stand: `main` @ `26982fa` (WP-07 und WP-08 gemerged, Tests grün; geprüft vom P
   - Prüf-WP, **keine Änderung am Generator**: Prüfmatrix (alle Stepped-Layouts × Modus × Rotation), Vorschaubilder in `docs/wide-caps-test/`, Testlücken schließen, Fehler nur berichten
   - Gemessen: Position des Schalterzentrums, Abstand zum Umriss, Stegbreite zu den Nachbar-Cavities, Überlappung
   - Nutzer: feste Bounding Box des Templates bestätigen (gemessen: 23,8125 × 19,05 mm, `TEMPLATE_BOUNDING_BOXES["wide-caps"]` steht noch auf `None`) und anhand der Bilder die Standard-Rotation bestätigen
-- [x] **WP-10** Konfigurationsdatei (Prompt: `WP-10_prompt.md`)
-  - Teil A (reiner Umbau): `Settings` und `TemplateSet` statt der langen Parameterlisten in `generate()` / `build_plate_model()`; Nachweis: identische STLs vor und nach dem Umbau
-  - Teil B: TOML (`tomllib`, Python ≥ 3.11), nur über `--config` (keine automatische Suche), Vorrang CLI > Config > Default, strenge Prüfung (unbekannte Schlüssel, Typen, Werte), Pfade relativ zum Config-Ordner
-  - Neue CLI-Optionen für bisher nur im Code erreichbare Werte (`--global-rotation`, `--global-mirror-x`) und `--no-single-mesh`; Beispiel-Config `fat_plate_config.example.toml` (Test: entspricht den Defaults)
-  - `tools/preview.py` liest dieselbe Config
-- [ ] **WP-11** Spacebar-Spiegelung statt links/rechts-Dateien
-  - Gemessen: `stabilzer_spacebar_off-center_left.stl` ist die exakte Spiegelung von `…_right.stl` an der Y-Achse (Differenzfläche ≈ 1e-6 mm²)
-  - Ein Off-Center-Template plus Spiegel-Matrix (exakte Integer-Matrix wie bei den Rotationen, kein gespiegelter CAD-Körper); `--spacebar-position` bleibt `centered | off-centered-left | off-centered-right`
-  - Nutzer entscheidet, welche der beiden Dateien bleibt und ob die andere entfällt
+- [~] **WP-10** Konfigurationsdatei
+  - Teil A (reiner Umbau): `Settings` und `TemplateSet` statt der langen Parameterlisten in `generate()` / `build_plate_model()`. Erledigt; vom Planner nachgemessen: die STLs für `stabilizer_orientation`, `jd40` und `stepped-capslock` (wide-caps) sind vor und nach dem Umbau byte-identisch.
+  - Teil B: TOML (`tomllib`, Python ≥ 3.11), nur über `--config` (keine automatische Suche), Vorrang CLI > Config > Default, strenge Prüfung, Pfade relativ zum Config-Ordner, `fat_plate_config.example.toml`, `tools/preview.py --config`. Laut Bericht 274 Tests grün; Branch noch nicht auf GitHub, daher vom Planner nicht geprüft.
+  - Nachtrag: `--global-transform/--no-global-transform` (positive Form, damit eine Config mit `global_transform = false` auf der CLI überstimmt werden kann)
+- [ ] **WP-11** Spacebar-Spiegelung statt links/rechts-Dateien (Voraussetzung: WP-10 gemerged)
+  - Gemessen: `stabilzer_spacebar_off-center_left.stl` ist die exakte Spiegelung von `…_right.stl` an der Y-Achse der Template-Koordinaten (Differenzfläche höchstens 9,5e-7 mm² über alle Schichten)
+  - Festgelegt (Planner): die **linke** Datei bleibt das Off-Center-Template; die rechte Position entsteht durch Spiegelung **im Template-Koordinatensystem vor der Rotation** (nur so stimmt das Ergebnis für jede Rotationseinstellung mit der bisherigen rechten Datei überein). Exakte Integer-Matrix, kein gespiegelter CAD-Körper.
+  - `TemplateSet` bekommt ein Feld `spacebar_off_centered` statt zwei; CLI `--spacebar-off-centered` und Config-Schlüssel `spacebar_off_centered` ersetzen die beiden alten. Die Zuordnung Position → Pfad steht künftig nur noch einmal (heute doppelt).
+  - `--spacebar-position` bleibt `centered | off-centered-left | off-centered-right`; die Platte ändert sich nicht (`centered` und `off-centered-left` byte-identisch, `off-centered-right` bis auf Template-Rauschen)
+  - AGENTS.md, README und Docstring: Regel „Cutouts werden nie gespiegelt“ bekommt genau diese eine Ausnahme
+  - `…_right.stl` bleibt im Repo und wird nur noch von einem Äquivalenztest gelesen; Löschen entscheidet der Nutzer
 - [ ] **WP-12** Verschmolzene F-Row
   - Festgelegt (Nutzer, 03.11.2026): Es wird **nur die oberste Reihe** zu einem zusammenhängenden Streifen verbunden, nicht mit dem Hauptblock. Bei einem 100%-Layout sind das Esc, F1–F12, PrtSc, Scroll Lock und Pause Break. Gebraucht wird es vor allem für die G80-3000.
   - Option `--fuse-f-row` (Aufruf in der Config später als Schlüssel); Standard bleibt: aus. „Oberste Reihe“ = alle Tasten mit dem kleinsten KLE-`y`.
@@ -74,6 +76,8 @@ Stand: `main` @ `26982fa` (WP-07 und WP-08 gemerged, Tests grün; geprüft vom P
   - `FLAT_WALL_TOLERANCE` (50 nm) lässt sich noch nicht senken: bei 1e-6 und 1e-7 ändern sich die Eckenzahlen von `stabilizer.stl`, bei 1e-9 lässt sich `stabilizer.stl` nicht mehr loften. Möglich wäre es erst, wenn die Wände der Templates bis auf Float32-Genauigkeit exakt gerade sind.
 - [x] **Wide-Caps-Template** liegt im Repo (`switch_socket_wide-caps.stl`). Offen: feste Bounding Box bestätigen (siehe WP-09).
 - [x] **7-u-Spacebar-Template** liegt im Repo (`stabilzer_spacebar_7u.stl`); der Generator nutzt es noch nicht (siehe WP-13).
+- [ ] Nach WP-11: `stabilzer_spacebar_off-center_right.stl` löschen (und den Eintrag in `.gitignore` entfernen), wenn du sie nicht mehr brauchst.
+- [ ] Nach WP-09: Standard-Rotation von `wide-caps` anhand der Bilder in `docs/wide-caps-test/` bestätigen; feste Bounding Box des Wide-Caps-Templates bestätigen und selbst eintragen.
 - [ ] `fat_plate_export_example.stl` neu erzeugen, wenn sich die Geometrie ändert.
 
 ## Vorschläge (nicht beauftragt)

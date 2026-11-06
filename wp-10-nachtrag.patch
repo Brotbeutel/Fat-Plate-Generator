@@ -1,0 +1,130 @@
+From 980309913fe6801fcbc50cca5e75200a54b2cc02 Mon Sep 17 00:00:00 2001
+From: "Claude (Planner)" <noreply@anthropic.com>
+Date: Fri, 6 Nov 2026 08:50:14 +0000
+Subject: [PATCH] feat: add --global-transform as the positive form of
+ --no-global-transform
+
+Lets the command line switch the whole-plate transform on again when a config
+file has turned it off. --no-global-transform works as before.
+---
+ CHANGELOG.md                  |  1 +
+ README.md                     |  6 +++---
+ fat_plate_config.example.toml |  3 ++-
+ fat_plate_generator.py        |  9 +++++----
+ tests/test_config.py          | 14 +++++++++++---
+ 5 files changed, 22 insertions(+), 11 deletions(-)
+
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index ec2996f..e511833 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -8,6 +8,7 @@ All notable changes to this project are documented in this file.
+ 
+ - `--config PATH` reads all settings from a TOML file (`tomllib`, Python 3.11 or newer). Precedence: command line option > config file > built-in default. The config is only used if named (no automatic search); relative paths in it are relative to the config folder; unknown keys, wrong types, invalid values and missing template files are errors that name the file and the key. The output header shows `Config: <path>` or `Config: none`. `--json` and `--output` are not part of a config.
+ - `--global-rotation {0,90,180,270}` and `--global-mirror-x` / `--no-global-mirror-x` (before, these were only reachable in code), and `--no-single-mesh`. Their defaults are unchanged.
++- `--global-transform` as the positive form of `--no-global-transform` (`--global-transform/--no-global-transform`), so that a config with `global_transform = false` can be overridden on the command line. `--no-global-transform` works as before.
+ - `fat_plate_config.example.toml` with every setting at its built-in default (a test makes sure it stays equal to the defaults).
+ - `tools/preview.py --config PATH` reads the margin and the whole-plate transform from the same config, through the generator's own functions.
+ 
+diff --git a/README.md b/README.md
+index e8ffd7e..9b269f7 100644
+--- a/README.md
++++ b/README.md
+@@ -483,7 +483,7 @@ To switch the transform off, for example to compare with older plates:
+ --no-global-transform
+ ```
+ 
+-(In a config file this is `global_transform = false`.)
++`--global-transform` switches it on again, for example if a config file has turned it off. The default is on. (In a config file this is `global_transform = false` or `true`.)
+ 
+ ### Plate as One Connected Mesh
+ 
+@@ -547,7 +547,7 @@ spacebar_off_centered_right = "stl-templates/stabilzer_spacebar_off-center_right
+ | `orientation.stab_rotation_vertical` | `--stab-rotation-vertical` |
+ | `orientation.stab_rotation_spacebar` | `--stab-rotation-spacebar` |
+ | `orientation.wide_caps_rotation` | `--wide-caps-rotation` |
+-| `orientation.global_transform` | `--no-global-transform` |
++| `orientation.global_transform` | `--global-transform` / `--no-global-transform` |
+ | `orientation.global_rotation` | `--global-rotation` |
+ | `orientation.global_mirror_x` | `--global-mirror-x` / `--no-global-mirror-x` |
+ | `templates.socket` | `--socket` |
+@@ -561,7 +561,7 @@ The input and output file (`--json`, `--output`) are not part of a config file:
+ 
+ ## Which Value Wins
+ 
+-**Command line option > config file > built-in default.** A setting that is not given on the command line keeps the value of the config file, and a key that is missing in the file keeps the built-in default. Switches can be turned off again on the command line: `--no-single-mesh` overrides `single_mesh = true`, and `--no-global-mirror-x` overrides `global_mirror_x = true`. `--no-global-transform` overrides the config as well.
++**Command line option > config file > built-in default.** A setting that is not given on the command line keeps the value of the config file, and a key that is missing in the file keeps the built-in default. Switches can be turned off again on the command line: `--no-single-mesh` overrides `single_mesh = true`, and `--no-global-mirror-x` overrides `global_mirror_x = true`, and `--global-transform` / `--no-global-transform` override `global_transform` in both directions.
+ 
+ A config file is only used if you name it with `--config`. The generator never looks for one by itself, so the result never depends on a file you did not ask for. The header of the output shows which one was used (`Config: ...`, or `Config: none`).
+ 
+diff --git a/fat_plate_config.example.toml b/fat_plate_config.example.toml
+index 048eb3f..57f2320 100644
+--- a/fat_plate_config.example.toml
++++ b/fat_plate_config.example.toml
+@@ -39,7 +39,8 @@ stab_rotation_vertical = 90
+ stab_rotation_spacebar = 180
+ wide_caps_rotation = 180
+ 
+-# Whole-plate transform: false skips it completely (CLI: --no-global-transform).
++# Whole-plate transform: false skips it completely (CLI: --global-transform,
++# --no-global-transform).
+ global_transform = true
+ 
+ # Rotation of the whole plate in degrees (0, 90, 180, 270), then the optional
+diff --git a/fat_plate_generator.py b/fat_plate_generator.py
+index 6cb9956..4683332 100644
+--- a/fat_plate_generator.py
++++ b/fat_plate_generator.py
+@@ -1343,9 +1343,10 @@ def build_parser():
+                              "between keys that face each other is filled and enclosed voids are "
+                              "closed; without it the plate falls apart where the keys are far apart "
+                              "(--no-single-mesh overrides a config file; default: off)")
+-    parser.add_argument("--no-global-transform", action="store_true", default=None,
+-                        help="skip the whole-plate transform (KLE y flip); "
+-                             "mainly for comparison with older output")
++    parser.add_argument("--global-transform", action=argparse.BooleanOptionalAction, default=None,
++                        help="apply the whole-plate transform (KLE y flip), or skip it with "
++                             "--no-global-transform, mainly for comparison with older output "
++                             f"(default: {'on' if orientation.global_transform else 'off'})")
+     parser.add_argument("--global-rotation", type=int, choices=ROTATION_CHOICES, default=None,
+                         help="rotation of the whole plate in degrees, before the mirror "
+                              f"(default: {orientation.global_rotation})")
+@@ -1367,7 +1368,7 @@ def settings_from_args(args: argparse.Namespace) -> Settings:
+         stab_rotation_vertical=args.stab_rotation_vertical,
+         stab_rotation_spacebar=args.stab_rotation_spacebar,
+         wide_caps_rotation=args.wide_caps_rotation,
+-        global_transform=False if args.no_global_transform else None,
++        global_transform=args.global_transform,
+         global_rotation=args.global_rotation,
+         global_mirror_x=args.global_mirror_x)
+     templates = given(
+diff --git a/tests/test_config.py b/tests/test_config.py
+index 830fdae..936e1fc 100644
+--- a/tests/test_config.py
++++ b/tests/test_config.py
+@@ -129,11 +129,19 @@ def test_orientation_switches_and_the_new_options(tmp_path):
+     assert settings("--global-mirror-x").orientation.global_mirror_x is True
+ 
+ 
+-def test_no_global_transform_overrides_the_config_and_stays_off_without_it(tmp_path):
++def test_global_transform_has_both_forms_and_the_usual_precedence(tmp_path):
++    off = write_config(tmp_path, "[orientation]\nglobal_transform = false\n", "off.toml")
++    on = write_config(tmp_path, "[orientation]\nglobal_transform = true\n", "on.toml")
++    # without a config: the default is on; the old form still switches it off
+     assert settings().orientation.global_transform is True
++    assert settings("--global-transform").orientation.global_transform is True
+     assert settings("--no-global-transform").orientation.global_transform is False
+-    config = write_config(tmp_path, "[orientation]\nglobal_transform = false\n")
+-    assert settings("--config", config).orientation.global_transform is False
++    # the config is used when no option is given
++    assert settings("--config", off).orientation.global_transform is False
++    assert settings("--config", on).orientation.global_transform is True
++    # the command line wins in both directions
++    assert settings("--config", off, "--global-transform").orientation.global_transform is True
++    assert settings("--config", on, "--no-global-transform").orientation.global_transform is False
+ 
+ 
+ # --------------------------------------------------------------------------
+-- 
+2.43.0
+

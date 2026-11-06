@@ -27,3 +27,5 @@ __pycache__/
 
 old_stls/*
 new_stls/*
+
+wp-10-teil-b.patch
