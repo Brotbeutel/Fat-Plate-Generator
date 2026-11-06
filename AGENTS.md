@@ -35,7 +35,7 @@ python .\tools\preview.py plate.stl --layout my_layout.json --output plate.png
 
 - Keine Werte runden, auf ein Raster snappen oder glätten. Alles bleibt präzise und exakt. Ungenauigkeiten werden an der Quelle behoben (Blender-Dateien, Templates), nicht im Code kaschiert. Mängel in Templates im Bericht melden, nicht verstecken.
 - Transformationsreihenfolge: Rotation je Stabilizer um dessen Switch-Zentrum, dann Gesamttransformation um den Ursprung, dann Verschiebung, sodass die Bounding-Box bei (0, 0) beginnt. Rotationen und Spiegelung sind exakte Integer-Matrizen auf den 2D-Daten, es entstehen keine gespiegelten CAD-Körper.
-- Die Stabilizer-Ausschnitte werden nur gedreht, nie gespiegelt (die Spiegelung der Ganzplatten-Transformation gilt nur für Tasten und Plattenumriss).
+- Die Stabilizer-Ausschnitte werden nur gedreht, nie gespiegelt (die Spiegelung der Ganzplatten-Transformation gilt nur für Tasten und Plattenumriss). Eine Ausnahme gibt es: die rechte Off-Center-Spacebar (`--spacebar-position off-centered-right`) ist das gespiegelte linke Template, als exakte Integer-Matrix im Template-Koordinatensystem vor der Rotation; es entsteht kein gespiegelter CAD-Körper.
 - Die Orientierungs-Defaults stehen zentral in `OrientationConfig`. Die Werte hat der Nutzer nach Sichtprüfung festgelegt; nicht ohne Auftrag ändern.
 - Die exportierte STL wird nur im Speicher geprüft, nie repariert, nach Komponenten gefiltert oder neu exportiert.
 - Socket, Stabilizer und Spacebar laufen durch denselben Code. Keine Sonderwege je Template, keine stille Glättung von Schrägen, keine Konturen weglassen.
