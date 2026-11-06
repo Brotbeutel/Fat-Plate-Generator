@@ -22,19 +22,27 @@ FULL_LAYOUT = REPO_ROOT / fpg.DEFAULT_JSON
 
 def spacebar_paths(root: Path = REPO_ROOT) -> dict:
     """The spacebar templates of the repository, by switch position."""
-    return {"centered": root / fpg.DEFAULT_SPACEBAR_CENTERED,
-            "off-centered-left": root / fpg.DEFAULT_SPACEBAR_OFF_CENTERED_LEFT,
-            "off-centered-right": root / fpg.DEFAULT_SPACEBAR_OFF_CENTERED_RIGHT}
+    return fpg.TemplateSet.defaults(root).spacebar_paths
 
 
 def build_model(layout: Path, **kwargs):
     """build_plate_model() with the repository's template STLs."""
-    return fpg.build_plate_model(
-        layout,
-        REPO_ROOT / fpg.DEFAULT_SOCKET,
-        REPO_ROOT / fpg.DEFAULT_STABILIZER,
-        spacebar_paths(),
-        **kwargs)
+    templates = kwargs.pop("templates", None)
+    if templates is None:
+        templates = fpg.TemplateSet.defaults(REPO_ROOT)
+
+    tmpl_kwargs = {}
+    for name in ("socket", "wide_caps", "stabilizer",
+                 "spacebar_centered", "spacebar_off_centered_left", "spacebar_off_centered_right"):
+        if name in kwargs:
+            tmpl_kwargs[name] = kwargs.pop(name)
+    if tmpl_kwargs:
+        templates = templates.replace(**tmpl_kwargs)
+
+    settings = kwargs.pop("settings", None)
+    if settings is None:
+        settings = fpg.Settings(templates=templates, **kwargs)
+    return fpg.build_plate_model(layout, settings)
 
 
 @pytest.fixture(scope="session")

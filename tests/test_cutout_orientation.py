@@ -34,9 +34,14 @@ def test_cutouts_are_turned_never_mirrored(tmp_path, case, global_rotation):
     layout.write_text(LAYOUTS[case], encoding="utf-8")
     template = write_mesh(l_shape_mesh(), tmp_path / "l.stl")
     config = OrientationConfig(global_rotation=global_rotation)
-    model = fpg.build_plate_model(layout, REPO_ROOT / fpg.DEFAULT_SOCKET, template,
-                                  {position: template for position in fpg.SPACEBAR_POSITIONS},
-                                  orientation=config)
+    templates = fpg.TemplateSet.defaults(REPO_ROOT).replace(
+        stabilizer=template,
+        spacebar_centered=template,
+        spacebar_off_centered_left=template,
+        spacebar_off_centered_right=template,
+    )
+    settings = fpg.Settings(orientation=config, templates=templates)
+    model = fpg.build_plate_model(layout, settings)
     (cx, cy), rotation = model.centers[0], model.rotations[0]
     found = projected_outline(model.cavities[0])
 

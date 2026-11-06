@@ -14,7 +14,7 @@ from shapely.ops import unary_union
 
 import fat_plate_generator as fpg
 from fat_plate_generator import OrientationConfig
-from tests.conftest import ORIENTATION_LAYOUT, build_model, spacebar_paths
+from tests.conftest import ORIENTATION_LAYOUT, build_model
 from tools import preview
 
 
@@ -164,10 +164,7 @@ def test_switch_centres_match_the_preview_placement(orientation_model):
 # --------------------------------------------------------------------------
 def test_generate_writes_a_nonempty_stl(tmp_path):
     out = tmp_path / "plate.stl"
-    root = Path(fpg.__file__).parent
-    fpg.generate(
-        ORIENTATION_LAYOUT, root / fpg.DEFAULT_SOCKET, root / fpg.DEFAULT_STABILIZER,
-        spacebar_paths(root), output=out)
+    fpg.generate(ORIENTATION_LAYOUT, fpg.Settings(), output=out)
     mesh = trimesh.load(out, force="mesh")
     assert not mesh.is_empty and len(mesh.faces) > 0
     assert mesh.volume > 0
@@ -179,10 +176,7 @@ def test_generate_never_re_exports_the_stl(tmp_path, monkeypatch):
         raise AssertionError("generate() must not re-export the STL through trimesh")
 
     monkeypatch.setattr(trimesh.Trimesh, "export", forbidden)
-    root = Path(fpg.__file__).parent
-    fpg.generate(
-        ORIENTATION_LAYOUT, root / fpg.DEFAULT_SOCKET, root / fpg.DEFAULT_STABILIZER,
-        spacebar_paths(root), output=tmp_path / "plate.stl")
+    fpg.generate(ORIENTATION_LAYOUT, fpg.Settings(), output=tmp_path / "plate.stl")
 
 
 @pytest.mark.parametrize("mesh_name", ["orientation_mesh", "full_mesh"])

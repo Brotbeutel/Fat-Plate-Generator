@@ -96,7 +96,7 @@ def test_the_rotation_applies_to_the_second_centre_too():
 # the plate
 # --------------------------------------------------------------------------
 def test_standard_mode_keeps_the_normal_socket_at_w(wide_caps_template):
-    model = build_model(STEPPED_LAYOUT, stepped_key="standard", wide_caps_socket_path=wide_caps_template)
+    model = build_model(STEPPED_LAYOUT, stepped_key="standard", wide_caps=wide_caps_template)
     assert model.kinds == [fpg.KIND_NORMAL] * 3
     assert "wide-caps" not in model.templates
     outline = projected_outline(model.cavities[0])
@@ -105,7 +105,7 @@ def test_standard_mode_keeps_the_normal_socket_at_w(wide_caps_template):
 
 def test_wide_caps_mode_moves_the_switch_to_the_centre_of_w2(wide_caps_template):
     standard = build_model(STEPPED_LAYOUT, stepped_key="standard")
-    wide = build_model(STEPPED_LAYOUT, stepped_key="wide-caps", wide_caps_socket_path=wide_caps_template)
+    wide = build_model(STEPPED_LAYOUT, stepped_key="wide-caps", wide_caps=wide_caps_template)
     assert wide.kinds == [fpg.KIND_WIDE_CAPS, fpg.KIND_NORMAL, fpg.KIND_NORMAL]
     assert wide.rotations[0] == 180 and wide.rotations[1:] == [None, None]
     assert wide.centers[0][0] - standard.centers[0][0] == pytest.approx(0.25 * fpg.UNIT)   # 1.75u - 1.25u, halved
@@ -116,7 +116,7 @@ def test_wide_caps_mode_moves_the_switch_to_the_centre_of_w2(wide_caps_template)
 
 def test_the_plate_outline_covers_both_rectangles_in_every_mode(wide_caps_template):
     standard = build_model(STEPPED_LAYOUT, stepped_key="standard")
-    wide = build_model(STEPPED_LAYOUT, stepped_key="wide-caps", wide_caps_socket_path=wide_caps_template)
+    wide = build_model(STEPPED_LAYOUT, stepped_key="wide-caps", wide_caps=wide_caps_template)
     assert standard.footprint.symmetric_difference(wide.footprint).area < 1e-9
     width = standard.footprint.bounds[2] - standard.footprint.bounds[0]
     assert width == pytest.approx((1.75 + 1.0 + 1.0 + 0.0) * fpg.UNIT + 2 * fpg.DEFAULT_MARGIN)  # 1.75u, A, S
@@ -132,7 +132,7 @@ def affine(polygon, matrix):
 def test_the_wide_caps_socket_is_turned_never_mirrored(wide_caps_template, global_rotation, wide_caps_rotation):
     config = OrientationConfig(global_rotation=global_rotation, wide_caps_rotation=wide_caps_rotation)
     model = build_model(STEPPED_LAYOUT, stepped_key="wide-caps",
-                        wide_caps_socket_path=wide_caps_template, orientation=config)
+                        wide_caps=wide_caps_template, orientation=config)
     cx, cy = model.centers[0]
     turned = fpg.matrix_multiply(fpg.plate_rotation_matrix(config), fpg.rotation_matrix(wide_caps_rotation))
     expected = translate(affine(Polygon(L_OUTLINE), turned), cx, cy)
@@ -144,7 +144,7 @@ def test_the_wide_caps_socket_is_turned_never_mirrored(wide_caps_template, globa
 
 
 def test_by_default_the_wide_caps_template_comes_out_as_designed(wide_caps_template):
-    model = build_model(STEPPED_LAYOUT, stepped_key="wide-caps", wide_caps_socket_path=wide_caps_template)
+    model = build_model(STEPPED_LAYOUT, stepped_key="wide-caps", wide_caps=wide_caps_template)
     cx, cy = model.centers[0]
     found = projected_outline(model.cavities[0])
     assert found.symmetric_difference(translate(Polygon(L_OUTLINE), cx, cy)).area < 1e-6
@@ -152,11 +152,11 @@ def test_by_default_the_wide_caps_template_comes_out_as_designed(wide_caps_templ
 
 def test_the_wide_caps_template_is_only_needed_when_it_is_used(tmp_path):
     missing = tmp_path / "missing.stl"
-    build_model(STEPPED_LAYOUT, stepped_key="standard", wide_caps_socket_path=missing)       # no error
+    build_model(STEPPED_LAYOUT, stepped_key="standard", wide_caps=missing)       # no error
     build_model(REPO_ROOT / "tests" / "layouts" / "stabilizer_orientation.json",
-                stepped_key="wide-caps", wide_caps_socket_path=missing)                    # no stepped key
+                stepped_key="wide-caps", wide_caps=missing)                    # no stepped key
     with pytest.raises(TemplateError, match="not found"):
-        build_model(STEPPED_LAYOUT, stepped_key="wide-caps", wide_caps_socket_path=missing)
+        build_model(STEPPED_LAYOUT, stepped_key="wide-caps", wide_caps=missing)
 
 
 def test_the_wide_caps_template_is_looked_up_next_to_the_socket(tmp_path, wide_caps_template):
@@ -166,9 +166,8 @@ def test_the_wide_caps_template_is_looked_up_next_to_the_socket(tmp_path, wide_c
     wide_caps_path = socket_path.with_name(Path(fpg.DEFAULT_SOCKET_WIDE_CAPS).name)
     wide_caps_path.write_bytes(wide_caps_template.read_bytes())
     socket_path.write_bytes((REPO_ROOT / fpg.DEFAULT_SOCKET).read_bytes())
-    model = fpg.build_plate_model(STEPPED_LAYOUT, socket_path, REPO_ROOT / fpg.DEFAULT_STABILIZER,
-                                  {p: REPO_ROOT / fpg.DEFAULT_SPACEBAR_CENTERED for p in fpg.SPACEBAR_POSITIONS},
-                                  stepped_key="wide-caps")
+    templates = fpg.TemplateSet.defaults(REPO_ROOT).replace(socket=socket_path, wide_caps=None)
+    model = fpg.build_plate_model(STEPPED_LAYOUT, fpg.Settings(stepped_key="wide-caps", templates=templates))
     assert model.templates["wide-caps"].path == wide_caps_path
 
 

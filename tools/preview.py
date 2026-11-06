@@ -16,6 +16,9 @@ The preview only needs the STL and the KLE JSON.  It does not call the
 generator, so it also works on STLs produced by older generator versions
 (use ``--no-global-transform`` for those).
 
+If the plate was generated with a TOML config file, pass it as ``--config``: the margin
+and the whole-plate transform are then read from it (the same way the generator reads them).
+
 Needs matplotlib (``pip install -r requirements-dev.txt``).  Example::
 
     python tools/preview.py plate.stl --layout layout.json --output preview.png
@@ -24,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -168,8 +172,24 @@ def _polygon_path(poly: Polygon):
     return MplPath(verts, codes)
 
 
+def plate_options(config: Path | None = None, margin: float | None = None,
+                  no_global_transform: bool = False):
+    """Margin and whole-plate matrix for a preview: command line > config file > default.
+
+    Uses the generator's own config reader and ``global_matrix``, so the preview
+    cannot drift away from the plate.  Returns ``(margin, matrix, global_transform)``.
+    """
+    settings = fpg.load_config(config) if config is not None else fpg.Settings()
+    orientation = settings.orientation
+    if no_global_transform:
+        orientation = replace(orientation, global_transform=False)
+    return (settings.margin if margin is None else margin,
+            fpg.global_matrix(orientation), orientation.global_transform)
+
+
 def render_preview(stl_path: Path, layout_path: Path, output: Path, *,
                    margin: float = fpg.DEFAULT_MARGIN, global_transform: bool = True,
+                   matrix: tuple | None = None,
                    z: float | None = None, dpi: int = 150, labels: bool = True,
                    title: str | None = None) -> Path:
     import json
@@ -183,7 +203,8 @@ def render_preview(stl_path: Path, layout_path: Path, output: Path, *,
     mesh = trimesh.load(stl_path, force="mesh")
     material, z = plate_section(mesh, z)
     keys = fpg.parse_kle(json.loads(layout_path.read_text(encoding="utf-8")))
-    matrix = GLOBAL_MATRIX if global_transform else IDENTITY_MATRIX
+    if matrix is None:
+        matrix = GLOBAL_MATRIX if global_transform else IDENTITY_MATRIX
     placed = keys_in_plate_frame(keys, mesh.bounds, margin, matrix)
 
     x0, y0 = float(mesh.bounds[0, 0]), float(mesh.bounds[0, 1])
@@ -266,8 +287,12 @@ def main():
     parser.add_argument("stl", type=Path, help="plate STL produced by the generator")
     parser.add_argument("--layout", type=Path, required=True, help="KLE raw data JSON used for the plate")
     parser.add_argument("--output", type=Path, default=None, help="PNG path (default: STL name + .png)")
-    parser.add_argument("--margin", type=float, default=fpg.DEFAULT_MARGIN,
-                        help="margin that was used for the plate (default: %(default)s mm)")
+    parser.add_argument("--config", type=Path, default=None,
+                        help="the TOML config file the plate was generated with; its margin and "
+                             "whole-plate transform are used (--margin and --no-global-transform win)")
+    parser.add_argument("--margin", type=float, default=None,
+                        help=f"margin that was used for the plate (default: {fpg.DEFAULT_MARGIN} mm, "
+                             "or the config file's)")
     parser.add_argument("--no-global-transform", action="store_true",
                         help="the STL was made without the whole-plate transform "
                              "(e.g. by generator versions before WP-01)")
@@ -277,9 +302,14 @@ def main():
     parser.add_argument("--title", default=None)
     args = parser.parse_args()
 
+    try:
+        margin, matrix, global_transform = plate_options(args.config, args.margin,
+                                                         args.no_global_transform)
+    except ValueError as exc:
+        parser.error(str(exc))
     output = args.output or args.stl.with_suffix(".png")
-    render_preview(args.stl, args.layout, output, margin=args.margin,
-                   global_transform=not args.no_global_transform, z=args.z, dpi=args.dpi,
+    render_preview(args.stl, args.layout, output, margin=margin,
+                   global_transform=global_transform, matrix=matrix, z=args.z, dpi=args.dpi,
                    labels=not args.no_labels, title=args.title)
     print(f"Preview written to {output}")
 

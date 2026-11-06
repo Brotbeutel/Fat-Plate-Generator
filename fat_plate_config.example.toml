@@ -1,0 +1,61 @@
+# Fat Plate Generator - example configuration (TOML)
+#
+# Use it with:   python .\fat_plate_generator.py --config .\fat_plate_config.example.toml
+#
+# Every key is optional. A key that is missing keeps its built-in default; this
+# file lists all keys with exactly those defaults, so it changes nothing.
+# Precedence: command line option > this file > built-in default.
+# The layout and the output file (--json, --output) are not set here: the same
+# config is meant to serve different layouts.
+# Relative paths in this file are relative to the folder of this file.
+# Unknown keys, values of the wrong type and missing template files are errors.
+
+# Margin around the keys in mm (CLI: --margin).
+margin = 1.0
+
+# Keys with a width or height of at least this many units get a stabilizer cutout
+# (CLI: --stabilizer-min-unit). Use 1.75 to give 1.75u keys a stabilizer as well.
+stabilizer_min_unit = 2.0
+
+# true: the plate is one connected mesh without gaps (CLI: --single-mesh,
+# --no-single-mesh).
+single_mesh = false
+
+# Switch position of the spacebar, seen from above with the typist at the bottom:
+# "centered", "off-centered-left" or "off-centered-right" (CLI: --spacebar-position).
+spacebar_position = "centered"
+
+# Socket of a stepped key (KLE "l": true), for example a stepped Caps Lock:
+# "standard" (normal socket at the center of w) or "wide-caps" (wide-caps socket
+# at the center of w2) (CLI: --stepped-key).
+stepped_key = "standard"
+
+[orientation]
+# Rotation of the stabilizer cutouts in degrees, counter-clockwise, around the
+# switch center. Allowed: 0, 90, 180, 270 (CLI: --stab-rotation-horizontal,
+# --stab-rotation-vertical, --stab-rotation-spacebar, --wide-caps-rotation).
+stab_rotation_horizontal = 180
+stab_rotation_vertical = 90
+stab_rotation_spacebar = 180
+wide_caps_rotation = 180
+
+# Whole-plate transform: false skips it completely (CLI: --global-transform,
+# --no-global-transform).
+global_transform = true
+
+# Rotation of the whole plate in degrees (0, 90, 180, 270), then the optional
+# mirror along X. 180 + mirror is the KLE y flip: the plate is the layout seen
+# from above, the typist side at low Y (CLI: --global-rotation,
+# --global-mirror-x, --no-global-mirror-x).
+global_rotation = 180
+global_mirror_x = true
+
+[templates]
+# Template STL files (CLI: --socket, --socket-wide-caps, --stabilizer,
+# --spacebar-centered, --spacebar-off-centered-left, --spacebar-off-centered-right).
+socket = "stl-templates/switch_socket.stl"
+wide_caps = "stl-templates/switch_socket_wide-caps.stl"
+stabilizer = "stl-templates/stabilizer.stl"
+spacebar_centered = "stl-templates/stabilzer_spacebar.stl"
+spacebar_off_centered_left = "stl-templates/stabilzer_spacebar_off-center_left.stl"
+spacebar_off_centered_right = "stl-templates/stabilzer_spacebar_off-center_right.stl"
