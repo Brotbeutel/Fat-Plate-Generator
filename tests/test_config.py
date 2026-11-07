@@ -118,6 +118,30 @@ def test_precedence_of_a_switch(tmp_path):
     assert settings("--config", config, "--no-single-mesh").single_mesh is False
 
 
+def test_precedence_of_the_fuse_f_row_switch(tmp_path):
+    config = write_config(tmp_path, "fuse_f_row = true\n")
+    assert settings().fuse_f_row is False
+    assert settings("--fuse-f-row").fuse_f_row is True
+    assert settings("--config", config).fuse_f_row is True
+    assert settings("--config", config, "--fuse-f-row").fuse_f_row is True
+    assert settings("--config", config, "--no-fuse-f-row").fuse_f_row is False
+    # the switch is independent of single_mesh: both can be set
+    both = settings("--config", config, "--single-mesh")
+    assert (both.fuse_f_row, both.single_mesh) == (True, True)
+
+
+def test_a_config_with_fuse_f_row_false_keeps_the_default(tmp_path):
+    config = write_config(tmp_path, "fuse_f_row = false\n")
+    assert settings("--config", config) == fpg.Settings()
+    assert settings("--config", config, "--fuse-f-row").fuse_f_row is True
+
+
+def test_fuse_f_row_must_be_a_boolean_in_settings():
+    for value in ("yes", 1, None):
+        with pytest.raises(ValueError, match="fuse_f_row must be a boolean"):
+            fpg.Settings(fuse_f_row=value)
+
+
 def test_orientation_switches_and_the_new_options(tmp_path):
     config = write_config(tmp_path, "[orientation]\nglobal_rotation = 90\nglobal_mirror_x = true\n")
     assert settings().orientation.global_rotation == 180
@@ -160,6 +184,8 @@ def test_global_transform_has_both_forms_and_the_usual_precedence(tmp_path):
     ("margin = true\n", "cfg.toml: 'margin' must be a number"),
     ("stabilizer_min_unit = 'two'\n", "'stabilizer_min_unit' must be a number"),
     ('single_mesh = "yes"\n', "'single_mesh' must be true or false"),
+    ('fuse_f_row = "yes"\n', "cfg.toml: 'fuse_f_row' must be true or false, got 'yes' (str)"),
+    ("fuse_f_row = 1\n", "cfg.toml: 'fuse_f_row' must be true or false, got 1 (int)"),
     ("spacebar_position = 3\n", "'spacebar_position' must be a string"),
     ("[orientation]\nstab_rotation_vertical = 90.0\n", "'orientation.stab_rotation_vertical' must be an integer"),
     ("[orientation]\nglobal_mirror_x = 1\n", "'orientation.global_mirror_x' must be true or false"),
