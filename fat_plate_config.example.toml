@@ -52,10 +52,10 @@ global_mirror_x = true
 
 [templates]
 # Template STL files (CLI: --socket, --socket-wide-caps, --stabilizer,
-# --spacebar-centered, --spacebar-off-centered-left, --spacebar-off-centered-right).
+# --spacebar-centered, --spacebar-off-centered). spacebar_off_centered is the left
+# template; spacebar_position = "off-centered-right" uses it mirrored.
 socket = "stl-templates/switch_socket.stl"
 wide_caps = "stl-templates/switch_socket_wide-caps.stl"
 stabilizer = "stl-templates/stabilizer.stl"
 spacebar_centered = "stl-templates/stabilzer_spacebar.stl"
-spacebar_off_centered_left = "stl-templates/stabilzer_spacebar_off-center_left.stl"
-spacebar_off_centered_right = "stl-templates/stabilzer_spacebar_off-center_right.stl"
+spacebar_off_centered = "stl-templates/stabilzer_spacebar_off-center_left.stl"

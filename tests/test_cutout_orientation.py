@@ -7,8 +7,8 @@ from shapely.geometry import Polygon
 
 import fat_plate_generator as fpg
 from fat_plate_generator import OrientationConfig
-from tests.conftest import REPO_ROOT, build_model
-from tests.test_plate import projected_outline
+from tests.conftest import ORIENTATION_LAYOUT, REPO_ROOT, build_model
+from tests.test_plate import projected_outline, run_cli
 from tests.test_templates import L_OUTLINE, l_shape_mesh, write_mesh
 
 # One key per case: a horizontal and a vertical stabilizer key and the spacebar.
@@ -37,8 +37,7 @@ def test_cutouts_are_turned_never_mirrored(tmp_path, case, global_rotation):
     templates = fpg.TemplateSet.defaults(REPO_ROOT).replace(
         stabilizer=template,
         spacebar_centered=template,
-        spacebar_off_centered_left=template,
-        spacebar_off_centered_right=template,
+        spacebar_off_centered=template,
     )
     settings = fpg.Settings(orientation=config, templates=templates)
     model = fpg.build_plate_model(layout, settings)
@@ -73,13 +72,16 @@ def spacebar_layout(tmp_path):
     return layout
 
 
-@pytest.mark.parametrize("position, expected_path", [
-    ("centered", REPO_ROOT / fpg.DEFAULT_SPACEBAR_CENTERED),
-    ("off-centered-left", REPO_ROOT / fpg.DEFAULT_SPACEBAR_OFF_CENTERED_LEFT),
-    ("off-centered-right", REPO_ROOT / fpg.DEFAULT_SPACEBAR_OFF_CENTERED_RIGHT),
+@pytest.mark.parametrize("position, expected_path, expected_mirrored", [
+    ("centered", REPO_ROOT / fpg.DEFAULT_SPACEBAR_CENTERED, False),
+    ("off-centered-left", REPO_ROOT / fpg.DEFAULT_SPACEBAR_OFF_CENTERED, False),
+    # one off-centered template; the right position is that template mirrored
+    ("off-centered-right", REPO_ROOT / fpg.DEFAULT_SPACEBAR_OFF_CENTERED, True),
 ])
-def test_spacebar_position_picks_the_template(spacebar_layout, position, expected_path):
-    assert build_model(spacebar_layout, spacebar_position=position).spacebar_path == expected_path
+def test_spacebar_position_picks_the_template(spacebar_layout, position, expected_path, expected_mirrored):
+    model = build_model(spacebar_layout, spacebar_position=position)
+    assert model.spacebar_path == expected_path
+    assert model.mirrored == [expected_mirrored]
 
 
 def test_unknown_spacebar_position_is_refused(spacebar_layout):
@@ -99,3 +101,77 @@ def test_off_centered_spacebar_sits_on_its_side(spacebar_layout, position, side)
         assert offset == pytest.approx(0.0, abs=1e-3)
     else:
         assert offset * side > 1.0, offset
+
+
+# --------------------------------------------------------------------------
+# the right off-centered spacebar is the left template, mirrored
+# --------------------------------------------------------------------------
+OLD_RIGHT_TEMPLATE = REPO_ROOT / "stl-templates" / "stabilzer_spacebar_off-center_right.stl"
+HEIGHT_FRACTIONS = (0.1, 0.35, 0.5, 0.65, 0.9)       # five heights per layer
+EQUIVALENCE_TOLERANCE = 1e-4                         # mm2 of difference between two sections
+
+
+@pytest.mark.parametrize("global_rotation", [180, 90])
+@pytest.mark.parametrize("spacebar_rotation", fpg.ROTATION_CHOICES)
+def test_mirrored_left_template_equals_the_old_right_file(spacebar_layout, spacebar_rotation, global_rotation):
+    """The new way (left template, mirrored in its own coordinates before the
+    rotation) must give what the old right file gave when it was used unmirrored,
+    for every spacebar rotation and whole-plate rotation."""
+    if not OLD_RIGHT_TEMPLATE.is_file():
+        pytest.skip(f"{OLD_RIGHT_TEMPLATE.name} is not in the repository (anymore)")
+    from tests.test_templates import cutter_mesh, section_polygon
+
+    orientation = OrientationConfig(stab_rotation_spacebar=spacebar_rotation, global_rotation=global_rotation)
+    new = build_model(spacebar_layout, spacebar_position="off-centered-right", orientation=orientation)
+    old = build_model(spacebar_layout, spacebar_position="off-centered-left", orientation=orientation,
+                      spacebar_off_centered=OLD_RIGHT_TEMPLATE)
+    assert new.mirrored == [True] and old.mirrored == [False]
+    assert new.centers == old.centers
+
+    new_mesh, old_mesh = cutter_mesh(new.cavities[0]), cutter_mesh(old.cavities[0])
+    for layer in old.templates["spacebar"].layers:
+        for fraction in HEIGHT_FRACTIONS:
+            z = layer.z0 + (layer.z1 - layer.z0) * fraction
+            difference = section_polygon(new_mesh, z).symmetric_difference(section_polygon(old_mesh, z)).area
+            assert difference <= EQUIVALENCE_TOLERANCE, (spacebar_rotation, global_rotation, z, difference)
+
+
+def test_the_right_spacebar_cavity_is_valid_and_as_large_as_the_left_one(spacebar_layout):
+    left = build_model(spacebar_layout, spacebar_position="off-centered-left").cavities[0]
+    right = build_model(spacebar_layout, spacebar_position="off-centered-right").cavities[0]
+    assert right.isValid()
+    assert right.Volume() == pytest.approx(left.Volume(), rel=1e-6)
+
+
+@pytest.fixture(scope="module")
+def right_spacebar_model():
+    return build_model(ORIENTATION_LAYOUT, spacebar_position="off-centered-right")
+
+
+def test_the_right_spacebar_plate_passes_the_stl_check(right_spacebar_model, tmp_path):
+    import cadquery as cq
+
+    out = tmp_path / "right.stl"
+    cq.exporters.export(right_spacebar_model.plate, str(out), exportType="STL",
+                        tolerance=0.001, angularTolerance=0.1)
+    bb = right_spacebar_model.plate.BoundingBox()
+    _, problems = fpg.check_exported_stl(
+        out, expected_bounds=((bb.xmin, bb.ymin, bb.zmin), (bb.xmax, bb.ymax, bb.zmax)))
+    assert problems == []
+
+
+def test_only_the_right_off_centered_spacebar_is_mirrored(right_spacebar_model, orientation_model):
+    """The layout has stabilizer keys, Caps Lock, a normal key and the spacebar."""
+    model = right_spacebar_model
+    assert fpg.KIND_STABILIZED in model.kinds and fpg.KIND_NORMAL in model.kinds
+    assert model.mirrored == [kind == fpg.KIND_SPACEBAR for kind in model.kinds]
+    assert model.mirrored.count(True) == 1
+    # centered (the default of this model) and off-centered-left mirror nothing
+    assert not any(orientation_model.mirrored)
+
+
+def test_the_old_left_and_right_options_are_gone(repo_root, tmp_path):
+    for option in ("--spacebar-off-centered-left", "--spacebar-off-centered-right"):
+        result = run_cli(repo_root, option, "x.stl", "--output", str(tmp_path / "x.stl"))
+        assert result.returncode != 0, option
+        assert "unrecognized arguments" in result.stderr and option in result.stderr, result.stderr

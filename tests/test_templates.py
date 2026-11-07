@@ -24,8 +24,7 @@ REAL_TEMPLATES = [
     (fpg.DEFAULT_SOCKET, "socket"),
     (fpg.DEFAULT_STABILIZER, "stabilizer"),
     (fpg.DEFAULT_SPACEBAR_CENTERED, "spacebar"),
-    (fpg.DEFAULT_SPACEBAR_OFF_CENTERED_LEFT, "spacebar"),
-    (fpg.DEFAULT_SPACEBAR_OFF_CENTERED_RIGHT, "spacebar"),
+    (fpg.DEFAULT_SPACEBAR_OFF_CENTERED, "spacebar"),
     (fpg.DEFAULT_SOCKET_WIDE_CAPS, "wide-caps"),
 ]
 
