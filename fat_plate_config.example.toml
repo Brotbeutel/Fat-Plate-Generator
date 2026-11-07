@@ -21,6 +21,12 @@ stabilizer_min_unit = 2.0
 # --no-single-mesh).
 single_mesh = false
 
+# true: the top row of the layout (for a 100% layout Esc, F1-F12, PrtSc, Scroll Lock
+# and Pause Break) becomes one connected strip of plate. Only that row is joined,
+# not the main block. It has no effect together with single_mesh = true
+# (CLI: --fuse-f-row, --no-fuse-f-row).
+fuse_f_row = false
+
 # Switch position of the spacebar, seen from above with the typist at the bottom:
 # "centered", "off-centered-left" or "off-centered-right" (CLI: --spacebar-position).
 spacebar_position = "centered"

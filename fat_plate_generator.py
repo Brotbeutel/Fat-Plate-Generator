@@ -194,6 +194,7 @@ class Settings:
     spacebar_position: str = DEFAULT_SPACEBAR_POSITION
     stepped_key: str = DEFAULT_STEPPED_KEY
     single_mesh: bool = False
+    fuse_f_row: bool = False
     orientation: OrientationConfig = field(default_factory=OrientationConfig)
     templates: TemplateSet = field(default_factory=TemplateSet.defaults)
 
@@ -208,6 +209,8 @@ class Settings:
             raise ValueError(f"stepped_key must be one of {STEPPED_MODES}, got {self.stepped_key!r}")
         if not isinstance(self.single_mesh, bool):
             raise ValueError(f"single_mesh must be a boolean, got {self.single_mesh!r}")
+        if not isinstance(self.fuse_f_row, bool):
+            raise ValueError(f"fuse_f_row must be a boolean, got {self.fuse_f_row!r}")
         if not isinstance(self.orientation, OrientationConfig):
             raise ValueError(f"orientation must be an OrientationConfig, got {self.orientation!r}")
         if not isinstance(self.templates, TemplateSet):
@@ -228,6 +231,7 @@ CONFIG_KEYS = {                   # key -> kind of value
     "margin": "number",
     "stabilizer_min_unit": "number",
     "single_mesh": "boolean",
+    "fuse_f_row": "boolean",
     "spacebar_position": "string",
     "stepped_key": "string",
 }
@@ -842,12 +846,36 @@ def gap_bridges(rectangles):
     return bridges
 
 
-def plate_footprint(keys, matrix, margin, single_mesh=False):
+TOP_ROW_TOLERANCE = 1e-9         # key units; keys whose KLE y differs by less are in one row
+ROTATION_TOLERANCE = 1e-9        # degrees; a rotation below this counts as no rotation
+
+
+def top_row_keys(keys):
+    """The keys of the top row of a layout (the F-row of a 100% layout).
+
+    These are all keys without rotation whose KLE ``y`` equals the smallest
+    ``y`` among the unrotated keys.  Rotated keys are never part of the row, and
+    a layout without any unrotated key has no top row (an empty list).  This
+    works in the KLE frame, before the whole-plate transform, and needs no CAD.
+    """
+    unrotated = [k for k in keys if abs(k["r"]) < ROTATION_TOLERANCE]
+    if not unrotated:
+        return []
+    top = min(k["y"] for k in unrotated)
+    return [k for k in unrotated if abs(k["y"] - top) <= TOP_ROW_TOLERANCE]
+
+
+def plate_footprint(keys, matrix, margin, single_mesh=False, fuse_top_row=False):
     """Outline of the plate: the keys grown by ``margin`` (before the shift to (0, 0)).
 
     With ``single_mesh`` the space between keys that face each other is filled
     first (``gap_bridges``); whatever is still separate or enclosed afterwards is
     joined by ``connect_footprint``.
+
+    With ``fuse_top_row`` the same bridges are added, but only between the
+    rectangles of the keys of the top row (``top_row_keys``), so that row becomes
+    one strip and nothing else is connected to it.  ``single_mesh`` already
+    connects everything, so ``fuse_top_row`` changes nothing then.
     """
     a, b, d, e = matrix
 
@@ -859,6 +887,8 @@ def plate_footprint(keys, matrix, margin, single_mesh=False):
     shapes = [place(local_key_shape(k), k) for k in keys]
     if single_mesh:
         shapes += gap_bridges([place(r, k) for k in keys for r in local_key_rectangles(k)])
+    elif fuse_top_row:
+        shapes += gap_bridges([place(r, k) for k in top_row_keys(keys) for r in local_key_rectangles(k)])
     footprint = unary_union(shapes).buffer(margin, join_style=2)
     return connect_footprint(footprint) if single_mesh else footprint
 
@@ -1046,7 +1076,9 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
     With ``settings.single_mesh`` the space between keys that face each other
     and voids enclosed by the outline are filled, so the plate is one connected
     piece without gaps (see ``plate_footprint``); otherwise the plate follows
-    the keys and falls apart where they are far from each other.
+    the keys and falls apart where they are far from each other.  With
+    ``settings.fuse_f_row`` only the top row of the layout is joined into one
+    strip (``top_row_keys``); it has no effect together with ``single_mesh``.
 
     A stepped key (KLE ``"l": true``) gets, depending on ``settings.stepped_key``,
     the normal socket at the centre of its first rectangle (``"standard"``, w) or
@@ -1071,7 +1103,7 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
 
     gm = global_matrix(orientation)
     pm = plate_rotation_matrix(orientation)
-    footprint = plate_footprint(keys, gm, settings.margin, settings.single_mesh)
+    footprint = plate_footprint(keys, gm, settings.margin, settings.single_mesh, settings.fuse_f_row)
     minx, miny = footprint.bounds[0], footprint.bounds[1]
     footprint = translate(footprint, xoff=-minx, yoff=-miny)
 
@@ -1273,6 +1305,12 @@ def generate(kle_path: Path, settings: Settings, output: Path = Path(DEFAULT_OUT
     parts = len(polygons(model.footprint))
     if settings.single_mesh:
         print(f"Plate shape:     one connected mesh (--single-mesh), {parts} part")
+        if settings.fuse_f_row:
+            print("Note:            --fuse-f-row has no effect with --single-mesh")
+    elif settings.fuse_f_row:
+        row = len(top_row_keys(keys))
+        fused = f"top row fused ({row} keys)" if row else "--fuse-f-row has no effect (no unrotated keys)"
+        print(f"Plate shape:     {parts} part(s), separated where the keys are far apart; {fused}")
     else:
         print(f"Plate shape:     {parts} part(s), separated where the keys are far apart")
     for kind, template in model.templates.items():
@@ -1358,6 +1396,11 @@ def build_parser():
                              "between keys that face each other is filled and enclosed voids are "
                              "closed; without it the plate falls apart where the keys are far apart "
                              "(--no-single-mesh overrides a config file; default: off)")
+    parser.add_argument("--fuse-f-row", action=argparse.BooleanOptionalAction, default=None,
+                        help="join the top row of the layout (the F-row of a full-size layout: Esc, F1-F12, "
+                             "PrtSc, Scroll Lock, Pause Break) into one strip of plate; only that row "
+                             "is joined, not the main block; it has no effect together with "
+                             "--single-mesh (--no-fuse-f-row overrides a config file; default: off)")
     parser.add_argument("--global-transform", action=argparse.BooleanOptionalAction, default=None,
                         help="apply the whole-plate transform (KLE y flip), or skip it with "
                              "--no-global-transform, mainly for comparison with older output "
@@ -1400,7 +1443,8 @@ def settings_from_args(args: argparse.Namespace) -> Settings:
                 stabilizer_min_unit=args.stabilizer_min_unit,
                 spacebar_position=args.spacebar_position,
                 stepped_key=args.stepped_key,
-                single_mesh=args.single_mesh))
+                single_mesh=args.single_mesh,
+                fuse_f_row=args.fuse_f_row))
 
 
 def main():
