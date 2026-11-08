@@ -2,11 +2,11 @@
 
 Status: `[ ]` offen, `[~]` in Arbeit, `[x]` erledigt.
 
-Stand: `main` @ `392162d` (WP-07 bis WP-11 gemerged).
+Stand: `main` @ `7631001` (WP-07 bis WP-12 gemerged, 338 Tests grün laut WP-12-Bericht).
 
 ## Reihenfolge
 
-~~WP-07~~ → ~~WP-08~~ → ~~WP-09~~ → ~~WP-10~~ → ~~WP-11~~ → ~~WP-12~~ → WP-13. WP-14 ist noch nicht beauftragt (Reihenfolge offen, siehe unten).
+~~WP-07~~ → ~~WP-08~~ → ~~WP-09~~ → ~~WP-10~~ → ~~WP-11~~ → ~~WP-12~~ → WP-13 → WP-14. WP-15 ist noch nicht beauftragt und hat niedrige Priorität.
 
 ## Arbeitspakete
 
@@ -14,14 +14,14 @@ Stand: `main` @ `392162d` (WP-07 bis WP-11 gemerged).
   - Orientierung zentral konfigurierbar (`OrientationConfig`: horizontal / vertical / spacebar getrennt, Ganzplatten-Transformation)
   - Preview-Tool (`tools/preview.py`) und pytest-Suite
   - Die Defaults hat der Nutzer nach Sichtprüfung angepasst: horizontal 180°, vertical 90°, spacebar 180°, Platte 180° + Spiegelung an X (= KLE-Y-Umrechnung ohne weitere Drehung); die Ausschnitte werden nur gedreht, nie gespiegelt
-- [x] **WP-02** Aufräumen (abgeschlossen; die zwei offenen Punkte sind nach WP-11/WP-14 verschoben)
+- [x] **WP-02** Aufräumen (abgeschlossen; die zwei offenen Punkte sind nach WP-11/WP-15 verschoben)
   - [x] Stretch-/Voxel-Reste entfernt, README/Version/Dateinamen konsistent
   - [x] Socket, Stabilizer und Spacebar werden gleich und exakt erzeugt (ein Loader, jede Schicht ein Loft, keine Rundungen)
   - [x] Feste Bounding Boxen je Template (nur Prüfung mit Warnung), in der README dokumentiert
   - [x] Stabilizer-Ausschnitte werden nur gedreht, nie gespiegelt; Spacebar-Varianten links/rechts (`--spacebar-position`)
   - [x] STL-Prüfung als ausdrückliche Warnung statt Abbruch, STL wird nicht neu exportiert
-  - → KLE-Rotation (`r`) für Cavities: **WP-14**
-  - → robustere Spacebar-/Caps-Lock-Erkennung: **WP-13** (Spacebar nach Breite) und **WP-14** (Caps Lock)
+  - → KLE-Rotation (`r`) für Cavities: **WP-15**
+  - → robustere Spacebar-/Caps-Lock-Erkennung: **WP-14** (Spacebar nach Breite) und **WP-15** (Caps Lock)
 - [ ] **WP-03** Testdruck: Mini-Testplatte drucken, Passung und Toleranzen prüfen (Nutzer)
 - [~] **WP-04** Layout-Features
   - [x] Stepped Caps Lock (`"l": true`): `--stepped-key standard` oder `wide-caps` (Template `switch_socket_wide-caps.stl` bei `w2`)
@@ -31,7 +31,7 @@ Stand: `main` @ `392162d` (WP-07 bis WP-11 gemerged).
   - → F-Row als ein Mesh: **WP-12** (erledigt)
   - → Caps-Lock-Optionen (große Aussparung, linksbündig, zentriert): nach **WP-09**, falls dann noch gewünscht
 - [ ] **WP-05** Plattenform: abgerundete/gefaste Ecken, Standoffs/Spacer
-- [ ] **WP-06** Weitere Stabilizer-Varianten (der 7-u-Spacebar ist als **WP-13** ausgegliedert)
+- [ ] **WP-06** Weitere Stabilizer-Varianten (der 7-u-Spacebar ist als **WP-14** ausgegliedert)
 
 ### Neue Arbeitspakete
 
@@ -49,13 +49,17 @@ Stand: `main` @ `392162d` (WP-07 bis WP-11 gemerged).
   - Mit `--single-mesh` wirkungslos (Hinweis in der Ausgabe). Neuer Config-Schlüssel `fuse_f_row`, CLI `--fuse-f-row/--no-fuse-f-row`.
   - Ohne die Option byte-identisch zu vorher.
   - Umgesetzt: `top_row_keys()` (unrotierte Tasten mit dem kleinsten KLE-`y`) und `plate_footprint(..., fuse_top_row=False)`; `Settings.fuse_f_row`, CLI `--fuse-f-row/--no-fuse-f-row`, Config-Schlüssel `fuse_f_row`. Nachgemessen: Plattenteile vorher → nachher G80-3000 und ISO-105 9 → 5, TKL 8 → 4, JD40 unverändert (1); die STLs für `stabilizer_orientation`, `jd40` und `stepped-capslock` (wide-caps) sind ohne Option byte-identisch zu `392162d`; `--fuse-f-row --single-mesh` ergibt dieselbe Platte wie `--single-mesh` allein. 338 Tests grün.
-- [ ] **WP-13** 7-u-Spacebar
-  - Template liegt vor (`stabilzer_spacebar_7u.stl`, 128,6008 × 19,05 mm = 6,75 u Zelle), ist aber noch nicht im Generator verdrahtet
-  - Spacebar-Templates nach Tastenbreite auswählen (6,25 u / 7 u); unbekannte Breiten ≥ 6 u liefern eine Fehlermeldung statt still das 6,25-u-Template (heute: 6, 7 und 8 u werden alle als 6,25-u-Spacebar behandelt)
-  - Feste Bounding Box für das 7-u-Template in Code und README eintragen (heute würde das Laden eine Warnung erzeugen)
-- [ ] **WP-14** Parser-Robustheit und Aufräumen (Vorschlag, noch nicht beauftragt)
-  - KLE-Rotation (`r`) für Cavities: Footprint und Switch-Zentrum werden gedreht, die Cavity nicht. **Konkret betroffen:** `kle-jsons/ergodox_split_ergo_67-keys.json` (12 Tasten mit ±30°). Gemessen: 10 von 76 Cavities ragen aus dem Plattenumriss (bis 27 mm²), ohne dass der Generator warnt. Mindestens eine Warnung oder ein Fehler, besser die echte Unterstützung. Priorität entscheidet der Nutzer.
-  - Decals (`"d": true`) nicht als Tasten behandeln
+- [ ] **WP-13** KLE-Parser wie der Editor (Bugfix, Priorität 1)
+  - Auslöser: `kle-jsons/keyboard-layout_065-percent-iso_royal-kludge-rk65.json` (vom Editor exportiert): Del liegt bei (15, 6) statt (15, 1); `…_rk65_clean.json` ist das richtige Ergebnis.
+  - Ursache: Im Editor setzt `rx` **oder** `ry` die aktuelle Position auf `(rx, ry)` (der nicht genannte Wert bleibt auf dem zuletzt gesetzten). `parse_kle()` setzt bei `rx` nur `x` und bei `ry` nur `y`. Gleiches Problem im Ergodox-Layout (Reihe 23: `rx` ohne `ry`, 5 Tasten falsch). Alle anderen Layouts in `kle-jsons/` ändern sich nicht (mit Prototyp verglichen).
+  - Mit dabei, weil dieselbe Funktion: Eigenschaften (`w`, `h`, `x2`, …) gelten bis zur nächsten Taste (mehrere Objekte vor einer Taste), Decals (`"d": true`) sind keine Tasten, `r`/`rx`/`ry` nur am Reihenanfang (sonst Fehler wie im Editor)
+  - Tests: RK65-Paar (fehlerhaft = bereinigt), Ergodox-Position, Tabelle kleiner Layouts, Fehlerfall; einmaliger Nachweis, dass alle übrigen Layouts unverändert parsen
+- [ ] **WP-14** 7-u-Spacebar
+  - Template liegt vor und ist laut Nutzer das aktuelle (`stabilzer_spacebar_7u.stl`, 128,6008 × 19,05 mm = 6,75 u Zelle), ist aber noch nicht im Generator verdrahtet. Ob sich die Bounding Box noch ändert, ist offen: bis der Nutzer sie festlegt, wird nur die Höhe geprüft (Eintrag mit `None` wie beim Wide-Caps-Template).
+  - Spacebar-Template nach Tastenbreite wählen; heute werden 6, 7 und 8 u mit leerem Label alle als 6,25-u-Spacebar behandelt. Zuordnung der Breiten und Umgang mit unbekannten Breiten: **offen (Fragen an den Nutzer)**
+  - Ob 7 u auch Off-Center-Varianten braucht: **offen (Frage an den Nutzer)**
+- [ ] **WP-15** Parser-Robustheit und Aufräumen (Vorschlag, noch nicht beauftragt)
+  - KLE-Rotation (`r`) für Cavities: Footprint und Switch-Zentrum werden gedreht, die Cavity nicht. **Konkret betroffen:** `kle-jsons/ergodox_split_ergo_67-keys.json` (12 Tasten mit ±30°). Gemessen: 10 von 76 Cavities ragen aus dem Plattenumriss (bis 27 mm²), ohne dass der Generator warnt. Mindestens eine Warnung oder ein Fehler, besser die echte Unterstützung. Nutzer (Stand jetzt): Layouts mit diagonalen Teilen sollen möglich sein, aber niedrige Priorität. Bis dahin mindestens eine Warnung statt stillem Falschbau.
   - Caps-Lock-Ausnahme per Label-Vergleich ersetzen (nach WP-08 nur noch für Caps Lock ab 2 u relevant)
   - Platzierungslogik nur einmal (Generator und `tools/preview.py` rechnen sie getrennt)
   - Cavities in einem Schritt verschmelzen (heute eine Schleife mit `fuse`, vermutlich der Grund für die langen Testläufe; erst messen)
@@ -66,12 +70,14 @@ Stand: `main` @ `392162d` (WP-07 bis WP-11 gemerged).
 - [x] **Template-Neubau**: Templates sind exakt neu gebaut (Socket 19,05 × 19,05 mm, Stabilizer 38,1 × 19,05 mm, Spacebar 114,3015 × 19,05 mm), der Generator meldet für diese keine Warnungen mehr.
   - `FLAT_WALL_TOLERANCE` (50 nm) lässt sich noch nicht senken: bei 1e-6 und 1e-7 ändern sich die Eckenzahlen von `stabilizer.stl`, bei 1e-9 lässt sich `stabilizer.stl` nicht mehr loften. Möglich wäre es erst, wenn die Wände der Templates bis auf Float32-Genauigkeit exakt gerade sind.
 - [x] **Wide-Caps-Template** liegt im Repo (`switch_socket_wide-caps.stl`). Offen: feste Bounding Box bestätigen (siehe WP-09).
-- [x] **7-u-Spacebar-Template** liegt im Repo (`stabilzer_spacebar_7u.stl`); der Generator nutzt es noch nicht (siehe WP-13).
+- [x] **7-u-Spacebar-Template** liegt im Repo (`stabilzer_spacebar_7u.stl`); der Generator nutzt es noch nicht (siehe WP-14).
 - [ ] Nach WP-11: `stabilzer_spacebar_off-center_right.stl` löschen (und den Eintrag in `.gitignore` entfernen), wenn du sie nicht mehr brauchst.
 - [ ] Nach WP-09: Standard-Rotation von `wide-caps` anhand der Bilder in `docs/wide-caps-test/` bestätigen; feste Bounding Box des Wide-Caps-Templates bestätigen und selbst eintragen.
 - [ ] `fat_plate_export_example.stl` neu erzeugen, wenn sich die Geometrie ändert.
 
 ## Vorschläge (nicht beauftragt)
+
+- **Layout-Paare als Regressionstests:** Wird ein Layout falsch gelesen, legt der Nutzer den fehlerhaften Export und eine von Hand bereinigte Fassung mit demselben Ergebnis (`…_clean.json`) in `kle-jsons/` ab. Der Implementer ergänzt einen Test, der beide vergleicht. So ist der RK65-Fehler gefunden worden; das Verfahren lohnt sich für jeden weiteren Fall.
 
 - **CI:** GitHub Actions führt `python -m pytest` auf Linux aus. Der Stand war zweimal unbemerkt rot (Ordnerumstellung, Rename). Linux fängt zusätzlich Groß-/Kleinschreibung in Pfaden ab, die unter Windows nicht auffällt. Am besten direkt nach WP-07.
 - Die schweren Tests (100%-Layout) per Marker abtrennbar machen, sodass ein schneller Lauf möglich ist.
