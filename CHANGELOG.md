@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- `--fuse-f-row` / `--no-fuse-f-row` (off by default) and the config key `fuse_f_row` join the top row of the layout (for a 100% layout Esc, F1-F12, PrtSc, Scroll Lock and Pause Break) into one strip of plate. Only that row is joined, not the main block: the space between its keys is filled with the same bridges as `--single-mesh` (`gap_bridges`), over the rectangles of these keys only (`top_row_keys()`: unrotated keys with the smallest KLE `y`). In the G80-3000 and ISO-105 layouts the plate has 5 instead of 9 parts. With `--single-mesh` the option changes nothing and the generator prints a note; without the option the plate is byte-identical to before. The header shows `top row fused (N keys)`.
+
 - `--config PATH` reads all settings from a TOML file (`tomllib`, Python 3.11 or newer). Precedence: command line option > config file > built-in default. The config is only used if named (no automatic search); relative paths in it are relative to the config folder; unknown keys, wrong types, invalid values and missing template files are errors that name the file and the key. The output header shows `Config: <path>` or `Config: none`. `--json` and `--output` are not part of a config.
 - `--global-rotation {0,90,180,270}` and `--global-mirror-x` / `--no-global-mirror-x` (before, these were only reachable in code), and `--no-single-mesh`. Their defaults are unchanged.
 - `--global-transform` as the positive form of `--no-global-transform` (`--global-transform/--no-global-transform`), so that a config with `global_transform = false` can be overridden on the command line. `--no-global-transform` works as before.

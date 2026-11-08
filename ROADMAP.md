@@ -28,7 +28,7 @@ Stand: `main` @ `392162d` (WP-07 bis WP-11 gemerged).
   - [x] Option `--single-mesh`: die Platte als ein zusammenhängendes Mesh ohne Lücken
   - getrennte Meshes → mehrere STL-Dateien
   - Pfeilcluster-Box (gefüllte Ecken)
-  - → F-Row als ein Mesh: **WP-12**
+  - → F-Row als ein Mesh: **WP-12** (erledigt)
   - → Caps-Lock-Optionen (große Aussparung, linksbündig, zentriert): nach **WP-09**, falls dann noch gewünscht
 - [ ] **WP-05** Plattenform: abgerundete/gefaste Ecken, Standoffs/Spacer
 - [ ] **WP-06** Weitere Stabilizer-Varianten (der 7-u-Spacebar ist als **WP-13** ausgegliedert)
@@ -41,6 +41,7 @@ Stand: `main` @ `392162d` (WP-07 bis WP-11 gemerged).
   - Prüf-WP, **keine Änderung am Generator**: Prüfmatrix (alle Stepped-Layouts × Modus × Rotation), Vorschaubilder in `docs/wide-caps-test/`, Testlücken schließen, Fehler nur berichten
   - Gemessen: Position des Schalterzentrums, Abstand zum Umriss, Stegbreite zu den Nachbar-Cavities, Überlappung
   - Nutzer: feste Bounding Box des Templates bestätigen (gemessen: 23,8125 × 19,05 mm, `TEMPLATE_BOUNDING_BOXES["wide-caps"]` steht noch auf `None`) und anhand der Bilder die Standard-Rotation bestätigen
+<<<<<<< HEAD
 - [x] **WP-10** Konfigurationsdatei: `Settings` und `TemplateSet` statt langer Parameterlisten (Teil A vom Planner nachgemessen: STLs byte-identisch), TOML über `--config` (Vorrang CLI > Config > Default, strenge Prüfung, Pfade relativ zum Config-Ordner), `fat_plate_config.example.toml`, `tools/preview.py --config`, `--global-transform/--no-global-transform`
 - [x] **WP-11** Spacebar-Spiegelung statt links/rechts-Dateien: ein Off-Center-Template (die linke Datei), die rechte Position entsteht per exakter Spiegelung im Template-Koordinatensystem vor der Rotation; `…_right.stl` wird nur noch von einem Äquivalenztest gelesen (Löschen entscheidet der Nutzer, siehe „Laufend“)
 - [ ] **WP-12** Verschmolzene F-Reihe (`--fuse-f-row`)
@@ -48,6 +49,26 @@ Stand: `main` @ `392162d` (WP-07 bis WP-11 gemerged).
   - „Oberste Reihe“ = unrotierte Tasten mit dem kleinsten KLE-`y`. Die Lückenbrücken von `--single-mesh` (`gap_bridges`) werden nur über diese Tasten gebildet. Vorgerechnet: G80-3000 und ISO-105 je 16 Tasten, 9 → 5 Plattenteile; TKL 8 → 4; JD40 unverändert.
   - Mit `--single-mesh` wirkungslos (Hinweis in der Ausgabe). Neuer Config-Schlüssel `fuse_f_row`, CLI `--fuse-f-row/--no-fuse-f-row`.
   - Ohne die Option byte-identisch zu vorher. Prompt liegt vor.
+=======
+- [~] **WP-10** Konfigurationsdatei
+  - Teil A (reiner Umbau): `Settings` und `TemplateSet` statt der langen Parameterlisten in `generate()` / `build_plate_model()`. Erledigt; vom Planner nachgemessen: die STLs für `stabilizer_orientation`, `jd40` und `stepped-capslock` (wide-caps) sind vor und nach dem Umbau byte-identisch.
+  - Teil B: TOML (`tomllib`, Python ≥ 3.11), nur über `--config` (keine automatische Suche), Vorrang CLI > Config > Default, strenge Prüfung, Pfade relativ zum Config-Ordner, `fat_plate_config.example.toml`, `tools/preview.py --config`. Laut Bericht 274 Tests grün; Branch noch nicht auf GitHub, daher vom Planner nicht geprüft.
+  - Nachtrag: `--global-transform/--no-global-transform` (positive Form, damit eine Config mit `global_transform = false` auf der CLI überstimmt werden kann)
+- [x] **WP-11** Spacebar-Spiegelung statt links/rechts-Dateien (Voraussetzung: WP-10 gemerged)
+  - Gemessen: `stabilzer_spacebar_off-center_left.stl` ist die exakte Spiegelung von `…_right.stl` an der Y-Achse der Template-Koordinaten (Differenzfläche höchstens 9,5e-7 mm² über alle Schichten)
+  - Festgelegt (Planner): die **linke** Datei bleibt das Off-Center-Template; die rechte Position entsteht durch Spiegelung **im Template-Koordinatensystem vor der Rotation** (nur so stimmt das Ergebnis für jede Rotationseinstellung mit der bisherigen rechten Datei überein). Exakte Integer-Matrix, kein gespiegelter CAD-Körper.
+  - `TemplateSet` bekommt ein Feld `spacebar_off_centered` statt zwei; CLI `--spacebar-off-centered` und Config-Schlüssel `spacebar_off_centered` ersetzen die beiden alten. Die Zuordnung Position → Pfad steht künftig nur noch einmal (heute doppelt).
+  - `--spacebar-position` bleibt `centered | off-centered-left | off-centered-right`; die Platte ändert sich nicht (`centered` und `off-centered-left` byte-identisch, `off-centered-right` bis auf Template-Rauschen)
+  - AGENTS.md, README und Docstring: Regel „Cutouts werden nie gespiegelt“ bekommt genau diese eine Ausnahme
+  - `…_right.stl` bleibt im Repo und wird nur noch von einem Äquivalenztest gelesen; Löschen entscheidet der Nutzer
+- [x] **WP-12** Verschmolzene F-Row (`--fuse-f-row`, Config-Schlüssel `fuse_f_row`)
+  - Festgelegt (Nutzer, 03.11.2026): Es wird **nur die oberste Reihe** zu einem zusammenhängenden Streifen verbunden, nicht mit dem Hauptblock. Bei einem 100%-Layout sind das Esc, F1–F12, PrtSc, Scroll Lock und Pause Break. Gebraucht wird es vor allem für die G80-3000.
+  - Option `--fuse-f-row` (Aufruf in der Config später als Schlüssel); Standard bleibt: aus. „Oberste Reihe“ = alle Tasten mit dem kleinsten KLE-`y`.
+  - Umsetzung: die Lückenbrücken von `--single-mesh` (`gap_bridges`) nur für die Tasten dieser Reihe verwenden. Die Lücken im G80-3000-Layout (1 u zwischen Esc und F1, 0,5 u zwischen den F-Gruppen und vor PrtSc) sind weit größer als 2 × Margin, die Brücken füllen sie über die ganze Tastenhöhe.
+  - Zusammenspiel mit `--single-mesh`: dann ist die Option wirkungslos (die ganze Platte ist ohnehin verbunden); in der Meldung des Generators ausgeben.
+  - Tests: G80-3000-Layout (`kle-jsons/keyboard-layout_100-percent-iso-105-keys_g80-3000.json`) liefert genau einen Teil für die F-Reihe und die übrigen Teile unverändert; ohne Option unverändertes Verhalten.
+  - Umgesetzt: `top_row_keys()` (unrotierte Tasten mit dem kleinsten KLE-`y`) und `plate_footprint(..., fuse_top_row=False)`; `Settings.fuse_f_row`, CLI `--fuse-f-row/--no-fuse-f-row`, Config-Schlüssel `fuse_f_row`. Plattenteile vorher/nachher: G80-3000 und ISO-105 9 → 5, TKL 8 → 4, JD40 unverändert (1). Ohne Option sind die STLs byte-identisch zu vorher.
+>>>>>>> docs: document --fuse-f-row, mark WP-12 done
 - [ ] **WP-13** 7-u-Spacebar
   - Template liegt vor (`stabilzer_spacebar_7u.stl`, 128,6008 × 19,05 mm = 6,75 u Zelle), ist aber noch nicht im Generator verdrahtet
   - Spacebar-Templates nach Tastenbreite auswählen (6,25 u / 7 u); unbekannte Breiten ≥ 6 u liefern eine Fehlermeldung statt still das 6,25-u-Template (heute: 6, 7 und 8 u werden alle als 6,25-u-Spacebar behandelt)
@@ -85,7 +106,7 @@ Stand: `main` @ `392162d` (WP-07 bis WP-11 gemerged).
 
 | Punkt                                                    | Zuordnung |
 | -------------------------------------------------------- | --------- |
-| option for F1–F12 row in one mesh                        | WP-12     |
+| option for F1–F12 row in one mesh                        | WP-12 (erledigt) |
 | option -> create multiple STL files for separated meshes | WP-04     |
 | option for rectangular arrow box shape (filled corners)  | WP-04     |
 | options for CapsLock: big cutout, left-aligned, centered | WP-04     |
