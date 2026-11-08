@@ -6,7 +6,7 @@ Stand: `main` @ `392162d` (WP-07 bis WP-11 gemerged).
 
 ## Reihenfolge
 
-~~WP-07~~ → ~~WP-08~~ → ~~WP-09~~ → ~~WP-10~~ → ~~WP-11~~ → WP-12 → WP-13. WP-14 ist noch nicht beauftragt (Reihenfolge offen, siehe unten).
+~~WP-07~~ → ~~WP-08~~ → ~~WP-09~~ → ~~WP-10~~ → ~~WP-11~~ → ~~WP-12~~ → WP-13. WP-14 ist noch nicht beauftragt (Reihenfolge offen, siehe unten).
 
 ## Arbeitspakete
 
@@ -28,7 +28,7 @@ Stand: `main` @ `392162d` (WP-07 bis WP-11 gemerged).
   - [x] Option `--single-mesh`: die Platte als ein zusammenhängendes Mesh ohne Lücken
   - getrennte Meshes → mehrere STL-Dateien
   - Pfeilcluster-Box (gefüllte Ecken)
-  - → F-Row als ein Mesh: **WP-12**
+  - → F-Row als ein Mesh: **WP-12** (erledigt)
   - → Caps-Lock-Optionen (große Aussparung, linksbündig, zentriert): nach **WP-09**, falls dann noch gewünscht
 - [ ] **WP-05** Plattenform: abgerundete/gefaste Ecken, Standoffs/Spacer
 - [ ] **WP-06** Weitere Stabilizer-Varianten (der 7-u-Spacebar ist als **WP-13** ausgegliedert)
@@ -43,11 +43,12 @@ Stand: `main` @ `392162d` (WP-07 bis WP-11 gemerged).
   - Nutzer: feste Bounding Box des Templates bestätigen (gemessen: 23,8125 × 19,05 mm, `TEMPLATE_BOUNDING_BOXES["wide-caps"]` steht noch auf `None`) und anhand der Bilder die Standard-Rotation bestätigen
 - [x] **WP-10** Konfigurationsdatei: `Settings` und `TemplateSet` statt langer Parameterlisten (Teil A vom Planner nachgemessen: STLs byte-identisch), TOML über `--config` (Vorrang CLI > Config > Default, strenge Prüfung, Pfade relativ zum Config-Ordner), `fat_plate_config.example.toml`, `tools/preview.py --config`, `--global-transform/--no-global-transform`
 - [x] **WP-11** Spacebar-Spiegelung statt links/rechts-Dateien: ein Off-Center-Template (die linke Datei), die rechte Position entsteht per exakter Spiegelung im Template-Koordinatensystem vor der Rotation; `…_right.stl` wird nur noch von einem Äquivalenztest gelesen (Löschen entscheidet der Nutzer, siehe „Laufend“)
-- [ ] **WP-12** Verschmolzene F-Reihe (`--fuse-f-row`)
+- [x] **WP-12** Verschmolzene F-Reihe (`--fuse-f-row`)
   - Festgelegt (Nutzer): nur die **oberste Reihe** wird zu einem Streifen verbunden, nicht mit dem Hauptblock; Standard: aus. Gebraucht vor allem für die G80-3000.
   - „Oberste Reihe“ = unrotierte Tasten mit dem kleinsten KLE-`y`. Die Lückenbrücken von `--single-mesh` (`gap_bridges`) werden nur über diese Tasten gebildet. Vorgerechnet: G80-3000 und ISO-105 je 16 Tasten, 9 → 5 Plattenteile; TKL 8 → 4; JD40 unverändert.
   - Mit `--single-mesh` wirkungslos (Hinweis in der Ausgabe). Neuer Config-Schlüssel `fuse_f_row`, CLI `--fuse-f-row/--no-fuse-f-row`.
-  - Ohne die Option byte-identisch zu vorher. Prompt liegt vor.
+  - Ohne die Option byte-identisch zu vorher.
+  - Umgesetzt: `top_row_keys()` (unrotierte Tasten mit dem kleinsten KLE-`y`) und `plate_footprint(..., fuse_top_row=False)`; `Settings.fuse_f_row`, CLI `--fuse-f-row/--no-fuse-f-row`, Config-Schlüssel `fuse_f_row`. Nachgemessen: Plattenteile vorher → nachher G80-3000 und ISO-105 9 → 5, TKL 8 → 4, JD40 unverändert (1); die STLs für `stabilizer_orientation`, `jd40` und `stepped-capslock` (wide-caps) sind ohne Option byte-identisch zu `392162d`; `--fuse-f-row --single-mesh` ergibt dieselbe Platte wie `--single-mesh` allein. 338 Tests grün.
 - [ ] **WP-13** 7-u-Spacebar
   - Template liegt vor (`stabilzer_spacebar_7u.stl`, 128,6008 × 19,05 mm = 6,75 u Zelle), ist aber noch nicht im Generator verdrahtet
   - Spacebar-Templates nach Tastenbreite auswählen (6,25 u / 7 u); unbekannte Breiten ≥ 6 u liefern eine Fehlermeldung statt still das 6,25-u-Template (heute: 6, 7 und 8 u werden alle als 6,25-u-Spacebar behandelt)
@@ -85,7 +86,7 @@ Stand: `main` @ `392162d` (WP-07 bis WP-11 gemerged).
 
 | Punkt                                                    | Zuordnung |
 | -------------------------------------------------------- | --------- |
-| option for F1–F12 row in one mesh                        | WP-12     |
+| option for F1–F12 row in one mesh                        | WP-12 (erledigt) |
 | option -> create multiple STL files for separated meshes | WP-04     |
 | option for rectangular arrow box shape (filled corners)  | WP-04     |
 | options for CapsLock: big cutout, left-aligned, centered | WP-04     |
