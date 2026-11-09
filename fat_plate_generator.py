@@ -378,7 +378,29 @@ def apply_matrix(matrix, x, y):
     return a * x + b * y, d * x + e * y
 
 
+def _key_properties():
+    """Properties of the next key as they are before a layout sets any of them."""
+    return {"w": 1.0, "h": 1.0, "x2": 0.0, "y2": 0.0, "w2": 1.0, "h2": 1.0, "l": False}
+
+
 def parse_kle(data):
+    """Keys of a KLE Raw Data layout, positioned like the Keyboard Layout Editor does.
+
+    The editor is the reference, not this generator:
+
+    * ``rx`` or ``ry`` in a property object sets the current position to
+      ``(rx, ry)``; the one that is not given keeps the value set last
+      (initially 0).  ``x`` and ``y`` of the object are added afterwards.
+      ``r`` alone does not move anything.  Every row starts at ``rx``.
+    * ``r``, ``rx`` and ``ry`` are only allowed on the first item of a row
+      (anything else raises ``ValueError``).
+    * ``w``, ``h``, ``x2``, ``y2``, ``w2``, ``h2``, ``l`` and ``d`` apply to the
+      NEXT key and are reset only after a key; several property objects in a row
+      before one key add up.  ``w`` also sets ``w2`` and ``h`` also sets ``h2``;
+      a ``w2`` / ``h2`` in the same object overrides that.
+    * A decal (``"d": true``) is a legend without a key: it is not returned, but
+      the position moves on by its width.
+    """
     if not isinstance(data, list):
         raise ValueError(
             "Expected KLE Raw Data from Keyboard Layout Editor as a list of rows."
@@ -386,9 +408,10 @@ def parse_kle(data):
 
     keys = []
     x = y = 0.0
-    reset_x = 0.0
-    p = {"w": 1.0, "h": 1.0, "x2": 0.0, "y2": 0.0,
-         "w2": 1.0, "h2": 1.0, "l": False, "r": 0.0, "rx": 0.0, "ry": 0.0}
+    rx = ry = 0.0
+    r = 0.0
+    props = _key_properties()
+    decal = False
 
     for row_index, row in enumerate(data):
         if row_index == 0 and isinstance(row, dict):
@@ -398,32 +421,40 @@ def parse_kle(data):
                 "Expected KLE Raw Data from Keyboard Layout Editor; "
                 f"row at index {row_index} must be a list."
             )
-        for item in row:
+        for item_index, item in enumerate(row):
             if isinstance(item, dict):
+                misplaced = [name for name in ("r", "rx", "ry") if name in item]
+                if misplaced and item_index != 0:
+                    raise ValueError(
+                        f"KLE Raw Data: {', '.join(repr(n) for n in misplaced)} can only be used "
+                        f"on the first key of a row (row at index {row_index}).")
                 if "r" in item:
-                    p["r"] = item["r"]
-                if "rx" in item:
-                    p["rx"] = item["rx"]
-                    reset_x = p["rx"]
-                    x = reset_x
-                if "ry" in item:
-                    p["ry"] = item["ry"]
-                    y = p["ry"]
+                    r = item["r"]
+                if "rx" in item or "ry" in item:
+                    rx = item.get("rx", rx)
+                    ry = item.get("ry", ry)
+                    x, y = rx, ry
                 x += item.get("x", 0)
                 y += item.get("y", 0)
-                p["w"] = item.get("w", 1.0)
-                p["h"] = item.get("h", 1.0)
-                p["x2"] = item.get("x2", 0.0)
-                p["y2"] = item.get("y2", 0.0)
-                p["w2"] = item.get("w2", p["w"])
-                p["h2"] = item.get("h2", p["h"])
-                p["l"] = bool(item.get("l", False))          # stepped key (e.g. Caps Lock)
+                if "w" in item:
+                    props["w"] = props["w2"] = item["w"]
+                if "h" in item:
+                    props["h"] = props["h2"] = item["h"]
+                for name in ("x2", "y2", "w2", "h2"):
+                    if name in item:
+                        props[name] = item[name]
+                if "l" in item:
+                    props["l"] = bool(item["l"])                # stepped key (e.g. Caps Lock)
+                if "d" in item:
+                    decal = bool(item["d"])
                 continue
 
-            keys.append({"label": item, **p, "x": x, "y": y})
-            x += p["w"]
-            p.update(w=1.0, h=1.0, x2=0.0, y2=0.0, w2=1.0, h2=1.0, l=False)
-        x = reset_x
+            if not decal:
+                keys.append({"label": item, **props, "r": r, "rx": rx, "ry": ry, "x": x, "y": y})
+            x += props["w"]
+            props = _key_properties()
+            decal = False
+        x = rx
         y += 1.0
     return keys
 
