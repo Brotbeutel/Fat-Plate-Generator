@@ -6,7 +6,7 @@ Stand: `main` @ `7631001` (WP-07 bis WP-12 gemerged, 338 Tests grün laut WP-12-
 
 ## Reihenfolge
 
-~~WP-07~~ → ~~WP-08~~ → ~~WP-09~~ → ~~WP-10~~ → ~~WP-11~~ → ~~WP-12~~ → WP-13 → WP-14. WP-15 ist noch nicht beauftragt und hat niedrige Priorität.
+~~WP-07~~ → ~~WP-08~~ → ~~WP-09~~ → ~~WP-10~~ → ~~WP-11~~ → ~~WP-12~~ → ~~WP-13~~ → WP-14. WP-15 ist noch nicht beauftragt und hat niedrige Priorität.
 
 ## Arbeitspakete
 
@@ -49,11 +49,12 @@ Stand: `main` @ `7631001` (WP-07 bis WP-12 gemerged, 338 Tests grün laut WP-12-
   - Mit `--single-mesh` wirkungslos (Hinweis in der Ausgabe). Neuer Config-Schlüssel `fuse_f_row`, CLI `--fuse-f-row/--no-fuse-f-row`.
   - Ohne die Option byte-identisch zu vorher.
   - Umgesetzt: `top_row_keys()` (unrotierte Tasten mit dem kleinsten KLE-`y`) und `plate_footprint(..., fuse_top_row=False)`; `Settings.fuse_f_row`, CLI `--fuse-f-row/--no-fuse-f-row`, Config-Schlüssel `fuse_f_row`. Nachgemessen: Plattenteile vorher → nachher G80-3000 und ISO-105 9 → 5, TKL 8 → 4, JD40 unverändert (1); die STLs für `stabilizer_orientation`, `jd40` und `stepped-capslock` (wide-caps) sind ohne Option byte-identisch zu `392162d`; `--fuse-f-row --single-mesh` ergibt dieselbe Platte wie `--single-mesh` allein. 338 Tests grün.
-- [ ] **WP-13** KLE-Parser wie der Editor (Bugfix, Priorität 1)
+- [x] **WP-13** KLE-Parser wie der Editor (Bugfix, Priorität 1)
   - Auslöser: `kle-jsons/keyboard-layout_065-percent-iso_royal-kludge-rk65.json` (vom Editor exportiert): Del liegt bei (15, 6) statt (15, 1); `…_rk65_clean.json` ist das richtige Ergebnis.
   - Ursache: Im Editor setzt `rx` **oder** `ry` die aktuelle Position auf `(rx, ry)` (der nicht genannte Wert bleibt auf dem zuletzt gesetzten). `parse_kle()` setzt bei `rx` nur `x` und bei `ry` nur `y`. Gleiches Problem im Ergodox-Layout (Reihe 23: `rx` ohne `ry`, 5 Tasten falsch). Alle anderen Layouts in `kle-jsons/` ändern sich nicht (mit Prototyp verglichen).
   - Mit dabei, weil dieselbe Funktion: Eigenschaften (`w`, `h`, `x2`, …) gelten bis zur nächsten Taste (mehrere Objekte vor einer Taste), Decals (`"d": true`) sind keine Tasten, `r`/`rx`/`ry` nur am Reihenanfang (sonst Fehler wie im Editor)
   - Tests: RK65-Paar (fehlerhaft = bereinigt), Ergodox-Position, Tabelle kleiner Layouts, Fehlerfall; einmaliger Nachweis, dass alle übrigen Layouts unverändert parsen
+  - Umgesetzt: `parse_kle()` setzt bei `rx`/`ry` die Position auf `(rx, ry)`, Eigenschaften gelten bis zur nächsten Taste, Decals werden übersprungen (ihre Breite zählt), `r`/`rx`/`ry` nur am Reihenanfang. Nachgemessen: alle 20 Layouts in `kle-jsons/` und `tests/layouts/` vor/nach verglichen; geändert sind nur RK65 (Del, 1 Taste) und Ergodox (6 Tasten, nicht 5: Reihe 23 bis 25 hängen alle an `rx = 13`); RK65 und `…_rk65_clean.json` ergeben byte-identische STLs; die STLs für `stabilizer_orientation`, `jd40` und `stepped-capslock` (wide-caps) sind byte-identisch zu vorher. 370 Tests grün.
 - [ ] **WP-14** 7-u-Spacebar
   - Template liegt vor und ist laut Nutzer das aktuelle (`stabilzer_spacebar_7u.stl`, 128,6008 × 19,05 mm = 6,75 u Zelle), ist aber noch nicht im Generator verdrahtet. Ob sich die Bounding Box noch ändert, ist offen: bis der Nutzer sie festlegt, wird nur die Höhe geprüft (Eintrag mit `None` wie beim Wide-Caps-Template).
   - Spacebar-Template nach Tastenbreite wählen; heute werden 6, 7 und 8 u mit leerem Label alle als 6,25-u-Spacebar behandelt. Zuordnung der Breiten und Umgang mit unbekannten Breiten: **offen (Fragen an den Nutzer)**

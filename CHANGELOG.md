@@ -31,6 +31,9 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- `parse_kle()` reads the properties of a key like the Keyboard Layout Editor: `w`, `h`, `x2`, `y2`, `w2`, `h2` and `l` apply to the next key and are reset only after a key, so several objects in a row before one key add up (`{"w": 2}, {"c": "#fff"}, "A"` gives A the width 2); `w` also sets `w2` and `h` also sets `h2` unless the same object names them. Single objects before a key give the same result as before (ISO Enter, stepped Caps Lock).
+- Decals (`"d": true`) are ignored: they get no footprint and no cutout, but the position moves on by their width. No layout in `kle-jsons/` has decals.
+- `r`, `rx` and `ry` anywhere but on the first item of a row are an error (`ValueError` naming the row) instead of being read silently wrong. KLE exports do not produce this.
 - The right off-centered spacebar is the left template mirrored instead of a second file. The mirror is an exact integer matrix in the template's own coordinates, applied before the stabilizer rotation (so it matches the former right file for every rotation); it is the only cutout that is mirrored, and `PlateModel.mirrored` records it per key. The plate is unchanged apart from float noise in the templates (`centered` and `off-centered-left` byte-identical). `TemplateSet` has one field `spacebar_off_centered` (the left file) instead of two, and `TemplateSet.spacebar_for()` is the single place that maps a position to a file and a mirror flag. `stabilzer_spacebar_off-center_right.stl` stays in the repository but is no longer read.
 - `--spacebar-off-centered` and the config key `templates.spacebar_off_centered` replace `--spacebar-off-centered-left` / `--spacebar-off-centered-right` and `spacebar_off_centered_left` / `spacebar_off_centered_right`. The old names are not kept as aliases and are refused as unknown.
 - `generate()` and `build_plate_model()` take a `Settings` object (with a `TemplateSet` for the template paths) instead of long parameter lists: `build_plate_model(kle_path, settings)` and `generate(kle_path, settings, output, config_path=None)`. The generated STL is byte-identical to before (checked for the orientation test layout, the 40% layout and the stepped Caps Lock with `--stepped-key wide-caps`).
@@ -63,6 +66,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- Keys after `rx` / `ry` lie where the Keyboard Layout Editor shows them. The editor sets the position to `(rx, ry)` when either is given (the one that is not given keeps its last value); `parse_kle()` set only `x` for `rx` and only `y` for `ry`. Examples: Del in `keyboard-layout_065-percent-iso_royal-kludge-rk65.json` was at (15, 6) instead of (15, 1) and now matches the hand-cleaned `…_rk65_clean.json`; the thumb cluster of `ergodox_split_ergo_67-keys.json` (row 23 with `rx` but no `ry`, 6 keys) moved up by 2 u. All other layouts in `kle-jsons/` parse exactly as before.
 - KLE `name` and `author` metadata at the beginning of Raw Data is now ignored instead of being parsed as extra keys.
 - Corrected the default KLE layout path and the default wide-caps template lookup; aligned path-dependent tests and added guards for exact repository path casing and default stepped-key generation.
 - Spacebar (and every other) stabilizer cutout was mirrored horizontally by the whole-plate transform; a left spacebar template came out as a right one.

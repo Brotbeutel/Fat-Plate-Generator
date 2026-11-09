@@ -247,6 +247,8 @@ python .\fat_plate_generator.py --json my_keyboard.json --output my_keyboard.stl
 
 Important: Use the KLE **Raw Data JSON**, not another JSON export format. A `name` and `author` metadata object at the beginning of the Raw Data is allowed and ignored. Other JSON formats are rejected.
 
+The parser follows the Keyboard Layout Editor, so the plate has the keys where the editor shows them: `rx` or `ry` set the position of the next key (the one that is not given keeps its last value), a decal (`"d": true`) is only a legend and not a key (it takes its space, but gets no cutout), and `r`, `rx` and `ry` are only allowed on the first item of a row (anywhere else the generator stops with an error that names the row).
+
 ---
 
 # 9. Using Custom STL Files
