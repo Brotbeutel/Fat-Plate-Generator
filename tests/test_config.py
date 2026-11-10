@@ -205,11 +205,11 @@ def test_invalid_config_is_refused_with_file_key_and_expectation(tmp_path, text,
 
 
 def test_a_missing_template_file_is_refused(tmp_path):
-    config = write_config(tmp_path, '[templates]\nstabilizer = "nowhere/stabilizer.stl"\n')
+    config = write_config(tmp_path, '[templates]\nstabilizer = "nowhere/stabilizer_2-00u.stl"\n')
     with pytest.raises(ValueError) as error:
         fpg.load_config(config)
     message = str(error.value)
-    assert "cfg.toml" in message and "templates.stabilizer" in message and "stabilizer.stl" in message
+    assert "cfg.toml" in message and "templates.stabilizer" in message and "stabilizer_2-00u.stl" in message
     assert "not found" in message
 
 

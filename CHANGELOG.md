@@ -31,6 +31,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- Renamed the stabilizer templates to `stabilizer_2-00u.stl`, `stabilizer_6-25u_centered.stl`, `stabilizer_6-25u_off-center.stl` and `stabilizer_7-00u_centered.stl`; removed the duplicate `stabilzer_spacebar_centered.stl`.
 - `parse_kle()` reads the properties of a key like the Keyboard Layout Editor: `w`, `h`, `x2`, `y2`, `w2`, `h2` and `l` apply to the next key and are reset only after a key, so several objects in a row before one key add up (`{"w": 2}, {"c": "#fff"}, "A"` gives A the width 2); `w` also sets `w2` and `h` also sets `h2` unless the same object names them. Single objects before a key give the same result as before (ISO Enter, stepped Caps Lock).
 - Decals (`"d": true`) are ignored: they get no footprint and no cutout, but the position moves on by their width. No layout in `kle-jsons/` has decals.
 - `r`, `rx` and `ry` anywhere but on the first item of a row are an error (`ValueError` naming the row) instead of being read silently wrong. KLE exports do not produce this.

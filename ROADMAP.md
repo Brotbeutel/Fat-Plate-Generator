@@ -55,10 +55,9 @@ Stand: `main` @ `7631001` (WP-07 bis WP-12 gemerged, 338 Tests grün laut WP-12-
   - Mit dabei, weil dieselbe Funktion: Eigenschaften (`w`, `h`, `x2`, …) gelten bis zur nächsten Taste (mehrere Objekte vor einer Taste), Decals (`"d": true`) sind keine Tasten, `r`/`rx`/`ry` nur am Reihenanfang (sonst Fehler wie im Editor)
   - Tests: RK65-Paar (fehlerhaft = bereinigt), Ergodox-Position, Tabelle kleiner Layouts, Fehlerfall; einmaliger Nachweis, dass alle übrigen Layouts unverändert parsen
   - Umgesetzt: `parse_kle()` setzt bei `rx`/`ry` die Position auf `(rx, ry)`, Eigenschaften gelten bis zur nächsten Taste, Decals werden übersprungen (ihre Breite zählt), `r`/`rx`/`ry` nur am Reihenanfang. Nachgemessen: alle 20 Layouts in `kle-jsons/` und `tests/layouts/` vor/nach verglichen; geändert sind nur RK65 (Del, 1 Taste) und Ergodox (6 Tasten, nicht 5: Reihe 23 bis 25 hängen alle an `rx = 13`); RK65 und `…_rk65_clean.json` ergeben byte-identische STLs; die STLs für `stabilizer_orientation`, `jd40` und `stepped-capslock` (wide-caps) sind byte-identisch zu vorher. 370 Tests grün.
-- [ ] **WP-14** 7-u-Spacebar
-  - Template liegt vor und ist laut Nutzer das aktuelle (`stabilzer_spacebar_7u.stl`, 128,6008 × 19,05 mm = 6,75 u Zelle), ist aber noch nicht im Generator verdrahtet. Ob sich die Bounding Box noch ändert, ist offen: bis der Nutzer sie festlegt, wird nur die Höhe geprüft (Eintrag mit `None` wie beim Wide-Caps-Template).
-  - Spacebar-Template nach Tastenbreite wählen; heute werden 6, 7 und 8 u mit leerem Label alle als 6,25-u-Spacebar behandelt. Zuordnung der Breiten und Umgang mit unbekannten Breiten: **offen (Fragen an den Nutzer)**
-  - Ob 7 u auch Off-Center-Varianten braucht: **offen (Frage an den Nutzer)**
+- [x] **WP-14** Template-Dateien umbenennen
+  - Stabilizer- und Spacebar-Templates sind nach Länge und Position einheitlich benannt; das doppelte centered Spacebar-Template ist entfernt.
+  - Die neuen 6u- und 7u-Templates liegen vor, werden aber erst in WP-15 nach Tastenbreite verdrahtet.
 - [ ] **WP-15** Parser-Robustheit und Aufräumen (Vorschlag, noch nicht beauftragt)
   - KLE-Rotation (`r`) für Cavities: Footprint und Switch-Zentrum werden gedreht, die Cavity nicht. **Konkret betroffen:** `kle-jsons/ergodox_split_ergo_67-keys.json` (12 Tasten mit ±30°). Gemessen: 10 von 76 Cavities ragen aus dem Plattenumriss (bis 27 mm²), ohne dass der Generator warnt. Mindestens eine Warnung oder ein Fehler, besser die echte Unterstützung. Nutzer (Stand jetzt): Layouts mit diagonalen Teilen sollen möglich sein, aber niedrige Priorität. Bis dahin mindestens eine Warnung statt stillem Falschbau.
   - Caps-Lock-Ausnahme per Label-Vergleich ersetzen (nach WP-08 nur noch für Caps Lock ab 2 u relevant)
@@ -69,10 +68,9 @@ Stand: `main` @ `7631001` (WP-07 bis WP-12 gemerged, 338 Tests grün laut WP-12-
 ## Laufend (Nutzer)
 
 - [x] **Template-Neubau**: Templates sind exakt neu gebaut (Socket 19,05 × 19,05 mm, Stabilizer 38,1 × 19,05 mm, Spacebar 114,3015 × 19,05 mm), der Generator meldet für diese keine Warnungen mehr.
-  - `FLAT_WALL_TOLERANCE` (50 nm) lässt sich noch nicht senken: bei 1e-6 und 1e-7 ändern sich die Eckenzahlen von `stabilizer.stl`, bei 1e-9 lässt sich `stabilizer.stl` nicht mehr loften. Möglich wäre es erst, wenn die Wände der Templates bis auf Float32-Genauigkeit exakt gerade sind.
+  - `FLAT_WALL_TOLERANCE` (50 nm) lässt sich noch nicht senken: bei 1e-6 und 1e-7 ändern sich die Eckenzahlen von `stabilizer_2-00u.stl`, bei 1e-9 lässt sich `stabilizer_2-00u.stl` nicht mehr loften. Möglich wäre es erst, wenn die Wände der Templates bis auf Float32-Genauigkeit exakt gerade sind.
 - [x] **Wide-Caps-Template** liegt im Repo (`switch_socket_wide-caps.stl`). Offen: feste Bounding Box bestätigen (siehe WP-09).
-- [x] **7-u-Spacebar-Template** liegt im Repo (`stabilzer_spacebar_7u.stl`); der Generator nutzt es noch nicht (siehe WP-14).
-- [x] `stabilzer_spacebar_off-center_left.stl` löschen (und den Eintrag in `.gitignore` entfernen), wenn du sie nicht mehr brauchst: Default-Datei für Off-Center ist jetzt `stabilzer_spacebar_off-center_right.stl`, die linke Variante entsteht durch Spiegeln (vorher umgekehrt; der Generator liest die linke Datei nicht mehr, nur ein Test vergleicht mit ihr).
+- [x] **7-u-Spacebar-Template** liegt im Repo (`stabilizer_7-00u_centered.stl`); der Generator nutzt es noch nicht.
 - [ ] Nach WP-09: Standard-Rotation von `wide-caps` anhand der Bilder in `docs/wide-caps-test/` bestätigen; feste Bounding Box des Wide-Caps-Templates bestätigen und selbst eintragen.
 - [ ] `fat_plate_export_example.stl` neu erzeugen, wenn sich die Geometrie ändert.
 
@@ -88,13 +86,11 @@ Stand: `main` @ `7631001` (WP-07 bis WP-12 gemerged, 338 Tests grün laut WP-12-
 
 - Versionen in den Requirements festschreiben, damit Ergebnisse auf verschiedenen Rechnern reproduzierbar sind.
 
-- `stabilzer_spacebar_centered.stl` ist nicht byte-identisch mit `stabilzer_spacebar.stl` (gleiche Schichten, Eckenzahl und Maße), wird vom Generator aber nicht gelesen. Klären, ob die Datei bleiben soll.
 
 - `kle-jsons/keyboard-layout.json` ist identisch mit `…_100-percent-iso-105-keys.json`. Klären, ob beides bleiben soll.
 
 - Dateinamen der neuen Layouts angleichen: `kle-jsons/leyboard-layout_065-percent-iso_royal-kludge-rk65.json` hat einen Tippfehler (`leyboard`), `ergodox_split_ergo_67-keys.json` hat nicht das Präfix `keyboard-layout_`.
 
-- Dateinamen `stabilzer_*.stl` → `stabilizer_*.stl` korrigieren (betrifft Generator, Tests, README, `.gitignore`); jetzt möglich, die Templates sind fertig.
 
 ## Übernommene offene Punkte aus der alten TODO.txt
 

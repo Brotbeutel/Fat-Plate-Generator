@@ -16,7 +16,7 @@ Gilt für alle Agenten/Implementer, die an diesem Repository arbeiten.
 - `fat_plate_generator.py`: die Anwendung. Kern: `build_plate_model()` (Platte bauen), `generate()` (Export), `check_exported_stl()` (Prüfung, warnt nur), `OrientationConfig` (zentrale Orientierungs-Defaults), `classify_key()` (normal / stabilized / spacebar).
 - `Settings` und `TemplateSet` (in `fat_plate_generator.py`): alle Einstellungen und Template-Pfade in einem unveränderlichen Objekt; `build_plate_model(kle_path, settings)` und `generate(kle_path, settings, …)` nehmen nur dieses Objekt. Neue Einstellungen kommen als Feld dort hinein (mit Validierung in `__post_init__`), nicht als weiterer Funktionsparameter.
 - Konfigurationsdatei (TOML, `--config`): `load_config()` / `settings_from_mapping()` lesen sie, `build_parser()` / `settings_from_args()` setzen Vorrang CLI > Config > Default um. Eine neue Einstellung braucht den Schlüssel in `CONFIG_KEYS` bzw. `CONFIG_*_KEYS`, die CLI-Option (`default=None`), den Eintrag in `fat_plate_config.example.toml` (ein Test hält sie gleich den Defaults) und die README-Tabelle.
-- `stl-templates/switch_socket.stl`, `stl-templates/switch_socket_wide-caps.stl`, `stl-templates/stabilizer.stl`, `stl-templates/stabilzer_spacebar*.stl`: Template-STLs. Die Quellen liegen in `blender-files/`. Ein Loader (`load_template()`) und ein Cutter-Bauer (`template_cutter()`) behandeln alle drei gleich.
+- `stl-templates/switch_socket.stl`, `stl-templates/switch_socket_wide-caps.stl`, `stl-templates/stabilizer_*.stl`: Template-STLs. Die Quellen liegen in `blender-files/`. Ein Loader (`load_template()`) und ein Cutter-Bauer (`template_cutter()`) behandeln alle drei gleich.
 - `tools/preview.py`: Draufsicht-PNG einer erzeugten STL.
 - `tests/`: pytest-Suite. `tests/layouts/stabilizer_orientation.json` ist das Testlayout.
 - `docs/`: Preview-Bilder. `ROADMAP.md`, `CHANGELOG.md`, `README.md`: Plan, Änderungen, Anleitung.
@@ -43,7 +43,7 @@ python .\tools\preview.py plate.stl --layout my_layout.json --output plate.png
 
 ## Dateien und Abhängigkeiten
 
-- Keine Dateien umbenennen oder verschieben und keine Template-STLs ändern, außer das WP verlangt es. Die Templates baut der Nutzer in Blender; auch den Tippfehler „stabilzer" nicht korrigieren, solange das nicht beauftragt ist.
+- Keine Dateien umbenennen oder verschieben und keine Template-STLs ändern, außer das WP verlangt es. Die Templates baut der Nutzer in Blender.
 - Neue Dependencies nur mit Begründung. Dev-Tools gehören in `requirements-dev.txt`, nicht in `requirements.txt`.
 - Generierte STLs nicht committen. Ausnahmen: die Template-STLs und `fat_plate_export_example.stl`.
 - Zeilenenden bestehender Dateien nicht ändern (`.gitignore` hat CRLF, alle anderen Dateien LF).
