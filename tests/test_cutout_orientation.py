@@ -74,9 +74,9 @@ def spacebar_layout(tmp_path):
 
 @pytest.mark.parametrize("position, expected_path, expected_mirrored", [
     ("centered", REPO_ROOT / fpg.DEFAULT_SPACEBAR_CENTERED, False),
-    ("off-centered-left", REPO_ROOT / fpg.DEFAULT_SPACEBAR_OFF_CENTERED, False),
-    # one off-centered template; the right position is that template mirrored
-    ("off-centered-right", REPO_ROOT / fpg.DEFAULT_SPACEBAR_OFF_CENTERED, True),
+    # one off-centered template (the right one); the left position is that template mirrored
+    ("off-centered-left", REPO_ROOT / fpg.DEFAULT_SPACEBAR_OFF_CENTERED, True),
+    ("off-centered-right", REPO_ROOT / fpg.DEFAULT_SPACEBAR_OFF_CENTERED, False),
 ])
 def test_spacebar_position_picks_the_template(spacebar_layout, position, expected_path, expected_mirrored):
     model = build_model(spacebar_layout, spacebar_position=position)
@@ -104,27 +104,27 @@ def test_off_centered_spacebar_sits_on_its_side(spacebar_layout, position, side)
 
 
 # --------------------------------------------------------------------------
-# the right off-centered spacebar is the left template, mirrored
+# the left off-centered spacebar is the right template, mirrored
 # --------------------------------------------------------------------------
-OLD_RIGHT_TEMPLATE = REPO_ROOT / "stl-templates" / "stabilzer_spacebar_off-center_right.stl"
+OLD_LEFT_TEMPLATE = REPO_ROOT / "stl-templates" / "stabilzer_spacebar_off-center_left.stl"
 HEIGHT_FRACTIONS = (0.1, 0.35, 0.5, 0.65, 0.9)       # five heights per layer
 EQUIVALENCE_TOLERANCE = 1e-4                         # mm2 of difference between two sections
 
 
 @pytest.mark.parametrize("global_rotation", [180, 90])
 @pytest.mark.parametrize("spacebar_rotation", fpg.ROTATION_CHOICES)
-def test_mirrored_left_template_equals_the_old_right_file(spacebar_layout, spacebar_rotation, global_rotation):
-    """The new way (left template, mirrored in its own coordinates before the
-    rotation) must give what the old right file gave when it was used unmirrored,
+def test_mirrored_right_template_equals_the_old_left_file(spacebar_layout, spacebar_rotation, global_rotation):
+    """The new way (right template, mirrored in its own coordinates before the
+    rotation) must give what the old left file gave when it was used unmirrored,
     for every spacebar rotation and whole-plate rotation."""
-    if not OLD_RIGHT_TEMPLATE.is_file():
-        pytest.skip(f"{OLD_RIGHT_TEMPLATE.name} is not in the repository (anymore)")
+    if not OLD_LEFT_TEMPLATE.is_file():
+        pytest.skip(f"{OLD_LEFT_TEMPLATE.name} is not in the repository (anymore)")
     from tests.test_templates import cutter_mesh, section_polygon
 
     orientation = OrientationConfig(stab_rotation_spacebar=spacebar_rotation, global_rotation=global_rotation)
-    new = build_model(spacebar_layout, spacebar_position="off-centered-right", orientation=orientation)
-    old = build_model(spacebar_layout, spacebar_position="off-centered-left", orientation=orientation,
-                      spacebar_off_centered=OLD_RIGHT_TEMPLATE)
+    new = build_model(spacebar_layout, spacebar_position="off-centered-left", orientation=orientation)
+    old = build_model(spacebar_layout, spacebar_position="off-centered-right", orientation=orientation,
+                      spacebar_off_centered=OLD_LEFT_TEMPLATE)
     assert new.mirrored == [True] and old.mirrored == [False]
     assert new.centers == old.centers
 
@@ -136,37 +136,37 @@ def test_mirrored_left_template_equals_the_old_right_file(spacebar_layout, space
             assert difference <= EQUIVALENCE_TOLERANCE, (spacebar_rotation, global_rotation, z, difference)
 
 
-def test_the_right_spacebar_cavity_is_valid_and_as_large_as_the_left_one(spacebar_layout):
+def test_the_left_spacebar_cavity_is_valid_and_as_large_as_the_right_one(spacebar_layout):
     left = build_model(spacebar_layout, spacebar_position="off-centered-left").cavities[0]
     right = build_model(spacebar_layout, spacebar_position="off-centered-right").cavities[0]
-    assert right.isValid()
-    assert right.Volume() == pytest.approx(left.Volume(), rel=1e-6)
+    assert left.isValid()
+    assert left.Volume() == pytest.approx(right.Volume(), rel=1e-6)
 
 
 @pytest.fixture(scope="module")
-def right_spacebar_model():
-    return build_model(ORIENTATION_LAYOUT, spacebar_position="off-centered-right")
+def left_spacebar_model():
+    return build_model(ORIENTATION_LAYOUT, spacebar_position="off-centered-left")
 
 
-def test_the_right_spacebar_plate_passes_the_stl_check(right_spacebar_model, tmp_path):
+def test_the_left_spacebar_plate_passes_the_stl_check(left_spacebar_model, tmp_path):
     import cadquery as cq
 
-    out = tmp_path / "right.stl"
-    cq.exporters.export(right_spacebar_model.plate, str(out), exportType="STL",
+    out = tmp_path / "left.stl"
+    cq.exporters.export(left_spacebar_model.plate, str(out), exportType="STL",
                         tolerance=0.001, angularTolerance=0.1)
-    bb = right_spacebar_model.plate.BoundingBox()
+    bb = left_spacebar_model.plate.BoundingBox()
     _, problems = fpg.check_exported_stl(
         out, expected_bounds=((bb.xmin, bb.ymin, bb.zmin), (bb.xmax, bb.ymax, bb.zmax)))
     assert problems == []
 
 
-def test_only_the_right_off_centered_spacebar_is_mirrored(right_spacebar_model, orientation_model):
+def test_only_the_left_off_centered_spacebar_is_mirrored(left_spacebar_model, orientation_model):
     """The layout has stabilizer keys, Caps Lock, a normal key and the spacebar."""
-    model = right_spacebar_model
+    model = left_spacebar_model
     assert fpg.KIND_STABILIZED in model.kinds and fpg.KIND_NORMAL in model.kinds
     assert model.mirrored == [kind == fpg.KIND_SPACEBAR for kind in model.kinds]
     assert model.mirrored.count(True) == 1
-    # centered (the default of this model) and off-centered-left mirror nothing
+    # centered (the default of this model) and off-centered-right mirror nothing
     assert not any(orientation_model.mirrored)
 
 

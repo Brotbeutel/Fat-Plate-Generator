@@ -11,7 +11,7 @@ This is still a WIP, but with some 3D editing (for example Blender) you can alre
 This is not a finished product!
 
 It has not yet been tested, if the generated plate fits a real keyboard and switches in 3D-printed form. 
-Spacebar stabilizer cutouts are now supported with centered and off-centered (left or right) switch-position options, which is needed for a classic Cherry G80-3000. The right off-centered cutout is the left template mirrored.
+Spacebar stabilizer cutouts are now supported with centered and off-centered (left or right) switch-position options, which is needed for a classic Cherry G80-3000. The left off-centered cutout is the right template mirrored.
 
 If a template STL is not exact (for example one you designed yourself), the generator prints warnings (see *Common Errors*); the STL is written anyway and can be inspected.
 
@@ -26,8 +26,8 @@ If a template STL is not exact (for example one you designed yourself), the gene
 - `stl-templates/stabilizer.stl` – template for standard stabilized keys
 - `stl-templates/stabilzer_spacebar.stl` – centered spacebar template
 - `stl-templates/stabilzer_spacebar_centered.stl` – identical copy of the centered template (not read by the generator)
-- `stl-templates/stabilzer_spacebar_off-center_left.stl` – off-centered spacebar template, the switch is left of the center (the right position is this template mirrored)
-- `stl-templates/stabilzer_spacebar_off-center_right.stl` – the mirror image of the left template; **no longer read by the generator** (kept in the repository, only a test compares against it)
+- `stl-templates/stabilzer_spacebar_off-center_right.stl` – off-centered spacebar template, the switch is right of the center (the left position is this template mirrored)
+- `stl-templates/stabilzer_spacebar_off-center_left.stl` – the mirror image of the right template; **no longer read by the generator** (kept in the repository, only a test compares against it)
 - `kle-jsons/keyboard-layout.json` – default example layout
 - `kle-jsons/` – more example layouts (40%, 100% ISO and ANSI)
 - `fat_plate_export_example.stl` – example output
@@ -102,8 +102,8 @@ Fat-Plate-Generator
 │   ├── stabilizer.stl
 │   ├── stabilzer_spacebar.stl
     ├── stabilzer_spacebar_centered.stl
-    ├── stabilzer_spacebar_off-center_left.stl
-    ├── stabilzer_spacebar_off-center_right.stl   (no longer read)
+    ├── stabilzer_spacebar_off-center_left.stl    (no longer read)
+    ├── stabilzer_spacebar_off-center_right.stl
 │   └── switch_socket_wide-caps.stl
 ├── fat_plate_generator.py
 ├── requirements.txt
@@ -279,11 +279,11 @@ This file defines the cutout for a stepped key (for example a stepped Caps Lock)
 
 This file contains the **switch socket + stabilizer cutout**.
 
-## `stl-templates/stabilzer_spacebar.stl` and `stl-templates/stabilzer_spacebar_off-center_left.stl`
+## `stl-templates/stabilzer_spacebar.stl` and `stl-templates/stabilzer_spacebar_off-center_right.stl`
 
 These files define the dedicated 6.25u spacebar cutout. The two templates contain the same overall spacebar geometry, but place the switch position differently: centered, or left of the center, seen from above with the typist at the bottom of the plate.
 
-There is only **one** off-centered template, the left one, as designed. The right position is created from it by an exact mirror (x → −x in the template's own coordinates, before the stabilizer rotation, so it works for every `--stab-rotation-spacebar` and plate rotation). `stabilzer_spacebar_off-center_right.stl` is the same cutout mirrored beforehand; the generator **does not read it any more**, it only stays in the repository for now.
+There is only **one** off-centered template, the right one, as designed. The left position is created from it by an exact mirror (x → −x in the template's own coordinates, before the stabilizer rotation, so it works for every `--stab-rotation-spacebar` and plate rotation). `stabilzer_spacebar_off-center_left.stl` is the same cutout mirrored beforehand; the generator **does not read it any more**, it only stays in the repository for now.
 
 Select the desired variant with:
 
@@ -303,7 +303,7 @@ or:
 --spacebar-position off-centered-right
 ```
 
-The default is **centered**. The supplied templates are used exactly as they are; nothing is stretched, scaled or rounded. The only change is that exact mirror for `off-centered-right`.
+The default is **centered**. The supplied templates are used exactly as they are; nothing is stretched, scaled or rounded. The only change is that exact mirror for `off-centered-left`.
 
 ### Caps Lock
 
@@ -392,7 +392,7 @@ or:
 --spacebar-position off-centered-right
 ```
 
-`centered` selects `stabilzer_spacebar.stl`; `off-centered-left` selects `stabilzer_spacebar_off-center_left.stl`, and `off-centered-right` uses the same file mirrored. The switch position is seen from above with the typist at the bottom of the plate. A different off-centered file can be named with `--spacebar-off-centered`; it must be the LEFT design, the right position mirrors it.
+`centered` selects `stabilzer_spacebar.stl`; `off-centered-right` selects `stabilzer_spacebar_off-center_right.stl`, and `off-centered-left` uses the same file mirrored. The switch position is seen from above with the typist at the bottom of the plate. A different off-centered file can be named with `--spacebar-off-centered`; it must be the RIGHT design, the left position mirrors it.
 
 ### Output
 
@@ -436,7 +436,7 @@ The stabilizer cutouts are asymmetric, so each of them can be turned in 90° ste
 
 Allowed values are `0`, `90`, `180` and `270`. The values above are the defaults. If a stabilizer faces the wrong way in your plate, change only the option of that key class.
 
-The cutouts are only turned, **never mirrored**: every cutout is the template as designed. The one exception is the right off-centered spacebar (`--spacebar-position off-centered-right`): it is the left template mirrored (see *Spacebar switch position*).
+The cutouts are only turned, **never mirrored**: every cutout is the template as designed. The one exception is the left off-centered spacebar (`--spacebar-position off-centered-left`): it is the right template mirrored (see *Spacebar switch position*).
 
 ### Stepped Keys
 
@@ -470,7 +470,7 @@ The default is `180`, which makes the template come out as designed (seen from a
 
 KLE counts Y downwards (towards the typist), CAD counts Y upwards. The generated plate is therefore turned by 180° around Z and mirrored along X, which is the same as flipping the KLE Y axis: the plate is the layout as seen from above, with the typist side at low Y. The plate is then moved so that its bounding box starts at X = 0, Y = 0. The order is: stabilizer rotation first, then the whole-plate transform, then the move.
 
-The mirror of the whole-plate transform only moves the keys and the plate outline. The cutouts get just its rotation (they turn with the plate), so they are not mirrored by it. (The right off-centered spacebar is mirrored on its own, in the template's coordinates; see *Spacebar switch position*.)
+The mirror of the whole-plate transform only moves the keys and the plate outline. The cutouts get just its rotation (they turn with the plate), so they are not mirrored by it. (The left off-centered spacebar is mirrored on its own, in the template's coordinates; see *Spacebar switch position*.)
 
 The whole-plate rotation and the mirror can be set with `--global-rotation` and `--global-mirror-x` (or `global_rotation` and `global_mirror_x` in a config file, see *Configuration File*):
 
@@ -551,7 +551,7 @@ socket = "stl-templates/switch_socket.stl"
 wide_caps = "stl-templates/switch_socket_wide-caps.stl"
 stabilizer = "stl-templates/stabilizer.stl"
 spacebar_centered = "stl-templates/stabilzer_spacebar.stl"
-spacebar_off_centered = "stl-templates/stabilzer_spacebar_off-center_left.stl"   # the left design; off-centered-right mirrors it
+spacebar_off_centered = "stl-templates/stabilzer_spacebar_off-center_right.stl"   # the right design; off-centered-left mirrors it
 ```
 
 | Config key | Command line option |

@@ -72,7 +72,7 @@ Stand: `main` @ `7631001` (WP-07 bis WP-12 gemerged, 338 Tests grün laut WP-12-
   - `FLAT_WALL_TOLERANCE` (50 nm) lässt sich noch nicht senken: bei 1e-6 und 1e-7 ändern sich die Eckenzahlen von `stabilizer.stl`, bei 1e-9 lässt sich `stabilizer.stl` nicht mehr loften. Möglich wäre es erst, wenn die Wände der Templates bis auf Float32-Genauigkeit exakt gerade sind.
 - [x] **Wide-Caps-Template** liegt im Repo (`switch_socket_wide-caps.stl`). Offen: feste Bounding Box bestätigen (siehe WP-09).
 - [x] **7-u-Spacebar-Template** liegt im Repo (`stabilzer_spacebar_7u.stl`); der Generator nutzt es noch nicht (siehe WP-14).
-- [ ] Nach WP-11: `stabilzer_spacebar_off-center_right.stl` löschen (und den Eintrag in `.gitignore` entfernen), wenn du sie nicht mehr brauchst.
+- [ ] `stabilzer_spacebar_off-center_left.stl` löschen (und den Eintrag in `.gitignore` entfernen), wenn du sie nicht mehr brauchst: Default-Datei für Off-Center ist jetzt `stabilzer_spacebar_off-center_right.stl`, die linke Variante entsteht durch Spiegeln (vorher umgekehrt; der Generator liest die linke Datei nicht mehr, nur ein Test vergleicht mit ihr).
 - [ ] Nach WP-09: Standard-Rotation von `wide-caps` anhand der Bilder in `docs/wide-caps-test/` bestätigen; feste Bounding Box des Wide-Caps-Templates bestätigen und selbst eintragen.
 - [ ] `fat_plate_export_example.stl` neu erzeugen, wenn sich die Geometrie ändert.
 
