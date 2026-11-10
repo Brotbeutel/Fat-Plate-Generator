@@ -14,15 +14,26 @@ __pycache__/
 
 # Generated plates (templates and the example STL stay tracked)
 *.stl
-!switch_socket.stl
+
 !stabilizer.stl
 !stabilzer_spacebar.stl
 !stabilzer_spacebar_centered.stl
 !stabilzer_spacebar_off-center.stl
 !stabilzer_spacebar_off-center_right.stl
-!switch_socket_wide-caps.stl
 !stabilzer_spacebar_7u.stl
 !fat_plate_export_example.stl
+
+!switch_socket.stl
+!switch_socket_wide-caps.stl
+
+!stabilizer_2-00u.stl
+!stabilizer_6-00u_centered.stl
+!stabilizer_6-00u_off-center.stl
+!stabilizer_6-25u_centered.stl
+!stabilizer_6-25u_off-center.stl
+!stabilizer_7-00u_centered.stl
+
+
 
 old_stls/*
 new_stls/*
