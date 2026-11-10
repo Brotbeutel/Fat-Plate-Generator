@@ -32,11 +32,11 @@ DEFAULT_STABILIZER_MIN_UNIT = 2.0
 DEFAULT_JSON = "kle-jsons/keyboard-layout.json"
 DEFAULT_SOCKET = "stl-templates/switch_socket.stl"
 DEFAULT_SOCKET_WIDE_CAPS = "stl-templates/switch_socket_wide-caps.stl"
-DEFAULT_STABILIZER = "stl-templates/stabilizer.stl"
-DEFAULT_SPACEBAR_CENTERED = "stl-templates/stabilzer_spacebar.stl"
+DEFAULT_STABILIZER = "stl-templates/stabilizer_2-00u.stl"
+DEFAULT_SPACEBAR_CENTERED = "stl-templates/stabilizer_6-25u_centered.stl"
 # The off-centered template is the RIGHT one, as designed; the left variant is its
 # exact mirror image (see ``TemplateSet.spacebar_for``).
-DEFAULT_SPACEBAR_OFF_CENTERED = "stl-templates/stabilzer_spacebar_off-center_right.stl"
+DEFAULT_SPACEBAR_OFF_CENTERED = "stl-templates/stabilizer_6-25u_off-center.stl"
 # Switch position of the spacebar template, as seen from above with the typist
 # at the bottom of the plate (x to the right).
 SPACEBAR_POSITIONS = ("centered", "off-centered-left", "off-centered-right")

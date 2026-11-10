@@ -23,11 +23,12 @@ If a template STL is not exact (for example one you designed yourself), the gene
 - `requirements-dev.txt` – additional packages for the preview tool and the tests
 - `stl-templates/switch_socket.stl` – template for standard switch sockets
 - `stl-templates/switch_socket_wide-caps.stl` – template for stepped keys such as a stepped Caps Lock (see *Stepped Keys*)
-- `stl-templates/stabilizer.stl` – template for standard stabilized keys
-- `stl-templates/stabilzer_spacebar.stl` – centered spacebar template
-- `stl-templates/stabilzer_spacebar_centered.stl` – identical copy of the centered template (not read by the generator)
-- `stl-templates/stabilzer_spacebar_off-center_right.stl` – off-centered spacebar template, the switch is right of the center (the left position is this template mirrored)
-- `stl-templates/stabilzer_spacebar_off-center_left.stl` – the mirror image of the right template; **no longer read by the generator** (kept in the repository, only a test compares against it)
+- `stl-templates/stabilizer_2-00u.stl` – template for standard stabilized keys
+- `stl-templates/stabilizer_6-00u_centered.stl` – 6u centered spacebar template (not read by the generator yet)
+- `stl-templates/stabilizer_6-00u_off-center.stl` – 6u off-centered spacebar template (not read by the generator yet)
+- `stl-templates/stabilizer_6-25u_centered.stl` – centered 6.25u spacebar template
+- `stl-templates/stabilizer_6-25u_off-center.stl` – off-centered 6.25u spacebar template (the left position is this template mirrored)
+- `stl-templates/stabilizer_7-00u_centered.stl` – centered 7u spacebar template (not read by the generator yet)
 - `kle-jsons/keyboard-layout.json` – default example layout
 - `kle-jsons/` – more example layouts (40%, 100% ISO and ANSI)
 - `fat_plate_export_example.stl` – example output
@@ -99,11 +100,12 @@ Fat-Plate-Generator
 │   └── stepped-capslock.json    
 ├── stl-templates
 │   ├── switch_socket.stl
-│   ├── stabilizer.stl
-│   ├── stabilzer_spacebar.stl
-    ├── stabilzer_spacebar_centered.stl
-    ├── stabilzer_spacebar_off-center_left.stl    (no longer read)
-    ├── stabilzer_spacebar_off-center_right.stl
+│   ├── stabilizer_2-00u.stl
+│   ├── stabilizer_6-00u_centered.stl
+│   ├── stabilizer_6-00u_off-center.stl
+│   ├── stabilizer_6-25u_centered.stl
+│   ├── stabilizer_6-25u_off-center.stl
+│   ├── stabilizer_7-00u_centered.stl
 │   └── switch_socket_wide-caps.stl
 ├── fat_plate_generator.py
 ├── requirements.txt
@@ -209,8 +211,8 @@ The generator automatically uses:
 ```text
 kle-jsons/keyboard-layout.json
 stl-templates/switch_socket.stl
-stl-templates/stabilizer.stl
-stl-templates/stabilzer_spacebar.stl
+stl-templates/stabilizer_2-00u.stl
+stl-templates/stabilizer_6-25u_centered.stl
 ```
 
 and generates:
@@ -256,7 +258,7 @@ The parser follows the Keyboard Layout Editor, so the plate has the keys where t
 You can explicitly specify the socket and stabilizer files:
 
 ```powershell
-python .\fat_plate_generator.py --json my_keyboard.json --socket stl-templates/switch_socket.stl --stabilizer stl-templates/stabilizer.stl --output my_keyboard.stl
+python .\fat_plate_generator.py --json my_keyboard.json --socket stl-templates/switch_socket.stl --stabilizer stl-templates/stabilizer_2-00u.stl --output my_keyboard.stl
 ```
 
 This explicitly defines which files are being used.
@@ -275,15 +277,15 @@ This file defines the cutout for a standard key or switch.
 
 This file defines the cutout for a stepped key (for example a stepped Caps Lock). It is only used with `--stepped-key wide-caps` (see *Stepped Keys*), and only if the layout has a stepped key. Like the other templates it is centered on the switch, and it is turned like a stabilizer (`--wide-caps-rotation`), never mirrored.
 
-## `stl-templates/stabilizer.stl`
+## `stl-templates/stabilizer_2-00u.stl`
 
 This file contains the **switch socket + stabilizer cutout**.
 
-## `stl-templates/stabilzer_spacebar.stl` and `stl-templates/stabilzer_spacebar_off-center_right.stl`
+## `stl-templates/stabilizer_6-25u_centered.stl` and `stl-templates/stabilizer_6-25u_off-center.stl`
 
 These files define the dedicated 6.25u spacebar cutout. The two templates contain the same overall spacebar geometry, but place the switch position differently: centered, or left of the center, seen from above with the typist at the bottom of the plate.
 
-There is only **one** off-centered template, the right one, as designed. The left position is created from it by an exact mirror (x → −x in the template's own coordinates, before the stabilizer rotation, so it works for every `--stab-rotation-spacebar` and plate rotation). `stabilzer_spacebar_off-center_left.stl` is the same cutout mirrored beforehand; the generator **does not read it any more**, it only stays in the repository for now.
+There is only **one** off-centered template, the right one, as designed. The left position is created from it by an exact mirror (x → −x in the template's own coordinates, before the stabilizer rotation, so it works for every `--stab-rotation-spacebar` and plate rotation).
 
 Select the desired variant with:
 
@@ -369,7 +371,7 @@ Reads all settings from a TOML file (see *Configuration File* below). Options on
 ### Stabilizer
 
 ```powershell
---stabilizer stl-templates/stabilizer.stl
+--stabilizer stl-templates/stabilizer_2-00u.stl
 ```
 
 ### Spacebar switch position
@@ -392,7 +394,7 @@ or:
 --spacebar-position off-centered-right
 ```
 
-`centered` selects `stabilzer_spacebar.stl`; `off-centered-right` selects `stabilzer_spacebar_off-center_right.stl`, and `off-centered-left` uses the same file mirrored. The switch position is seen from above with the typist at the bottom of the plate. A different off-centered file can be named with `--spacebar-off-centered`; it must be the RIGHT design, the left position mirrors it.
+`centered` selects `stabilizer_6-25u_centered.stl`; `off-centered-right` selects `stabilizer_6-25u_off-center.stl`, and `off-centered-left` uses the same file mirrored. The switch position is seen from above with the typist at the bottom of the plate. A different off-centered file can be named with `--spacebar-off-centered`; it must be the RIGHT design, the left position mirrors it.
 
 ### Output
 
@@ -549,9 +551,9 @@ global_mirror_x = true
 [templates]
 socket = "stl-templates/switch_socket.stl"
 wide_caps = "stl-templates/switch_socket_wide-caps.stl"
-stabilizer = "stl-templates/stabilizer.stl"
-spacebar_centered = "stl-templates/stabilzer_spacebar.stl"
-spacebar_off_centered = "stl-templates/stabilzer_spacebar_off-center_right.stl"   # the right design; off-centered-left mirrors it
+stabilizer = "stl-templates/stabilizer_2-00u.stl"
+spacebar_centered = "stl-templates/stabilizer_6-25u_centered.stl"
+spacebar_off_centered = "stl-templates/stabilizer_6-25u_off-center.stl"   # the right design; off-centered-left mirrors it
 ```
 
 | Config key | Command line option |
@@ -759,7 +761,7 @@ KLE Key Positions
    |
    +--> Standard Key ------> switch_socket.stl
    |
-   +--> Stabilizer Key ----> stabilizer.stl  (turned per key class)
+   +--> Stabilizer Key ----> stabilizer_2-00u.stl  (turned per key class)
    |
    +--> Spacebar ---------> dedicated spacebar STL  (turned)
    |

@@ -103,39 +103,6 @@ def test_off_centered_spacebar_sits_on_its_side(spacebar_layout, position, side)
         assert offset * side > 1.0, offset
 
 
-# --------------------------------------------------------------------------
-# the left off-centered spacebar is the right template, mirrored
-# --------------------------------------------------------------------------
-OLD_LEFT_TEMPLATE = REPO_ROOT / "stl-templates" / "stabilzer_spacebar_off-center_left.stl"
-HEIGHT_FRACTIONS = (0.1, 0.35, 0.5, 0.65, 0.9)       # five heights per layer
-EQUIVALENCE_TOLERANCE = 1e-4                         # mm2 of difference between two sections
-
-
-@pytest.mark.parametrize("global_rotation", [180, 90])
-@pytest.mark.parametrize("spacebar_rotation", fpg.ROTATION_CHOICES)
-def test_mirrored_right_template_equals_the_old_left_file(spacebar_layout, spacebar_rotation, global_rotation):
-    """The new way (right template, mirrored in its own coordinates before the
-    rotation) must give what the old left file gave when it was used unmirrored,
-    for every spacebar rotation and whole-plate rotation."""
-    if not OLD_LEFT_TEMPLATE.is_file():
-        pytest.skip(f"{OLD_LEFT_TEMPLATE.name} is not in the repository (anymore)")
-    from tests.test_templates import cutter_mesh, section_polygon
-
-    orientation = OrientationConfig(stab_rotation_spacebar=spacebar_rotation, global_rotation=global_rotation)
-    new = build_model(spacebar_layout, spacebar_position="off-centered-left", orientation=orientation)
-    old = build_model(spacebar_layout, spacebar_position="off-centered-right", orientation=orientation,
-                      spacebar_off_centered=OLD_LEFT_TEMPLATE)
-    assert new.mirrored == [True] and old.mirrored == [False]
-    assert new.centers == old.centers
-
-    new_mesh, old_mesh = cutter_mesh(new.cavities[0]), cutter_mesh(old.cavities[0])
-    for layer in old.templates["spacebar"].layers:
-        for fraction in HEIGHT_FRACTIONS:
-            z = layer.z0 + (layer.z1 - layer.z0) * fraction
-            difference = section_polygon(new_mesh, z).symmetric_difference(section_polygon(old_mesh, z)).area
-            assert difference <= EQUIVALENCE_TOLERANCE, (spacebar_rotation, global_rotation, z, difference)
-
-
 def test_the_left_spacebar_cavity_is_valid_and_as_large_as_the_right_one(spacebar_layout):
     left = build_model(spacebar_layout, spacebar_position="off-centered-left").cavities[0]
     right = build_model(spacebar_layout, spacebar_position="off-centered-right").cavities[0]
