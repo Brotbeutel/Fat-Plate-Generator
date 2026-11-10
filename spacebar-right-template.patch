@@ -1,0 +1,379 @@
+From fd8599515cbd9045b340a36b9b1ed38beabf6faf Mon Sep 17 00:00:00 2001
+From: "Claude (Implementer)" <noreply@anthropic.com>
+Date: Tue, 10 Nov 2026 08:05:49 +0000
+Subject: [PATCH] refactor(spacebar): right off-centered template is the
+ default file, the left position is its mirror
+
+DEFAULT_SPACEBAR_OFF_CENTERED is now stabilzer_spacebar_off-center_right.stl; off-centered-left is that template mirrored in its own coordinates (exact integer matrix, before the rotation). The sections of both positions are identical to the previous output; docs, tests, config example and AGENTS.md follow.
+---
+ AGENTS.md                        |  2 +-
+ CHANGELOG.md                     |  2 +-
+ README.md                        | 24 +++++++--------
+ ROADMAP.md                       |  2 +-
+ fat_plate_config.example.toml    |  6 ++--
+ fat_plate_generator.py           | 36 +++++++++++------------
+ tests/test_cutout_orientation.py | 50 ++++++++++++++++----------------
+ 7 files changed, 61 insertions(+), 61 deletions(-)
+
+diff --git a/AGENTS.md b/AGENTS.md
+index 0c966d9..99cf637 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -35,7 +35,7 @@ python .\tools\preview.py plate.stl --layout my_layout.json --output plate.png
+ 
+ - Keine Werte runden, auf ein Raster snappen oder glätten. Alles bleibt präzise und exakt. Ungenauigkeiten werden an der Quelle behoben (Blender-Dateien, Templates), nicht im Code kaschiert. Mängel in Templates im Bericht melden, nicht verstecken.
+ - Transformationsreihenfolge: Rotation je Stabilizer um dessen Switch-Zentrum, dann Gesamttransformation um den Ursprung, dann Verschiebung, sodass die Bounding-Box bei (0, 0) beginnt. Rotationen und Spiegelung sind exakte Integer-Matrizen auf den 2D-Daten, es entstehen keine gespiegelten CAD-Körper.
+-- Die Stabilizer-Ausschnitte werden nur gedreht, nie gespiegelt (die Spiegelung der Ganzplatten-Transformation gilt nur für Tasten und Plattenumriss). Eine Ausnahme gibt es: die rechte Off-Center-Spacebar (`--spacebar-position off-centered-right`) ist das gespiegelte linke Template, als exakte Integer-Matrix im Template-Koordinatensystem vor der Rotation; es entsteht kein gespiegelter CAD-Körper.
++- Die Stabilizer-Ausschnitte werden nur gedreht, nie gespiegelt (die Spiegelung der Ganzplatten-Transformation gilt nur für Tasten und Plattenumriss). Eine Ausnahme gibt es: die linke Off-Center-Spacebar (`--spacebar-position off-centered-left`) ist das gespiegelte rechte Template, als exakte Integer-Matrix im Template-Koordinatensystem vor der Rotation; es entsteht kein gespiegelter CAD-Körper.
+ - Die Orientierungs-Defaults stehen zentral in `OrientationConfig`. Die Werte hat der Nutzer nach Sichtprüfung festgelegt; nicht ohne Auftrag ändern.
+ - Die exportierte STL wird nur im Speicher geprüft, nie repariert, nach Komponenten gefiltert oder neu exportiert.
+ - Socket, Stabilizer und Spacebar laufen durch denselben Code. Keine Sonderwege je Template, keine stille Glättung von Schrägen, keine Konturen weglassen.
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 19faa16..6a7306c 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -34,7 +34,7 @@ All notable changes to this project are documented in this file.
+ - `parse_kle()` reads the properties of a key like the Keyboard Layout Editor: `w`, `h`, `x2`, `y2`, `w2`, `h2` and `l` apply to the next key and are reset only after a key, so several objects in a row before one key add up (`{"w": 2}, {"c": "#fff"}, "A"` gives A the width 2); `w` also sets `w2` and `h` also sets `h2` unless the same object names them. Single objects before a key give the same result as before (ISO Enter, stepped Caps Lock).
+ - Decals (`"d": true`) are ignored: they get no footprint and no cutout, but the position moves on by their width. No layout in `kle-jsons/` has decals.
+ - `r`, `rx` and `ry` anywhere but on the first item of a row are an error (`ValueError` naming the row) instead of being read silently wrong. KLE exports do not produce this.
+-- The right off-centered spacebar is the left template mirrored instead of a second file. The mirror is an exact integer matrix in the template's own coordinates, applied before the stabilizer rotation (so it matches the former right file for every rotation); it is the only cutout that is mirrored, and `PlateModel.mirrored` records it per key. The plate is unchanged apart from float noise in the templates (`centered` and `off-centered-left` byte-identical). `TemplateSet` has one field `spacebar_off_centered` (the left file) instead of two, and `TemplateSet.spacebar_for()` is the single place that maps a position to a file and a mirror flag. `stabilzer_spacebar_off-center_right.stl` stays in the repository but is no longer read.
++- The left off-centered spacebar is the right template mirrored instead of a second file. The mirror is an exact integer matrix in the template's own coordinates, applied before the stabilizer rotation (so it matches the former left file for every rotation); it is the only cutout that is mirrored, and `PlateModel.mirrored` records it per key. The plate is unchanged apart from float noise in the templates (`centered` byte-identical; the sections of `off-centered-left` and `off-centered-right` are identical, only the triangulation of the STL differs). `TemplateSet` has one field `spacebar_off_centered` (the right file) instead of two, and `TemplateSet.spacebar_for()` is the single place that maps a position to a file and a mirror flag. `stabilzer_spacebar_off-center_left.stl` stays in the repository but is no longer read. A custom file given with `--spacebar-off-centered` (or `templates.spacebar_off_centered`) is now taken as the RIGHT design.
+ - `--spacebar-off-centered` and the config key `templates.spacebar_off_centered` replace `--spacebar-off-centered-left` / `--spacebar-off-centered-right` and `spacebar_off_centered_left` / `spacebar_off_centered_right`. The old names are not kept as aliases and are refused as unknown.
+ - `generate()` and `build_plate_model()` take a `Settings` object (with a `TemplateSet` for the template paths) instead of long parameter lists: `build_plate_model(kle_path, settings)` and `generate(kle_path, settings, output, config_path=None)`. The generated STL is byte-identical to before (checked for the orientation test layout, the 40% layout and the stepped Caps Lock with `--stepped-key wide-caps`).
+ - The command line options that a config can also set have no built-in default in the parser any more (that is how a given option is told from a missing one); the help texts still name the defaults.
+diff --git a/README.md b/README.md
+index 54d36b4..a0ec912 100644
+--- a/README.md
++++ b/README.md
+@@ -11,7 +11,7 @@ This is still a WIP, but with some 3D editing (for example Blender) you can alre
+ This is not a finished product!
+ 
+ It has not yet been tested, if the generated plate fits a real keyboard and switches in 3D-printed form. 
+-Spacebar stabilizer cutouts are now supported with centered and off-centered (left or right) switch-position options, which is needed for a classic Cherry G80-3000. The right off-centered cutout is the left template mirrored.
++Spacebar stabilizer cutouts are now supported with centered and off-centered (left or right) switch-position options, which is needed for a classic Cherry G80-3000. The left off-centered cutout is the right template mirrored.
+ 
+ If a template STL is not exact (for example one you designed yourself), the generator prints warnings (see *Common Errors*); the STL is written anyway and can be inspected.
+ 
+@@ -26,8 +26,8 @@ If a template STL is not exact (for example one you designed yourself), the gene
+ - `stl-templates/stabilizer.stl` – template for standard stabilized keys
+ - `stl-templates/stabilzer_spacebar.stl` – centered spacebar template
+ - `stl-templates/stabilzer_spacebar_centered.stl` – identical copy of the centered template (not read by the generator)
+-- `stl-templates/stabilzer_spacebar_off-center_left.stl` – off-centered spacebar template, the switch is left of the center (the right position is this template mirrored)
+-- `stl-templates/stabilzer_spacebar_off-center_right.stl` – the mirror image of the left template; **no longer read by the generator** (kept in the repository, only a test compares against it)
++- `stl-templates/stabilzer_spacebar_off-center_right.stl` – off-centered spacebar template, the switch is right of the center (the left position is this template mirrored)
++- `stl-templates/stabilzer_spacebar_off-center_left.stl` – the mirror image of the right template; **no longer read by the generator** (kept in the repository, only a test compares against it)
+ - `kle-jsons/keyboard-layout.json` – default example layout
+ - `kle-jsons/` – more example layouts (40%, 100% ISO and ANSI)
+ - `fat_plate_export_example.stl` – example output
+@@ -102,8 +102,8 @@ Fat-Plate-Generator
+ │   ├── stabilizer.stl
+ │   ├── stabilzer_spacebar.stl
+     ├── stabilzer_spacebar_centered.stl
+-    ├── stabilzer_spacebar_off-center_left.stl
+-    ├── stabilzer_spacebar_off-center_right.stl   (no longer read)
++    ├── stabilzer_spacebar_off-center_left.stl    (no longer read)
++    ├── stabilzer_spacebar_off-center_right.stl
+ │   └── switch_socket_wide-caps.stl
+ ├── fat_plate_generator.py
+ ├── requirements.txt
+@@ -279,11 +279,11 @@ This file defines the cutout for a stepped key (for example a stepped Caps Lock)
+ 
+ This file contains the **switch socket + stabilizer cutout**.
+ 
+-## `stl-templates/stabilzer_spacebar.stl` and `stl-templates/stabilzer_spacebar_off-center_left.stl`
++## `stl-templates/stabilzer_spacebar.stl` and `stl-templates/stabilzer_spacebar_off-center_right.stl`
+ 
+ These files define the dedicated 6.25u spacebar cutout. The two templates contain the same overall spacebar geometry, but place the switch position differently: centered, or left of the center, seen from above with the typist at the bottom of the plate.
+ 
+-There is only **one** off-centered template, the left one, as designed. The right position is created from it by an exact mirror (x → −x in the template's own coordinates, before the stabilizer rotation, so it works for every `--stab-rotation-spacebar` and plate rotation). `stabilzer_spacebar_off-center_right.stl` is the same cutout mirrored beforehand; the generator **does not read it any more**, it only stays in the repository for now.
++There is only **one** off-centered template, the right one, as designed. The left position is created from it by an exact mirror (x → −x in the template's own coordinates, before the stabilizer rotation, so it works for every `--stab-rotation-spacebar` and plate rotation). `stabilzer_spacebar_off-center_left.stl` is the same cutout mirrored beforehand; the generator **does not read it any more**, it only stays in the repository for now.
+ 
+ Select the desired variant with:
+ 
+@@ -303,7 +303,7 @@ or:
+ --spacebar-position off-centered-right
+ ```
+ 
+-The default is **centered**. The supplied templates are used exactly as they are; nothing is stretched, scaled or rounded. The only change is that exact mirror for `off-centered-right`.
++The default is **centered**. The supplied templates are used exactly as they are; nothing is stretched, scaled or rounded. The only change is that exact mirror for `off-centered-left`.
+ 
+ ### Caps Lock
+ 
+@@ -392,7 +392,7 @@ or:
+ --spacebar-position off-centered-right
+ ```
+ 
+-`centered` selects `stabilzer_spacebar.stl`; `off-centered-left` selects `stabilzer_spacebar_off-center_left.stl`, and `off-centered-right` uses the same file mirrored. The switch position is seen from above with the typist at the bottom of the plate. A different off-centered file can be named with `--spacebar-off-centered`; it must be the LEFT design, the right position mirrors it.
++`centered` selects `stabilzer_spacebar.stl`; `off-centered-right` selects `stabilzer_spacebar_off-center_right.stl`, and `off-centered-left` uses the same file mirrored. The switch position is seen from above with the typist at the bottom of the plate. A different off-centered file can be named with `--spacebar-off-centered`; it must be the RIGHT design, the left position mirrors it.
+ 
+ ### Output
+ 
+@@ -436,7 +436,7 @@ The stabilizer cutouts are asymmetric, so each of them can be turned in 90° ste
+ 
+ Allowed values are `0`, `90`, `180` and `270`. The values above are the defaults. If a stabilizer faces the wrong way in your plate, change only the option of that key class.
+ 
+-The cutouts are only turned, **never mirrored**: every cutout is the template as designed. The one exception is the right off-centered spacebar (`--spacebar-position off-centered-right`): it is the left template mirrored (see *Spacebar switch position*).
++The cutouts are only turned, **never mirrored**: every cutout is the template as designed. The one exception is the left off-centered spacebar (`--spacebar-position off-centered-left`): it is the right template mirrored (see *Spacebar switch position*).
+ 
+ ### Stepped Keys
+ 
+@@ -470,7 +470,7 @@ The default is `180`, which makes the template come out as designed (seen from a
+ 
+ KLE counts Y downwards (towards the typist), CAD counts Y upwards. The generated plate is therefore turned by 180° around Z and mirrored along X, which is the same as flipping the KLE Y axis: the plate is the layout as seen from above, with the typist side at low Y. The plate is then moved so that its bounding box starts at X = 0, Y = 0. The order is: stabilizer rotation first, then the whole-plate transform, then the move.
+ 
+-The mirror of the whole-plate transform only moves the keys and the plate outline. The cutouts get just its rotation (they turn with the plate), so they are not mirrored by it. (The right off-centered spacebar is mirrored on its own, in the template's coordinates; see *Spacebar switch position*.)
++The mirror of the whole-plate transform only moves the keys and the plate outline. The cutouts get just its rotation (they turn with the plate), so they are not mirrored by it. (The left off-centered spacebar is mirrored on its own, in the template's coordinates; see *Spacebar switch position*.)
+ 
+ The whole-plate rotation and the mirror can be set with `--global-rotation` and `--global-mirror-x` (or `global_rotation` and `global_mirror_x` in a config file, see *Configuration File*):
+ 
+@@ -551,7 +551,7 @@ socket = "stl-templates/switch_socket.stl"
+ wide_caps = "stl-templates/switch_socket_wide-caps.stl"
+ stabilizer = "stl-templates/stabilizer.stl"
+ spacebar_centered = "stl-templates/stabilzer_spacebar.stl"
+-spacebar_off_centered = "stl-templates/stabilzer_spacebar_off-center_left.stl"   # the left design; off-centered-right mirrors it
++spacebar_off_centered = "stl-templates/stabilzer_spacebar_off-center_right.stl"   # the right design; off-centered-left mirrors it
+ ```
+ 
+ | Config key | Command line option |
+diff --git a/ROADMAP.md b/ROADMAP.md
+index 4dd829f..dc041ad 100644
+--- a/ROADMAP.md
++++ b/ROADMAP.md
+@@ -72,7 +72,7 @@ Stand: `main` @ `7631001` (WP-07 bis WP-12 gemerged, 338 Tests grün laut WP-12-
+   - `FLAT_WALL_TOLERANCE` (50 nm) lässt sich noch nicht senken: bei 1e-6 und 1e-7 ändern sich die Eckenzahlen von `stabilizer.stl`, bei 1e-9 lässt sich `stabilizer.stl` nicht mehr loften. Möglich wäre es erst, wenn die Wände der Templates bis auf Float32-Genauigkeit exakt gerade sind.
+ - [x] **Wide-Caps-Template** liegt im Repo (`switch_socket_wide-caps.stl`). Offen: feste Bounding Box bestätigen (siehe WP-09).
+ - [x] **7-u-Spacebar-Template** liegt im Repo (`stabilzer_spacebar_7u.stl`); der Generator nutzt es noch nicht (siehe WP-14).
+-- [ ] Nach WP-11: `stabilzer_spacebar_off-center_right.stl` löschen (und den Eintrag in `.gitignore` entfernen), wenn du sie nicht mehr brauchst.
++- [ ] `stabilzer_spacebar_off-center_left.stl` löschen (und den Eintrag in `.gitignore` entfernen), wenn du sie nicht mehr brauchst: Default-Datei für Off-Center ist jetzt `stabilzer_spacebar_off-center_right.stl`, die linke Variante entsteht durch Spiegeln (vorher umgekehrt; der Generator liest die linke Datei nicht mehr, nur ein Test vergleicht mit ihr).
+ - [ ] Nach WP-09: Standard-Rotation von `wide-caps` anhand der Bilder in `docs/wide-caps-test/` bestätigen; feste Bounding Box des Wide-Caps-Templates bestätigen und selbst eintragen.
+ - [ ] `fat_plate_export_example.stl` neu erzeugen, wenn sich die Geometrie ändert.
+ 
+diff --git a/fat_plate_config.example.toml b/fat_plate_config.example.toml
+index 88bd3bf..94a4f4b 100644
+--- a/fat_plate_config.example.toml
++++ b/fat_plate_config.example.toml
+@@ -58,10 +58,10 @@ global_mirror_x = true
+ 
+ [templates]
+ # Template STL files (CLI: --socket, --socket-wide-caps, --stabilizer,
+-# --spacebar-centered, --spacebar-off-centered). spacebar_off_centered is the left
+-# template; spacebar_position = "off-centered-right" uses it mirrored.
++# --spacebar-centered, --spacebar-off-centered). spacebar_off_centered is the right
++# template; spacebar_position = "off-centered-left" uses it mirrored.
+ socket = "stl-templates/switch_socket.stl"
+ wide_caps = "stl-templates/switch_socket_wide-caps.stl"
+ stabilizer = "stl-templates/stabilizer.stl"
+ spacebar_centered = "stl-templates/stabilzer_spacebar.stl"
+-spacebar_off_centered = "stl-templates/stabilzer_spacebar_off-center_left.stl"
++spacebar_off_centered = "stl-templates/stabilzer_spacebar_off-center_right.stl"
+diff --git a/fat_plate_generator.py b/fat_plate_generator.py
+index 9b5cc12..b50aa0e 100644
+--- a/fat_plate_generator.py
++++ b/fat_plate_generator.py
+@@ -34,9 +34,9 @@ DEFAULT_SOCKET = "stl-templates/switch_socket.stl"
+ DEFAULT_SOCKET_WIDE_CAPS = "stl-templates/switch_socket_wide-caps.stl"
+ DEFAULT_STABILIZER = "stl-templates/stabilizer.stl"
+ DEFAULT_SPACEBAR_CENTERED = "stl-templates/stabilzer_spacebar.stl"
+-# The off-centered template is the LEFT one, as designed; the right variant is its
++# The off-centered template is the RIGHT one, as designed; the left variant is its
+ # exact mirror image (see ``TemplateSet.spacebar_for``).
+-DEFAULT_SPACEBAR_OFF_CENTERED = "stl-templates/stabilzer_spacebar_off-center_left.stl"
++DEFAULT_SPACEBAR_OFF_CENTERED = "stl-templates/stabilzer_spacebar_off-center_right.stl"
+ # Switch position of the spacebar template, as seen from above with the typist
+ # at the bottom of the plate (x to the right).
+ SPACEBAR_POSITIONS = ("centered", "off-centered-left", "off-centered-right")
+@@ -93,10 +93,10 @@ class OrientationConfig:
+        without any further turn of the plate.  The cutouts get only the
+        ROTATION of this transform, never the mirror: a mirrored stabilizer
+        would be a different part, so every cutout is the template as designed,
+-       turned in steps of 90 deg.  The one exception is the right off-centered
+-       spacebar, which IS the left template mirrored: an exact integer matrix in
++       turned in steps of 90 deg.  The one exception is the left off-centered
++       spacebar, which IS the right template mirrored: an exact integer matrix in
+        the template's own coordinates (x -> -x), applied before step 1, so that
+-       it stays the mirror image of the left one for every rotation.
++       it stays the mirror image of the right one for every rotation.
+     3. Everything is shifted so the plate's bounding box (including margin)
+        starts at (0, 0).
+ 
+@@ -168,14 +168,14 @@ class TemplateSet:
+     def spacebar_for(self, position: str) -> tuple[Path, bool]:
+         """Template file and mirror flag for a spacebar switch position.
+ 
+-        There is one off-centered template (the left one).  The right position
++        There is one off-centered template (the right one).  The left position
+         is that template mirrored; ``True`` in the second item says so.  This
+         is the only place that maps a position to a file.
+         """
+         mapping = {
+             "centered": (self.spacebar_centered, False),
+-            "off-centered-left": (self.spacebar_off_centered, False),
+-            "off-centered-right": (self.spacebar_off_centered, True),
++            "off-centered-left": (self.spacebar_off_centered, True),
++            "off-centered-right": (self.spacebar_off_centered, False),
+         }
+         if position not in mapping:
+             raise ValueError(f"spacebar_position must be one of {SPACEBAR_POSITIONS}, got {position!r}")
+@@ -1080,7 +1080,7 @@ class PlateModel:
+     keys: list          # parsed KLE keys
+     kinds: list         # classify_key() result per key
+     rotations: list     # stabilizer rotation per key in degrees, None if normal
+-    mirrored: list      # True where the cutout is the mirrored template (right off-centered spacebar only)
++    mirrored: list      # True where the cutout is the mirrored template (left off-centered spacebar only)
+     centers: list       # switch centre per key (mm)
+     footprint: object   # shapely (Multi)Polygon of the plate outline
+     cavities: list      # one CAD solid per key, same order as ``keys``
+@@ -1100,8 +1100,8 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
+     (0, 0).  Rotations and the mirror are exact integer matrices applied to
+     the 2D data (footprint, switch centres, cutout sections) before anything
+     is extruded; no mirrored CAD solid is ever created.  The cutouts are only
+-    rotated, never mirrored, with one exception: the right off-centered spacebar
+-    is the left template mirrored (exact integer matrix in the template's own
++    rotated, never mirrored, with one exception: the left off-centered spacebar
++    is the right template mirrored (exact integer matrix in the template's own
+     coordinates, applied before the rotation; ``PlateModel.mirrored`` says where).
+ 
+     With ``settings.single_mesh`` the space between keys that face each other
+@@ -1140,8 +1140,8 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
+ 
+     kinds = [classify_key(k, settings.stabilizer_min_unit, settings.stepped_key) for k in keys]
+     rotations = [rotation_for_kind(k, kind, orientation) for k, kind in zip(keys, kinds)]
+-    # The one exception to "cutouts are only turned": the right off-centered
+-    # spacebar is the left template mirrored (see below).  Nothing else is.
++    # The one exception to "cutouts are only turned": the left off-centered
++    # spacebar is the right template mirrored (see below).  Nothing else is.
+     mirrored = [spacebar_mirrored and kind == KIND_SPACEBAR for kind in kinds]
+     centers = []
+     for k, kind in zip(keys, kinds):
+@@ -1163,9 +1163,9 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
+         # whole plate).  The mirror of the whole-plate transform never reaches a cutout.
+         m = pm if rotation is None else matrix_multiply(pm, rotation_matrix(rotation))
+         if mirror:
+-            # Right off-centered spacebar: mirror the template in ITS OWN coordinate
+-            # system, i.e. before the rotation.  The old right template file is the
+-            # left one mirrored at the template's Y axis (x -> -x); only "mirror first,
++            # Left off-centered spacebar: mirror the template in ITS OWN coordinate
++            # system, i.e. before the rotation.  The old left template file is the
++            # right one mirrored at the template's Y axis (x -> -x); only "mirror first,
+             # then rotate" gives exactly that file for every stab_rotation_spacebar and
+             # global_rotation.  Mirroring after the rotation would be a different mirror
+             # axis for 90 and 270 degrees.  The mirror is an exact integer matrix on the
+@@ -1395,8 +1395,8 @@ def build_parser():
+     parser.add_argument("--spacebar-centered", type=Path, default=None,
+                         help=f"centered spacebar template (default: {DEFAULT_SPACEBAR_CENTERED})")
+     parser.add_argument("--spacebar-off-centered", type=Path, default=None,
+-                        help="off-centered spacebar template, the left one as designed; "
+-                             "off-centered-right uses it mirrored "
++                        help="off-centered spacebar template, the right one as designed; "
++                             "off-centered-left uses it mirrored "
+                              f"(default: {DEFAULT_SPACEBAR_OFF_CENTERED})")
+     parser.add_argument("--spacebar-position", choices=SPACEBAR_POSITIONS, default=None,
+                         help="Spacebar switch position, seen from above with the typist at the "
+diff --git a/tests/test_cutout_orientation.py b/tests/test_cutout_orientation.py
+index bd03598..a2e33c4 100644
+--- a/tests/test_cutout_orientation.py
++++ b/tests/test_cutout_orientation.py
+@@ -74,9 +74,9 @@ def spacebar_layout(tmp_path):
+ 
+ @pytest.mark.parametrize("position, expected_path, expected_mirrored", [
+     ("centered", REPO_ROOT / fpg.DEFAULT_SPACEBAR_CENTERED, False),
+-    ("off-centered-left", REPO_ROOT / fpg.DEFAULT_SPACEBAR_OFF_CENTERED, False),
+-    # one off-centered template; the right position is that template mirrored
+-    ("off-centered-right", REPO_ROOT / fpg.DEFAULT_SPACEBAR_OFF_CENTERED, True),
++    # one off-centered template (the right one); the left position is that template mirrored
++    ("off-centered-left", REPO_ROOT / fpg.DEFAULT_SPACEBAR_OFF_CENTERED, True),
++    ("off-centered-right", REPO_ROOT / fpg.DEFAULT_SPACEBAR_OFF_CENTERED, False),
+ ])
+ def test_spacebar_position_picks_the_template(spacebar_layout, position, expected_path, expected_mirrored):
+     model = build_model(spacebar_layout, spacebar_position=position)
+@@ -104,27 +104,27 @@ def test_off_centered_spacebar_sits_on_its_side(spacebar_layout, position, side)
+ 
+ 
+ # --------------------------------------------------------------------------
+-# the right off-centered spacebar is the left template, mirrored
++# the left off-centered spacebar is the right template, mirrored
+ # --------------------------------------------------------------------------
+-OLD_RIGHT_TEMPLATE = REPO_ROOT / "stl-templates" / "stabilzer_spacebar_off-center_right.stl"
++OLD_LEFT_TEMPLATE = REPO_ROOT / "stl-templates" / "stabilzer_spacebar_off-center_left.stl"
+ HEIGHT_FRACTIONS = (0.1, 0.35, 0.5, 0.65, 0.9)       # five heights per layer
+ EQUIVALENCE_TOLERANCE = 1e-4                         # mm2 of difference between two sections
+ 
+ 
+ @pytest.mark.parametrize("global_rotation", [180, 90])
+ @pytest.mark.parametrize("spacebar_rotation", fpg.ROTATION_CHOICES)
+-def test_mirrored_left_template_equals_the_old_right_file(spacebar_layout, spacebar_rotation, global_rotation):
+-    """The new way (left template, mirrored in its own coordinates before the
+-    rotation) must give what the old right file gave when it was used unmirrored,
++def test_mirrored_right_template_equals_the_old_left_file(spacebar_layout, spacebar_rotation, global_rotation):
++    """The new way (right template, mirrored in its own coordinates before the
++    rotation) must give what the old left file gave when it was used unmirrored,
+     for every spacebar rotation and whole-plate rotation."""
+-    if not OLD_RIGHT_TEMPLATE.is_file():
+-        pytest.skip(f"{OLD_RIGHT_TEMPLATE.name} is not in the repository (anymore)")
++    if not OLD_LEFT_TEMPLATE.is_file():
++        pytest.skip(f"{OLD_LEFT_TEMPLATE.name} is not in the repository (anymore)")
+     from tests.test_templates import cutter_mesh, section_polygon
+ 
+     orientation = OrientationConfig(stab_rotation_spacebar=spacebar_rotation, global_rotation=global_rotation)
+-    new = build_model(spacebar_layout, spacebar_position="off-centered-right", orientation=orientation)
+-    old = build_model(spacebar_layout, spacebar_position="off-centered-left", orientation=orientation,
+-                      spacebar_off_centered=OLD_RIGHT_TEMPLATE)
++    new = build_model(spacebar_layout, spacebar_position="off-centered-left", orientation=orientation)
++    old = build_model(spacebar_layout, spacebar_position="off-centered-right", orientation=orientation,
++                      spacebar_off_centered=OLD_LEFT_TEMPLATE)
+     assert new.mirrored == [True] and old.mirrored == [False]
+     assert new.centers == old.centers
+ 
+@@ -136,37 +136,37 @@ def test_mirrored_left_template_equals_the_old_right_file(spacebar_layout, space
+             assert difference <= EQUIVALENCE_TOLERANCE, (spacebar_rotation, global_rotation, z, difference)
+ 
+ 
+-def test_the_right_spacebar_cavity_is_valid_and_as_large_as_the_left_one(spacebar_layout):
++def test_the_left_spacebar_cavity_is_valid_and_as_large_as_the_right_one(spacebar_layout):
+     left = build_model(spacebar_layout, spacebar_position="off-centered-left").cavities[0]
+     right = build_model(spacebar_layout, spacebar_position="off-centered-right").cavities[0]
+-    assert right.isValid()
+-    assert right.Volume() == pytest.approx(left.Volume(), rel=1e-6)
++    assert left.isValid()
++    assert left.Volume() == pytest.approx(right.Volume(), rel=1e-6)
+ 
+ 
+ @pytest.fixture(scope="module")
+-def right_spacebar_model():
+-    return build_model(ORIENTATION_LAYOUT, spacebar_position="off-centered-right")
++def left_spacebar_model():
++    return build_model(ORIENTATION_LAYOUT, spacebar_position="off-centered-left")
+ 
+ 
+-def test_the_right_spacebar_plate_passes_the_stl_check(right_spacebar_model, tmp_path):
++def test_the_left_spacebar_plate_passes_the_stl_check(left_spacebar_model, tmp_path):
+     import cadquery as cq
+ 
+-    out = tmp_path / "right.stl"
+-    cq.exporters.export(right_spacebar_model.plate, str(out), exportType="STL",
++    out = tmp_path / "left.stl"
++    cq.exporters.export(left_spacebar_model.plate, str(out), exportType="STL",
+                         tolerance=0.001, angularTolerance=0.1)
+-    bb = right_spacebar_model.plate.BoundingBox()
++    bb = left_spacebar_model.plate.BoundingBox()
+     _, problems = fpg.check_exported_stl(
+         out, expected_bounds=((bb.xmin, bb.ymin, bb.zmin), (bb.xmax, bb.ymax, bb.zmax)))
+     assert problems == []
+ 
+ 
+-def test_only_the_right_off_centered_spacebar_is_mirrored(right_spacebar_model, orientation_model):
++def test_only_the_left_off_centered_spacebar_is_mirrored(left_spacebar_model, orientation_model):
+     """The layout has stabilizer keys, Caps Lock, a normal key and the spacebar."""
+-    model = right_spacebar_model
++    model = left_spacebar_model
+     assert fpg.KIND_STABILIZED in model.kinds and fpg.KIND_NORMAL in model.kinds
+     assert model.mirrored == [kind == fpg.KIND_SPACEBAR for kind in model.kinds]
+     assert model.mirrored.count(True) == 1
+-    # centered (the default of this model) and off-centered-left mirror nothing
++    # centered (the default of this model) and off-centered-right mirror nothing
+     assert not any(orientation_model.mirrored)
+ 
+ 
+-- 
+2.43.0
+

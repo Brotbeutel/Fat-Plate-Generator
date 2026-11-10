@@ -72,7 +72,7 @@ Stand: `main` @ `7631001` (WP-07 bis WP-12 gemerged, 338 Tests grün laut WP-12-
   - `FLAT_WALL_TOLERANCE` (50 nm) lässt sich noch nicht senken: bei 1e-6 und 1e-7 ändern sich die Eckenzahlen von `stabilizer.stl`, bei 1e-9 lässt sich `stabilizer.stl` nicht mehr loften. Möglich wäre es erst, wenn die Wände der Templates bis auf Float32-Genauigkeit exakt gerade sind.
 - [x] **Wide-Caps-Template** liegt im Repo (`switch_socket_wide-caps.stl`). Offen: feste Bounding Box bestätigen (siehe WP-09).
 - [x] **7-u-Spacebar-Template** liegt im Repo (`stabilzer_spacebar_7u.stl`); der Generator nutzt es noch nicht (siehe WP-14).
-- [ ] `stabilzer_spacebar_off-center_left.stl` löschen (und den Eintrag in `.gitignore` entfernen), wenn du sie nicht mehr brauchst: Default-Datei für Off-Center ist jetzt `stabilzer_spacebar_off-center_right.stl`, die linke Variante entsteht durch Spiegeln (vorher umgekehrt; der Generator liest die linke Datei nicht mehr, nur ein Test vergleicht mit ihr).
+- [x] `stabilzer_spacebar_off-center_left.stl` löschen (und den Eintrag in `.gitignore` entfernen), wenn du sie nicht mehr brauchst: Default-Datei für Off-Center ist jetzt `stabilzer_spacebar_off-center_right.stl`, die linke Variante entsteht durch Spiegeln (vorher umgekehrt; der Generator liest die linke Datei nicht mehr, nur ein Test vergleicht mit ihr).
 - [ ] Nach WP-09: Standard-Rotation von `wide-caps` anhand der Bilder in `docs/wide-caps-test/` bestätigen; feste Bounding Box des Wide-Caps-Templates bestätigen und selbst eintragen.
 - [ ] `fat_plate_export_example.stl` neu erzeugen, wenn sich die Geometrie ändert.
 
@@ -81,25 +81,32 @@ Stand: `main` @ `7631001` (WP-07 bis WP-12 gemerged, 338 Tests grün laut WP-12-
 - **Layout-Paare als Regressionstests:** Wird ein Layout falsch gelesen, legt der Nutzer den fehlerhaften Export und eine von Hand bereinigte Fassung mit demselben Ergebnis (`…_clean.json`) in `kle-jsons/` ab. Der Implementer ergänzt einen Test, der beide vergleicht. So ist der RK65-Fehler gefunden worden; das Verfahren lohnt sich für jeden weiteren Fall.
 
 - **CI:** GitHub Actions führt `python -m pytest` auf Linux aus. Der Stand war zweimal unbemerkt rot (Ordnerumstellung, Rename). Linux fängt zusätzlich Groß-/Kleinschreibung in Pfaden ab, die unter Windows nicht auffällt. Am besten direkt nach WP-07.
+
 - Die schweren Tests (100%-Layout) per Marker abtrennbar machen, sodass ein schneller Lauf möglich ist.
+
 - `tools/check_templates.py`: lädt ein Template wie der Generator und listet seine Warnungen, dazu Koordinaten, die fast, aber nicht exakt gleich sind.
+
 - Versionen in den Requirements festschreiben, damit Ergebnisse auf verschiedenen Rechnern reproduzierbar sind.
+
 - `stabilzer_spacebar_centered.stl` ist nicht byte-identisch mit `stabilzer_spacebar.stl` (gleiche Schichten, Eckenzahl und Maße), wird vom Generator aber nicht gelesen. Klären, ob die Datei bleiben soll.
+
 - `kle-jsons/keyboard-layout.json` ist identisch mit `…_100-percent-iso-105-keys.json`. Klären, ob beides bleiben soll.
+
 - Dateinamen der neuen Layouts angleichen: `kle-jsons/leyboard-layout_065-percent-iso_royal-kludge-rk65.json` hat einen Tippfehler (`leyboard`), `ergodox_split_ergo_67-keys.json` hat nicht das Präfix `keyboard-layout_`.
+
 - Dateinamen `stabilzer_*.stl` → `stabilizer_*.stl` korrigieren (betrifft Generator, Tests, README, `.gitignore`); jetzt möglich, die Templates sind fertig.
 
 ## Übernommene offene Punkte aus der alten TODO.txt
 
-| Punkt                                                    | Zuordnung |
-| -------------------------------------------------------- | --------- |
+| Punkt                                                    | Zuordnung        |
+| -------------------------------------------------------- | ---------------- |
 | option for F1–F12 row in one mesh                        | WP-12 (erledigt) |
-| option -> create multiple STL files for separated meshes | WP-04     |
-| option for rectangular arrow box shape (filled corners)  | WP-04     |
-| options for CapsLock: big cutout, left-aligned, centered | WP-04     |
-| option for rounded/beveled corners                       | WP-05     |
-| option for standoffs/spacer                              | WP-05     |
-| add more stabilizer options                              | WP-06     |
+| option -> create multiple STL files for separated meshes | WP-04            |
+| option for rectangular arrow box shape (filled corners)  | WP-04            |
+| options for CapsLock: big cutout, left-aligned, centered | WP-04            |
+| option for rounded/beveled corners                       | WP-05            |
+| option for standoffs/spacer                              | WP-05            |
+| add more stabilizer options                              | WP-06            |
 
 ## Erledigt (aus der alten TODO.txt)
 
