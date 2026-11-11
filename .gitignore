@@ -4,20 +4,37 @@
 
 *.blend1
 
+
+# Notes #
+
 TODO.txt
 TODO.md
 TO-DO.txt
 TO-DO.md
-# Python / test caches
+todo.txt
+todo.md
+to-do.txt
+to-do.md
+NOTES.txt
+NOTES.md
+notes.txt
+notes.md
+
+
+# Python / test caches #
+
 __pycache__/
 .pytest_cache/
 
-# Generated plates (templates and the example STL stay tracked)
+
+# STL-Files #
+
 *.stl
 
 !fat_plate_export_example.stl
 
 !stabilizer_2-00u.stl
+!stabilizer_3-00u.stl
 !stabilizer_6-00u_centered.stl
 !stabilizer_6-00u_off-center.stl
 !stabilizer_6-25u_centered.stl
@@ -26,9 +43,3 @@ __pycache__/
 
 !switch_socket.stl
 !switch_socket_wide-caps.stl
-
-old_stls/*
-new_stls/*
-
-wp-10-teil-b.patch
-wp-12-fuse-f-row.patch
