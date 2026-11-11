@@ -26,7 +26,7 @@ G80 = KLE_DIR / "keyboard-layout_100-percent-iso-105-keys_g80-3000.json"
 ISO105 = KLE_DIR / "keyboard-layout_100-percent-iso-105-keys.json"
 TKL = KLE_DIR / "keyboard-layout_080-percent-iso-cherry_g80-3000n-tkl.json"
 JD40 = KLE_DIR / "keyboard-layout_040-percent_jd40.json"
-ERGODOX = KLE_DIR / "ergodox_split_ergo_67-keys.json"
+ERGODOX = KLE_DIR / "keyboard-layout_ergodox_split_ergo_67-keys.json"
 
 MARGIN = fpg.DEFAULT_MARGIN
 MATRICES = {"kle frame": fpg.IDENTITY_MATRIX,

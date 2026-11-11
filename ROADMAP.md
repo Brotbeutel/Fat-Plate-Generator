@@ -58,7 +58,7 @@ Stand: `main` @ `7631001` (WP-07 bis WP-12 gemerged, 338 Tests grün laut WP-12-
 - [x] **WP-14** Template-Dateien umbenennen
   - Stabilizer- und Spacebar-Templates sind nach Länge und Position einheitlich benannt; das doppelte centered Spacebar-Template ist entfernt.
   - Die neuen 6u- und 7u-Templates liegen vor, werden aber erst in WP-15 nach Tastenbreite verdrahtet.
-- [ ] **WP-15** Parser-Robustheit und Aufräumen (Vorschlag, noch nicht beauftragt)
+- [x] **WP-15** Stabilizer- und Spacebar-Templates nach Tastenbreite
   - KLE-Rotation (`r`) für Cavities: Footprint und Switch-Zentrum werden gedreht, die Cavity nicht. **Konkret betroffen:** `kle-jsons/ergodox_split_ergo_67-keys.json` (12 Tasten mit ±30°). Gemessen: 10 von 76 Cavities ragen aus dem Plattenumriss (bis 27 mm²), ohne dass der Generator warnt. Mindestens eine Warnung oder ein Fehler, besser die echte Unterstützung. Nutzer (Stand jetzt): Layouts mit diagonalen Teilen sollen möglich sein, aber niedrige Priorität. Bis dahin mindestens eine Warnung statt stillem Falschbau.
   - Caps-Lock-Ausnahme per Label-Vergleich ersetzen (nach WP-08 nur noch für Caps Lock ab 2 u relevant)
   - Platzierungslogik nur einmal (Generator und `tools/preview.py` rechnen sie getrennt)
@@ -67,10 +67,14 @@ Stand: `main` @ `7631001` (WP-07 bis WP-12 gemerged, 338 Tests grün laut WP-12-
 
 ## Laufend (Nutzer)
 
+- [ ] 3-u-Template bauen und `stabilizer_2-00u.stl` als Ersatz entfernen.
+- [ ] Bounding Boxes der 6u- und 7u-Templates festlegen.
+- [ ] Orientierung der 6u- und 7u-Templates anhand der Vorschauen in `docs/spacebar-sizes/` bestätigen.
+
 - [x] **Template-Neubau**: Templates sind exakt neu gebaut (Socket 19,05 × 19,05 mm, Stabilizer 38,1 × 19,05 mm, Spacebar 114,3015 × 19,05 mm), der Generator meldet für diese keine Warnungen mehr.
   - `FLAT_WALL_TOLERANCE` (50 nm) lässt sich noch nicht senken: bei 1e-6 und 1e-7 ändern sich die Eckenzahlen von `stabilizer_2-00u.stl`, bei 1e-9 lässt sich `stabilizer_2-00u.stl` nicht mehr loften. Möglich wäre es erst, wenn die Wände der Templates bis auf Float32-Genauigkeit exakt gerade sind.
 - [x] **Wide-Caps-Template** liegt im Repo (`switch_socket_wide-caps.stl`). Offen: feste Bounding Box bestätigen (siehe WP-09).
-- [x] **7-u-Spacebar-Template** liegt im Repo (`stabilizer_7-00u_centered.stl`); der Generator nutzt es noch nicht.
+- [x] **7-u-Spacebar-Template** liegt im Repo (`stabilizer_7-00u_centered.stl`) und wird nach Breite verwendet.
 - [ ] Nach WP-09: Standard-Rotation von `wide-caps` anhand der Bilder in `docs/wide-caps-test/` bestätigen; feste Bounding Box des Wide-Caps-Templates bestätigen und selbst eintragen.
 - [ ] `fat_plate_export_example.stl` neu erzeugen, wenn sich die Geometrie ändert.
 

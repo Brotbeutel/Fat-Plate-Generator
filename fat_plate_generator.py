@@ -32,11 +32,12 @@ DEFAULT_STABILIZER_MIN_UNIT = 2.0
 DEFAULT_JSON = "kle-jsons/keyboard-layout.json"
 DEFAULT_SOCKET = "stl-templates/switch_socket.stl"
 DEFAULT_SOCKET_WIDE_CAPS = "stl-templates/switch_socket_wide-caps.stl"
-DEFAULT_STABILIZER = "stl-templates/stabilizer_2-00u.stl"
-DEFAULT_SPACEBAR_CENTERED = "stl-templates/stabilizer_6-25u_centered.stl"
-# The off-centered template is the RIGHT one, as designed; the left variant is its
-# exact mirror image (see ``TemplateSet.spacebar_for``).
-DEFAULT_SPACEBAR_OFF_CENTERED = "stl-templates/stabilizer_6-25u_off-center.stl"
+DEFAULT_STABILIZER_2U = "stl-templates/stabilizer_2-00u.stl"
+DEFAULT_SPACEBAR_6U_CENTERED = "stl-templates/stabilizer_6-00u_centered.stl"
+DEFAULT_SPACEBAR_6U_OFF_CENTERED = "stl-templates/stabilizer_6-00u_off-center.stl"
+DEFAULT_SPACEBAR_6_25U_CENTERED = "stl-templates/stabilizer_6-25u_centered.stl"
+DEFAULT_SPACEBAR_6_25U_OFF_CENTERED = "stl-templates/stabilizer_6-25u_off-center.stl"
+DEFAULT_SPACEBAR_7U_CENTERED = "stl-templates/stabilizer_7-00u_centered.stl"
 # Switch position of the spacebar template, as seen from above with the typist
 # at the bottom of the plate (x to the right).
 SPACEBAR_POSITIONS = ("centered", "off-centered-left", "off-centered-right")
@@ -143,9 +144,12 @@ class TemplateSet:
 
     socket: Path
     wide_caps: Path
-    stabilizer: Path
-    spacebar_centered: Path
-    spacebar_off_centered: Path
+    stabilizer_2u: Path
+    spacebar_6u_centered: Path
+    spacebar_6u_off_centered: Path
+    spacebar_6_25u_centered: Path
+    spacebar_6_25u_off_centered: Path
+    spacebar_7u_centered: Path
 
     def __post_init__(self):
         if self.wide_caps is None:
@@ -160,23 +164,37 @@ class TemplateSet:
         return cls(
             socket=base / DEFAULT_SOCKET,
             wide_caps=base / DEFAULT_SOCKET_WIDE_CAPS,
-            stabilizer=base / DEFAULT_STABILIZER,
-            spacebar_centered=base / DEFAULT_SPACEBAR_CENTERED,
-            spacebar_off_centered=base / DEFAULT_SPACEBAR_OFF_CENTERED,
+            stabilizer_2u=base / DEFAULT_STABILIZER_2U,
+            spacebar_6u_centered=base / DEFAULT_SPACEBAR_6U_CENTERED,
+            spacebar_6u_off_centered=base / DEFAULT_SPACEBAR_6U_OFF_CENTERED,
+            spacebar_6_25u_centered=base / DEFAULT_SPACEBAR_6_25U_CENTERED,
+            spacebar_6_25u_off_centered=base / DEFAULT_SPACEBAR_6_25U_OFF_CENTERED,
+            spacebar_7u_centered=base / DEFAULT_SPACEBAR_7U_CENTERED,
         )
 
-    def spacebar_for(self, position: str) -> tuple[Path, bool]:
+    def spacebar_for(self, size: str, position: str) -> tuple[Path, bool]:
         """Template file and mirror flag for a spacebar switch position.
 
         There is one off-centered template (the right one).  The left position
         is that template mirrored; ``True`` in the second item says so.  This
         is the only place that maps a position to a file.
         """
-        mapping = {
-            "centered": (self.spacebar_centered, False),
-            "off-centered-left": (self.spacebar_off_centered, True),
-            "off-centered-right": (self.spacebar_off_centered, False),
+        centered = {
+            "6u": self.spacebar_6u_centered,
+            "6-25u": self.spacebar_6_25u_centered,
+            "7u": self.spacebar_7u_centered,
         }
+        off_centered = {
+            "6u": self.spacebar_6u_off_centered,
+            "6-25u": self.spacebar_6_25u_off_centered,
+        }
+        if size == "7u" and position != "centered":
+            raise ValueError("no off-centered template for 7u spacebars")
+        mapping = {
+            "centered": (centered[size], False),
+            "off-centered-left": (off_centered[size], True),
+            "off-centered-right": (off_centered[size], False),
+        } if position != "centered" else {"centered": (centered[size], False)}
         if position not in mapping:
             raise ValueError(f"spacebar_position must be one of {SPACEBAR_POSITIONS}, got {position!r}")
         return mapping[position]
@@ -245,7 +263,9 @@ CONFIG_ORIENTATION_KEYS = {
     "global_mirror_x": "boolean",
 }
 CONFIG_TEMPLATE_KEYS = {key: "path" for key in (
-    "socket", "wide_caps", "stabilizer", "spacebar_centered", "spacebar_off_centered")}
+    "socket", "wide_caps", "stabilizer_2u", "spacebar_6u_centered",
+    "spacebar_6u_off_centered", "spacebar_6_25u_centered",
+    "spacebar_6_25u_off_centered", "spacebar_7u_centered")}
 CONFIG_TABLES = {"orientation": CONFIG_ORIENTATION_KEYS, "templates": CONFIG_TEMPLATE_KEYS}
 _CONFIG_KIND_TEXT = {"number": "a number", "integer": "an integer", "boolean": "true or false",
                      "string": "a string", "path": "a path (string)"}
@@ -515,8 +535,11 @@ PLATE_Z_MIN = -5.0
 PLATE_Z_MAX = 1.2
 TEMPLATE_BOUNDING_BOXES = {      # x, y size in mm
     "socket": (19.05, 19.05),
-    "stabilizer": (38.1, 19.05),
-    "spacebar": (114.3015, 19.05),
+    "stabilizer-2u": (38.1, 19.05),
+    "spacebar-6-25u": (114.3015, 19.05),
+    # Not fixed yet: only the height is checked.
+    "spacebar-6u": (None, None),
+    "spacebar-7u": (None, None),
     # Not defined yet: only the height (z) of this template is checked.
     "wide-caps": (None, None),
 }
@@ -1015,8 +1038,7 @@ def template_cutter(template: Template, matrix):
 
 
 def is_spacebar_key(k):
-    # In KLE Raw Data the supplied spacebar is represented by an empty label.
-    return k.get("label", "") == "" and max(float(k["w"]), float(k["h"])) >= 6.0
+    return float(k["w"]) >= 6.0
 
 
 def is_stabilized_key(k, min_units):
@@ -1047,6 +1069,52 @@ def classify_key(k, min_units=DEFAULT_STABILIZER_MIN_UNIT, stepped="standard"):
     if stepped == "wide-caps" and k.get("l", False):
         return KIND_WIDE_CAPS
     return KIND_NORMAL
+
+
+WIDTH_TOLERANCE = 1e-9
+SUPPORTED_WIDTHS_TEXT = "supported widths are 2u, 2.25u, 2.5u, 2.75u, 3u, 6u, 6.25u, 6.5u, 7u and 8u"
+
+
+@dataclass(frozen=True)
+class TemplateChoice:
+    kind: str
+    size: str | None = None
+    substitution_reason: str | None = None
+
+
+def _same_width(value, expected):
+    return abs(value - expected) <= WIDTH_TOLERANCE
+
+
+def template_kind_for_key(k, kind, min_units):
+    """Return the complete template selection for one classified key."""
+    if kind == KIND_NORMAL:
+        return TemplateChoice("socket")
+    if kind == KIND_WIDE_CAPS:
+        return TemplateChoice("wide-caps")
+
+    width = float(k["w"])
+    length = max(width, float(k["h"]))
+    label = k.get("label", "")
+    if kind == KIND_SPACEBAR:
+        if _same_width(width, 6.0):
+            return TemplateChoice("spacebar-6u", "6u")
+        if _same_width(width, 6.25) or _same_width(width, 6.5):
+            return TemplateChoice("spacebar-6-25u", "6-25u")
+        if _same_width(width, 7.0) or _same_width(width, 8.0):
+            return TemplateChoice("spacebar-7u", "7u")
+    elif min_units <= length < 6.0:
+        if length < 3.0:
+            return TemplateChoice("stabilizer-2u")
+        if _same_width(length, 3.0):
+            return TemplateChoice(
+                "stabilizer-2u",
+                substitution_reason="no 3u template yet, the 2u template is used instead; "
+                                    "the stabilizer spacing may not match")
+
+    raise ValueError(
+        f"unsupported key width {length:g}u (example label {label!r}); "
+        f"{SUPPORTED_WIDTHS_TEXT}")
 
 
 def stabilizer_rotation(k, orientation: "OrientationConfig", min_units=DEFAULT_STABILIZER_MIN_UNIT, stepped="standard"):
@@ -1087,7 +1155,8 @@ class PlateModel:
     plate: object       # CAD solid with all cavities cut out
     templates: dict     # the templates that were used, by kind
     warnings: list      # problems found in the templates
-    spacebar_path: Path
+    substitutions: list
+    spacebar_path: Path | None
     matrix: tuple       # linear part of the whole-plate transform
 
 
@@ -1123,12 +1192,13 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
     if not keys:
         raise ValueError("KLE JSON contains no keys.")
 
-    spacebar_path, spacebar_mirrored = settings.templates.spacebar_for(settings.spacebar_position)
     template_paths = {
         "socket": settings.templates.socket,
-        "stabilizer": settings.templates.stabilizer,
-        "spacebar": spacebar_path,
         "wide-caps": settings.templates.wide_caps,
+        "stabilizer-2u": settings.templates.stabilizer_2u,
+        "spacebar-6u": settings.templates.spacebar_6u_centered,
+        "spacebar-6-25u": settings.templates.spacebar_6_25u_centered,
+        "spacebar-7u": settings.templates.spacebar_7u_centered,
     }
     templates = {}
 
@@ -1139,10 +1209,36 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
     footprint = translate(footprint, xoff=-minx, yoff=-miny)
 
     kinds = [classify_key(k, settings.stabilizer_min_unit, settings.stepped_key) for k in keys]
+    choices = [template_kind_for_key(k, kind, settings.stabilizer_min_unit)
+               for k, kind in zip(keys, kinds)]
+    substitutions = []
+    three_u = [(k.get("label", ""), k) for k, choice in zip(keys, choices)
+               if choice.substitution_reason is not None]
+    if three_u:
+        substitution_reason = next(
+            choice.substitution_reason for choice in choices
+            if choice.substitution_reason is not None)
+        labels = [label for label, _ in three_u[:5]]
+        label_text = ", ".join(repr(label) for label in labels)
+        if len(three_u) > 5:
+            label_text += ", ..."
+        substitutions.append(
+            f"3u key ({len(three_u)} keys; labels: {label_text}): "
+            f"{substitution_reason}")
     rotations = [rotation_for_kind(k, kind, orientation) for k, kind in zip(keys, kinds)]
     # The one exception to "cutouts are only turned": the left off-centered
     # spacebar is the right template mirrored (see below).  Nothing else is.
-    mirrored = [spacebar_mirrored and kind == KIND_SPACEBAR for kind in kinds]
+    mirrored = []
+    spacebar_path = None
+    for choice in choices:
+        if choice.size is None:
+            mirrored.append(False)
+            continue
+        path, is_mirrored = settings.templates.spacebar_for(
+            choice.size, settings.spacebar_position)
+        if spacebar_path is None:
+            spacebar_path = path
+        mirrored.append(is_mirrored)
     centers = []
     for k, kind in zip(keys, kinds):
         cx, cy = apply_matrix(gm, *switch_center(k, second=(kind == KIND_WIDE_CAPS)))
@@ -1154,9 +1250,12 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
     # templates are used exactly as supplied (nothing is scaled); the spacebar
     # templates keep their internal switch position (centered/off-centered).
     cavities, cutters = [], {}
-    for kind, rotation, mirror, (cx, cy) in zip(kinds, rotations, mirrored, centers):
-        template_kind = {KIND_NORMAL: "socket", KIND_STABILIZED: "stabilizer",
-                         KIND_SPACEBAR: "spacebar", KIND_WIDE_CAPS: "wide-caps"}[kind]
+    for kind, choice, rotation, mirror, (cx, cy) in zip(
+            kinds, choices, rotations, mirrored, centers):
+        template_kind = choice.kind
+        if choice.size is not None:
+            template_paths[template_kind], _ = settings.templates.spacebar_for(
+                choice.size, settings.spacebar_position)
         if template_kind not in templates:
             templates[template_kind] = load_template(template_paths[template_kind], template_kind)
         # Step 1 (rotation about the switch centre), then step 2 (rotation of the
@@ -1190,7 +1289,7 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
                       footprint=footprint, cavities=cavities, plate=result,
                       templates=templates,
                       warnings=[w for t in templates.values() for w in t.warnings],
-                      spacebar_path=spacebar_path, matrix=gm)
+                      substitutions=substitutions, spacebar_path=spacebar_path, matrix=gm)
 
 
 def check_exported_stl(stl_path: Path, expected_bounds=None,
@@ -1325,9 +1424,10 @@ def generate(kle_path: Path, settings: Settings, output: Path = Path(DEFAULT_OUT
     print(f"Config:          {config_path if config_path is not None else 'none'}")
     print(f"KLE:             {kle_path}")
     print(f"Socket:          {settings.templates.socket}")
-    print(f"Stabilizer:      {settings.templates.stabilizer}")
+    print(f"Stabilizer 2u:   {settings.templates.stabilizer_2u}")
     mirrored_note = ", mirrored" if any(model.mirrored) else ""
-    print(f"Spacebar:        {model.spacebar_path} ({settings.spacebar_position}{mirrored_note})")
+    if model.spacebar_path is not None:
+        print(f"Spacebar:        {model.spacebar_path} ({settings.spacebar_position}{mirrored_note})")
     print(f"Output:          {output}")
     print(f"Keys:            {len(keys)}")
     print(f"Stabilizer keys: {model.kinds.count(KIND_STABILIZED)}")
@@ -1364,9 +1464,14 @@ def generate(kle_path: Path, settings: Settings, output: Path = Path(DEFAULT_OUT
     else:
         print("Plate transform: none (--no-global-transform)")
     report_template_warnings(model.warnings)
+    if model.substitutions:
+        print("\nTemplate substitutions:", file=sys.stderr)
+        for substitution in model.substitutions:
+            print(f"WARNING: {substitution}", file=sys.stderr)
     mesh, problems = check_exported_stl(output, expected_bounds=expected_bounds)
     report_stl_check(mesh, problems, output)
-    print("\nDone." if not (problems or model.warnings) else "\nDone, with warnings.")
+    print("\nDone." if not (problems or model.warnings or model.substitutions)
+          else "\nDone, with warnings.")
 
 
 def build_parser():
@@ -1390,14 +1495,8 @@ def build_parser():
     parser.add_argument("--socket-wide-caps", type=Path, default=None,
                         help="socket template for stepped keys with --stepped-key wide-caps "
                              f"(default: {DEFAULT_SOCKET_WIDE_CAPS})")
-    parser.add_argument("--stabilizer", type=Path, default=None,
-                        help=f"stabilizer template (default: {DEFAULT_STABILIZER})")
-    parser.add_argument("--spacebar-centered", type=Path, default=None,
-                        help=f"centered spacebar template (default: {DEFAULT_SPACEBAR_CENTERED})")
-    parser.add_argument("--spacebar-off-centered", type=Path, default=None,
-                        help="off-centered spacebar template, the right one as designed; "
-                             "off-centered-left uses it mirrored "
-                             f"(default: {DEFAULT_SPACEBAR_OFF_CENTERED})")
+    parser.add_argument("--stabilizer-2u", type=Path, default=None,
+                        help=f"2u stabilizer template (default: {DEFAULT_STABILIZER_2U})")
     parser.add_argument("--spacebar-position", choices=SPACEBAR_POSITIONS, default=None,
                         help="Spacebar switch position, seen from above with the typist at the "
                              "bottom: centered, off-centered-left or off-centered-right "
@@ -1463,9 +1562,7 @@ def settings_from_args(args: argparse.Namespace) -> Settings:
     templates = given(
         socket=args.socket,
         wide_caps=args.socket_wide_caps,
-        stabilizer=args.stabilizer,
-        spacebar_centered=args.spacebar_centered,
-        spacebar_off_centered=args.spacebar_off_centered)
+        stabilizer_2u=args.stabilizer_2u)
     return replace(
         settings,
         orientation=replace(settings.orientation, **orientation),

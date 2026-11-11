@@ -24,11 +24,11 @@ If a template STL is not exact (for example one you designed yourself), the gene
 - `stl-templates/switch_socket.stl` – template for standard switch sockets
 - `stl-templates/switch_socket_wide-caps.stl` – template for stepped keys such as a stepped Caps Lock (see *Stepped Keys*)
 - `stl-templates/stabilizer_2-00u.stl` – template for standard stabilized keys
-- `stl-templates/stabilizer_6-00u_centered.stl` – 6u centered spacebar template (not read by the generator yet)
-- `stl-templates/stabilizer_6-00u_off-center.stl` – 6u off-centered spacebar template (not read by the generator yet)
+- `stl-templates/stabilizer_6-00u_centered.stl` – 6u centered spacebar template
+- `stl-templates/stabilizer_6-00u_off-center.stl` – 6u off-centered spacebar template
 - `stl-templates/stabilizer_6-25u_centered.stl` – centered 6.25u spacebar template
 - `stl-templates/stabilizer_6-25u_off-center.stl` – off-centered 6.25u spacebar template (the left position is this template mirrored)
-- `stl-templates/stabilizer_7-00u_centered.stl` – centered 7u spacebar template (not read by the generator yet)
+- `stl-templates/stabilizer_7-00u_centered.stl` – centered 7u spacebar template
 - `kle-jsons/keyboard-layout.json` – default example layout
 - `kle-jsons/` – more example layouts (40%, 100% ISO and ANSI)
 - `fat_plate_export_example.stl` – example output
@@ -97,7 +97,7 @@ Fat-Plate-Generator
     ├── keyboard-layout_100-percent-iso-105-keys_stepped-capslock-.json
     ├── keyboard-layout_100-percent-iso-105-keys_stepped-capslock_g80-1800.json
     ├── keyboard-layout_numpad_21-keys_stars21.json
-│   └── stepped-capslock.json    
+│   └── test_stepped-capslock.json
 ├── stl-templates
 │   ├── switch_socket.stl
 │   ├── stabilizer_2-00u.stl
@@ -258,7 +258,7 @@ The parser follows the Keyboard Layout Editor, so the plate has the keys where t
 You can explicitly specify the socket and stabilizer files:
 
 ```powershell
-python .\fat_plate_generator.py --json my_keyboard.json --socket stl-templates/switch_socket.stl --stabilizer stl-templates/stabilizer_2-00u.stl --output my_keyboard.stl
+python .\fat_plate_generator.py --json my_keyboard.json --socket stl-templates/switch_socket.stl --stabilizer-2u stl-templates/stabilizer_2-00u.stl --output my_keyboard.stl
 ```
 
 This explicitly defines which files are being used.
@@ -280,6 +280,25 @@ This file defines the cutout for a stepped key (for example a stepped Caps Lock)
 ## `stl-templates/stabilizer_2-00u.stl`
 
 This file contains the **switch socket + stabilizer cutout**.
+
+## Key widths and templates
+
+The stabilizer template is selected by the key width, not by its label. A
+spacebar is any key with `w >= 6.0`, including a labelled key. The available
+widths are:
+
+| Key width | Template | Status |
+| --- | --- | --- |
+| 2u to under 3u | `stabilizer_2-00u.stl` | available |
+| 3u | `stabilizer_2-00u.stl` | replacement with warning; a 3u template is still missing |
+| 6u | `stabilizer_6-00u_centered.stl` / `stabilizer_6-00u_off-center.stl` | available |
+| 6.25u, 6.5u | `stabilizer_6-25u_centered.stl` / `stabilizer_6-25u_off-center.stl` | available |
+| 7u, 8u | `stabilizer_7-00u_centered.stl` | available |
+
+Off-center positions are supported only for 6u, 6.25u and 6.5u. The left
+position is the exact mirror of the supplied right template. Widths such as
+3.25u, 4u, 5u, 6.1u, 6.75u, 7.25u and 9u, and vertical keys with `h >= 6`,
+are rejected as unsupported.
 
 ## `stl-templates/stabilizer_6-25u_centered.stl` and `stl-templates/stabilizer_6-25u_off-center.stl`
 
@@ -318,9 +337,11 @@ The outer size of every template is fixed. If you design a new template (for exa
 | Template                | Size X × Y                                 | Height Z      |
 | ----------------------- | ------------------------------------------ | ------------- |
 | socket                  | 19.05 × 19.05 mm                           | −5.0 … 1.2 mm |
-| stabilizer              | 38.1 × 19.05 mm                            | −5.0 … 1.2 mm |
-| spacebar (all variants) | 114.3015 × 19.05 mm                        | −5.0 … 1.2 mm |
-| wide-caps socket       | not fixed yet (only the height is checked) | −5.0 … 1.2 mm |
+| stabilizer-2u           | 38.1 × 19.05 mm                            | −5.0 … 1.2 mm |
+| spacebar-6-25u          | 114.3015 × 19.05 mm                        | −5.0 … 1.2 mm |
+| spacebar-6u             | not fixed yet (only the height is checked); measured 109.3004 × 19.05 mm | −5.0 … 1.2 mm |
+| spacebar-7u             | not fixed yet (only the height is checked); measured 128.6008 × 19.05 mm | −5.0 … 1.2 mm |
+| wide-caps socket        | not fixed yet (only the height is checked) | −5.0 … 1.2 mm |
 
 The plate is exactly 6.2 mm thick (z from −5.0 to 1.2); this comes from the fixed values, not from a template. 19.05 mm is the pitch of a 1u key; the lengths of the stabilizer and spacebar box are the sizes of the current templates.
 
@@ -371,7 +392,7 @@ Reads all settings from a TOML file (see *Configuration File* below). Options on
 ### Stabilizer
 
 ```powershell
---stabilizer stl-templates/stabilizer_2-00u.stl
+--stabilizer-2u stl-templates/stabilizer_2-00u.stl
 ```
 
 ### Spacebar switch position
@@ -394,7 +415,7 @@ or:
 --spacebar-position off-centered-right
 ```
 
-`centered` selects `stabilizer_6-25u_centered.stl`; `off-centered-right` selects `stabilizer_6-25u_off-center.stl`, and `off-centered-left` uses the same file mirrored. The switch position is seen from above with the typist at the bottom of the plate. A different off-centered file can be named with `--spacebar-off-centered`; it must be the RIGHT design, the left position mirrors it.
+`centered` selects the centered template for the detected width; `off-centered-right` selects its right-hand template, and `off-centered-left` uses the same file mirrored. The switch position is seen from above with the typist at the bottom of the plate. The five spacebar template paths are configurable only in `[templates]`.
 
 ### Output
 
@@ -551,9 +572,12 @@ global_mirror_x = true
 [templates]
 socket = "stl-templates/switch_socket.stl"
 wide_caps = "stl-templates/switch_socket_wide-caps.stl"
-stabilizer = "stl-templates/stabilizer_2-00u.stl"
-spacebar_centered = "stl-templates/stabilizer_6-25u_centered.stl"
-spacebar_off_centered = "stl-templates/stabilizer_6-25u_off-center.stl"   # the right design; off-centered-left mirrors it
+stabilizer_2u = "stl-templates/stabilizer_2-00u.stl"
+spacebar_6u_centered = "stl-templates/stabilizer_6-00u_centered.stl"
+spacebar_6u_off_centered = "stl-templates/stabilizer_6-00u_off-center.stl"
+spacebar_6_25u_centered = "stl-templates/stabilizer_6-25u_centered.stl"
+spacebar_6_25u_off_centered = "stl-templates/stabilizer_6-25u_off-center.stl"
+spacebar_7u_centered = "stl-templates/stabilizer_7-00u_centered.stl"
 ```
 
 | Config key | Command line option |
@@ -573,9 +597,12 @@ spacebar_off_centered = "stl-templates/stabilizer_6-25u_off-center.stl"   # the 
 | `orientation.global_mirror_x` | `--global-mirror-x` / `--no-global-mirror-x` |
 | `templates.socket` | `--socket` |
 | `templates.wide_caps` | `--socket-wide-caps` |
-| `templates.stabilizer` | `--stabilizer` |
-| `templates.spacebar_centered` | `--spacebar-centered` |
-| `templates.spacebar_off_centered` | `--spacebar-off-centered` |
+| `templates.stabilizer_2u` | `--stabilizer-2u` |
+| `templates.spacebar_6u_centered` | config only |
+| `templates.spacebar_6u_off_centered` | config only |
+| `templates.spacebar_6_25u_centered` | config only |
+| `templates.spacebar_6_25u_off_centered` | config only |
+| `templates.spacebar_7u_centered` | config only |
 
 The input and output file (`--json`, `--output`) are not part of a config file: the same config is meant to serve different layouts.
 
@@ -744,7 +771,7 @@ For 100% layouts, spatially separated key groups are also processed. The F-row, 
 If multiple JSON or STL files are in the folder, specify them explicitly:
 
 ```powershell
-python .\fat_plate_generator.py --json my_layout.json --socket my_socket.stl --stabilizer my_stabilizer.stl --output my_plate.stl
+python .\fat_plate_generator.py --json my_layout.json --socket my_socket.stl --stabilizer-2u my_stabilizer.stl --output my_plate.stl
 ```
 
 ---
