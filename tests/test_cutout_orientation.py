@@ -35,9 +35,12 @@ def test_cutouts_are_turned_never_mirrored(tmp_path, case, global_rotation):
     template = write_mesh(l_shape_mesh(), tmp_path / "l.stl")
     config = OrientationConfig(global_rotation=global_rotation)
     templates = fpg.TemplateSet.defaults(REPO_ROOT).replace(
-        stabilizer=template,
-        spacebar_centered=template,
-        spacebar_off_centered=template,
+        stabilizer_2u=template,
+        spacebar_6u_centered=template,
+        spacebar_6u_off_centered=template,
+        spacebar_6_25u_centered=template,
+        spacebar_6_25u_off_centered=template,
+        spacebar_7u_centered=template,
     )
     settings = fpg.Settings(orientation=config, templates=templates)
     model = fpg.build_plate_model(layout, settings)
@@ -73,10 +76,10 @@ def spacebar_layout(tmp_path):
 
 
 @pytest.mark.parametrize("position, expected_path, expected_mirrored", [
-    ("centered", REPO_ROOT / fpg.DEFAULT_SPACEBAR_CENTERED, False),
+    ("centered", REPO_ROOT / fpg.DEFAULT_SPACEBAR_6_25U_CENTERED, False),
     # one off-centered template (the right one); the left position is that template mirrored
-    ("off-centered-left", REPO_ROOT / fpg.DEFAULT_SPACEBAR_OFF_CENTERED, True),
-    ("off-centered-right", REPO_ROOT / fpg.DEFAULT_SPACEBAR_OFF_CENTERED, False),
+    ("off-centered-left", REPO_ROOT / fpg.DEFAULT_SPACEBAR_6_25U_OFF_CENTERED, True),
+    ("off-centered-right", REPO_ROOT / fpg.DEFAULT_SPACEBAR_6_25U_OFF_CENTERED, False),
 ])
 def test_spacebar_position_picks_the_template(spacebar_layout, position, expected_path, expected_mirrored):
     model = build_model(spacebar_layout, spacebar_position=position)
@@ -138,7 +141,8 @@ def test_only_the_left_off_centered_spacebar_is_mirrored(left_spacebar_model, or
 
 
 def test_the_old_left_and_right_options_are_gone(repo_root, tmp_path):
-    for option in ("--spacebar-off-centered-left", "--spacebar-off-centered-right"):
+    for option in ("--spacebar-off-centered-left", "--spacebar-off-centered-right",
+                   "--spacebar-centered", "--spacebar-off-centered"):
         result = run_cli(repo_root, option, "x.stl", "--output", str(tmp_path / "x.stl"))
         assert result.returncode != 0, option
         assert "unrecognized arguments" in result.stderr and option in result.stderr, result.stderr

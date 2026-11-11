@@ -14,9 +14,12 @@ DEFAULT_PATHS = (
     fpg.DEFAULT_JSON,
     fpg.DEFAULT_SOCKET,
     fpg.DEFAULT_SOCKET_WIDE_CAPS,
-    fpg.DEFAULT_STABILIZER,
-    fpg.DEFAULT_SPACEBAR_CENTERED,
-    fpg.DEFAULT_SPACEBAR_OFF_CENTERED,
+    fpg.DEFAULT_STABILIZER_2U,
+    fpg.DEFAULT_SPACEBAR_6U_CENTERED,
+    fpg.DEFAULT_SPACEBAR_6U_OFF_CENTERED,
+    fpg.DEFAULT_SPACEBAR_6_25U_CENTERED,
+    fpg.DEFAULT_SPACEBAR_6_25U_OFF_CENTERED,
+    fpg.DEFAULT_SPACEBAR_7U_CENTERED,
 )
 
 
@@ -35,7 +38,7 @@ def test_default_path_exists_with_exact_repository_case(relative_path):
 
 
 def test_default_wide_caps_template_builds_stepped_layout_without_override():
-    layout = REPO_ROOT / "kle-jsons" / "stepped-capslock.json"
+    layout = REPO_ROOT / "kle-jsons" / "test_stepped-capslock.json"
     model = build_model(layout, stepped_key="wide-caps")
 
     assert fpg.KIND_WIDE_CAPS in model.kinds

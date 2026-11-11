@@ -15,7 +15,7 @@ from tests.conftest import REPO_ROOT, build_model
 from tests.test_plate import projected_outline, run_cli
 from tests.test_templates import L_OUTLINE, box_mesh, l_shape_mesh, write_mesh
 
-STEPPED_LAYOUT = REPO_ROOT / "kle-jsons" / "stepped-capslock.json"
+STEPPED_LAYOUT = REPO_ROOT / "kle-jsons" / "test_stepped-capslock.json"
 
 
 def keys_of(text):

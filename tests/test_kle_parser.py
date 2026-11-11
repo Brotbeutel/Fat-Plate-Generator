@@ -16,7 +16,7 @@ from tests.conftest import REPO_ROOT
 KLE_DIR = REPO_ROOT / "kle-jsons"
 RK65 = KLE_DIR / "keyboard-layout_065-percent-iso_royal-kludge-rk65.json"
 RK65_CLEAN = KLE_DIR / "keyboard-layout_065-percent-iso_royal-kludge-rk65_clean.json"
-ERGODOX = KLE_DIR / "ergodox_split_ergo_67-keys.json"
+ERGODOX = KLE_DIR / "keyboard-layout_ergodox_split_ergo_67-keys.json"
 SHAPE = ("x", "y", "w", "h", "x2", "y2", "w2", "h2")
 
 

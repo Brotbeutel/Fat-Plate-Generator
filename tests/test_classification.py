@@ -52,8 +52,7 @@ def test_classify_key_rules():
     assert fpg.classify_key(key("Caps Lock", w=1.75)) == fpg.KIND_NORMAL
     assert fpg.classify_key(key("Caps Lock", w=2.0)) == fpg.KIND_NORMAL
     assert fpg.classify_key(key("", w=6.25)) == fpg.KIND_SPACEBAR
-    # A wide key with a legend is not a spacebar (current behaviour, see WP-02).
-    assert fpg.classify_key(key("Space", w=6.25)) == fpg.KIND_STABILIZED
+    assert fpg.classify_key(key("Space", w=6.25)) == fpg.KIND_SPACEBAR
 
 
 def test_horizontal_vs_vertical_rule():

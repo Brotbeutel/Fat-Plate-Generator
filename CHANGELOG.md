@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- 6u and 7u spacebar templates are selected by key width. A missing 3u template uses the 2u template with an explicit warning; unsupported widths are errors.
 - `--fuse-f-row` / `--no-fuse-f-row` (off by default) and the config key `fuse_f_row` join the top row of the layout (for a 100% layout Esc, F1-F12, PrtSc, Scroll Lock and Pause Break) into one strip of plate. Only that row is joined, not the main block: the space between its keys is filled with the same bridges as `--single-mesh` (`gap_bridges`), over the rectangles of these keys only (`top_row_keys()`: unrotated keys with the smallest KLE `y`). In the G80-3000 and ISO-105 layouts the plate has 5 instead of 9 parts. With `--single-mesh` the option changes nothing and the generator prints a note; without the option the plate is byte-identical to before. The header shows `top row fused (N keys)`.
 
 - `--config PATH` reads all settings from a TOML file (`tomllib`, Python 3.11 or newer). Precedence: command line option > config file > built-in default. The config is only used if named (no automatic search); relative paths in it are relative to the config folder; unknown keys, wrong types, invalid values and missing template files are errors that name the file and the key. The output header shows `Config: <path>` or `Config: none`. `--json` and `--output` are not part of a config.
@@ -31,6 +32,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- Spacebar detection now uses width instead of the label. 6u, 6.5u and 8u keys use the matching 6u, 6.25u or 7u template family; 3u keys use the documented 2u replacement. The `TemplateSet` fields and config keys now contain the width, `--stabilizer-2u` replaces `--stabilizer`, and the five spacebar template paths are config-only.
 - Renamed the stabilizer templates to `stabilizer_2-00u.stl`, `stabilizer_6-25u_centered.stl`, `stabilizer_6-25u_off-center.stl` and `stabilizer_7-00u_centered.stl`; removed the duplicate `stabilzer_spacebar_centered.stl`.
 - `parse_kle()` reads the properties of a key like the Keyboard Layout Editor: `w`, `h`, `x2`, `y2`, `w2`, `h2` and `l` apply to the next key and are reset only after a key, so several objects in a row before one key add up (`{"w": 2}, {"c": "#fff"}, "A"` gives A the width 2); `w` also sets `w2` and `h` also sets `h2` unless the same object names them. Single objects before a key give the same result as before (ISO Enter, stepped Caps Lock).
 - Decals (`"d": true`) are ignored: they get no footprint and no cutout, but the position moves on by their width. No layout in `kle-jsons/` has decals.

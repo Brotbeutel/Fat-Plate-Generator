@@ -106,7 +106,7 @@ def test_precedence_of_a_path(tmp_path):
     assert settings("--config", config).templates.socket == socket
     assert settings("--config", config, "--socket", "from_cli.stl").templates.socket == Path("from_cli.stl")
     # the other templates keep their defaults
-    assert settings("--config", config).templates.stabilizer == default.stabilizer
+    assert settings("--config", config).templates.stabilizer_2u == default.stabilizer_2u
 
 
 def test_precedence_of_a_switch(tmp_path):
@@ -205,11 +205,11 @@ def test_invalid_config_is_refused_with_file_key_and_expectation(tmp_path, text,
 
 
 def test_a_missing_template_file_is_refused(tmp_path):
-    config = write_config(tmp_path, '[templates]\nstabilizer = "nowhere/stabilizer_2-00u.stl"\n')
+    config = write_config(tmp_path, '[templates]\nstabilizer_2u = "nowhere/stabilizer_2-00u.stl"\n')
     with pytest.raises(ValueError) as error:
         fpg.load_config(config)
     message = str(error.value)
-    assert "cfg.toml" in message and "templates.stabilizer" in message and "stabilizer_2-00u.stl" in message
+    assert "cfg.toml" in message and "templates.stabilizer_2u" in message and "stabilizer_2-00u.stl" in message
     assert "not found" in message
 
 
@@ -252,7 +252,7 @@ def test_absolute_template_paths_stay_as_they_are(tmp_path):
 
 def test_command_line_paths_stay_relative_to_the_working_folder(tmp_path):
     config = write_config(tmp_path, "margin = 2.0\n")
-    assert settings("--config", config, "--stabilizer", "sub/stab.stl").templates.stabilizer == Path("sub/stab.stl")
+    assert settings("--config", config, "--stabilizer-2u", "sub/stab.stl").templates.stabilizer_2u == Path("sub/stab.stl")
 
 
 # --------------------------------------------------------------------------
