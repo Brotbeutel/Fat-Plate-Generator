@@ -109,6 +109,15 @@ def test_precedence_of_a_path(tmp_path):
     assert settings("--config", config).templates.stabilizer_2u == default.stabilizer_2u
 
 
+def test_precedence_of_stabilizer_3u_path(tmp_path):
+    stab = touch(tmp_path / "my_3u.stl")
+    config = write_config(tmp_path, f'[templates]\nstabilizer_3u = "{toml_path(stab)}"\n')
+    default = fpg.Settings().templates
+    assert settings().templates.stabilizer_3u == default.stabilizer_3u
+    assert settings("--config", config).templates.stabilizer_3u == stab
+    assert settings("--config", config, "--stabilizer-3u", "cli_3u.stl").templates.stabilizer_3u == Path("cli_3u.stl")
+
+
 def test_precedence_of_a_switch(tmp_path):
     config = write_config(tmp_path, "single_mesh = true\n")
     assert settings().single_mesh is False
@@ -210,6 +219,15 @@ def test_a_missing_template_file_is_refused(tmp_path):
         fpg.load_config(config)
     message = str(error.value)
     assert "cfg.toml" in message and "templates.stabilizer_2u" in message and "stabilizer_2-00u.stl" in message
+    assert "not found" in message
+
+
+def test_a_missing_stabilizer_3u_file_is_refused(tmp_path):
+    config = write_config(tmp_path, '[templates]\nstabilizer_3u = "nowhere/stabilizer_3-00u.stl"\n')
+    with pytest.raises(ValueError) as error:
+        fpg.load_config(config)
+    message = str(error.value)
+    assert "cfg.toml" in message and "templates.stabilizer_3u" in message and "stabilizer_3-00u.stl" in message
     assert "not found" in message
 
 

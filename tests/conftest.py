@@ -27,7 +27,7 @@ def build_model(layout: Path, **kwargs):
         templates = fpg.TemplateSet.defaults(REPO_ROOT)
 
     tmpl_kwargs = {}
-    for name in ("socket", "wide_caps", "stabilizer_2u",
+    for name in ("socket", "wide_caps", "stabilizer_2u", "stabilizer_3u",
                  "spacebar_6u_centered", "spacebar_6u_off_centered",
                  "spacebar_6_25u_centered", "spacebar_6_25u_off_centered",
                  "spacebar_7u_centered"):

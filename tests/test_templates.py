@@ -23,6 +23,7 @@ STL_RESOLUTION = 1e-6     # STL stores float32: 7.28 is stored as 7.2800002
 REAL_TEMPLATES = [
     (fpg.DEFAULT_SOCKET, "socket"),
     (fpg.DEFAULT_STABILIZER_2U, "stabilizer-2u"),
+    (fpg.DEFAULT_STABILIZER_3U, "stabilizer-3u"),
     (fpg.DEFAULT_SPACEBAR_6U_CENTERED, "spacebar-6u"),
     (fpg.DEFAULT_SPACEBAR_6U_OFF_CENTERED, "spacebar-6u"),
     (fpg.DEFAULT_SPACEBAR_6_25U_CENTERED, "spacebar-6-25u"),

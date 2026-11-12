@@ -33,6 +33,7 @@ DEFAULT_JSON = "kle-jsons/keyboard-layout.json"
 DEFAULT_SOCKET = "stl-templates/switch_socket.stl"
 DEFAULT_SOCKET_WIDE_CAPS = "stl-templates/switch_socket_wide-caps.stl"
 DEFAULT_STABILIZER_2U = "stl-templates/stabilizer_2-00u.stl"
+DEFAULT_STABILIZER_3U = "stl-templates/stabilizer_3-00u.stl"
 DEFAULT_SPACEBAR_6U_CENTERED = "stl-templates/stabilizer_6-00u_centered.stl"
 DEFAULT_SPACEBAR_6U_OFF_CENTERED = "stl-templates/stabilizer_6-00u_off-center.stl"
 DEFAULT_SPACEBAR_6_25U_CENTERED = "stl-templates/stabilizer_6-25u_centered.stl"
@@ -145,6 +146,7 @@ class TemplateSet:
     socket: Path
     wide_caps: Path
     stabilizer_2u: Path
+    stabilizer_3u: Path
     spacebar_6u_centered: Path
     spacebar_6u_off_centered: Path
     spacebar_6_25u_centered: Path
@@ -165,6 +167,7 @@ class TemplateSet:
             socket=base / DEFAULT_SOCKET,
             wide_caps=base / DEFAULT_SOCKET_WIDE_CAPS,
             stabilizer_2u=base / DEFAULT_STABILIZER_2U,
+            stabilizer_3u=base / DEFAULT_STABILIZER_3U,
             spacebar_6u_centered=base / DEFAULT_SPACEBAR_6U_CENTERED,
             spacebar_6u_off_centered=base / DEFAULT_SPACEBAR_6U_OFF_CENTERED,
             spacebar_6_25u_centered=base / DEFAULT_SPACEBAR_6_25U_CENTERED,
@@ -263,7 +266,7 @@ CONFIG_ORIENTATION_KEYS = {
     "global_mirror_x": "boolean",
 }
 CONFIG_TEMPLATE_KEYS = {key: "path" for key in (
-    "socket", "wide_caps", "stabilizer_2u", "spacebar_6u_centered",
+    "socket", "wide_caps", "stabilizer_2u", "stabilizer_3u", "spacebar_6u_centered",
     "spacebar_6u_off_centered", "spacebar_6_25u_centered",
     "spacebar_6_25u_off_centered", "spacebar_7u_centered")}
 CONFIG_TABLES = {"orientation": CONFIG_ORIENTATION_KEYS, "templates": CONFIG_TEMPLATE_KEYS}
@@ -538,6 +541,7 @@ TEMPLATE_BOUNDING_BOXES = {      # x, y size in mm
     "stabilizer-2u": (38.1, 19.05),
     "spacebar-6-25u": (114.3015, 19.05),
     # Not fixed yet: only the height is checked.
+    "stabilizer-3u": (None, None),
     "spacebar-6u": (None, None),
     "spacebar-7u": (None, None),
     # Not defined yet: only the height (z) of this template is checked.
@@ -1079,7 +1083,6 @@ SUPPORTED_WIDTHS_TEXT = "supported widths are 2u, 2.25u, 2.5u, 2.75u, 3u, 6u, 6.
 class TemplateChoice:
     kind: str
     size: str | None = None
-    substitution_reason: str | None = None
 
 
 def _same_width(value, expected):
@@ -1104,13 +1107,10 @@ def template_kind_for_key(k, kind, min_units):
         if _same_width(width, 7.0) or _same_width(width, 8.0):
             return TemplateChoice("spacebar-7u", "7u")
     elif min_units <= length < 6.0:
+        if _same_width(length, 3.0):
+            return TemplateChoice("stabilizer-3u")
         if length < 3.0:
             return TemplateChoice("stabilizer-2u")
-        if _same_width(length, 3.0):
-            return TemplateChoice(
-                "stabilizer-2u",
-                substitution_reason="no 3u template yet, the 2u template is used instead; "
-                                    "the stabilizer spacing may not match")
 
     raise ValueError(
         f"unsupported key width {length:g}u (example label {label!r}); "
@@ -1155,7 +1155,6 @@ class PlateModel:
     plate: object       # CAD solid with all cavities cut out
     templates: dict     # the templates that were used, by kind
     warnings: list      # problems found in the templates
-    substitutions: list
     spacebar_path: Path | None
     matrix: tuple       # linear part of the whole-plate transform
 
@@ -1196,6 +1195,7 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
         "socket": settings.templates.socket,
         "wide-caps": settings.templates.wide_caps,
         "stabilizer-2u": settings.templates.stabilizer_2u,
+        "stabilizer-3u": settings.templates.stabilizer_3u,
         "spacebar-6u": settings.templates.spacebar_6u_centered,
         "spacebar-6-25u": settings.templates.spacebar_6_25u_centered,
         "spacebar-7u": settings.templates.spacebar_7u_centered,
@@ -1211,20 +1211,6 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
     kinds = [classify_key(k, settings.stabilizer_min_unit, settings.stepped_key) for k in keys]
     choices = [template_kind_for_key(k, kind, settings.stabilizer_min_unit)
                for k, kind in zip(keys, kinds)]
-    substitutions = []
-    three_u = [(k.get("label", ""), k) for k, choice in zip(keys, choices)
-               if choice.substitution_reason is not None]
-    if three_u:
-        substitution_reason = next(
-            choice.substitution_reason for choice in choices
-            if choice.substitution_reason is not None)
-        labels = [label for label, _ in three_u[:5]]
-        label_text = ", ".join(repr(label) for label in labels)
-        if len(three_u) > 5:
-            label_text += ", ..."
-        substitutions.append(
-            f"3u key ({len(three_u)} keys; labels: {label_text}): "
-            f"{substitution_reason}")
     rotations = [rotation_for_kind(k, kind, orientation) for k, kind in zip(keys, kinds)]
     # The one exception to "cutouts are only turned": the left off-centered
     # spacebar is the right template mirrored (see below).  Nothing else is.
@@ -1289,7 +1275,7 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
                       footprint=footprint, cavities=cavities, plate=result,
                       templates=templates,
                       warnings=[w for t in templates.values() for w in t.warnings],
-                      substitutions=substitutions, spacebar_path=spacebar_path, matrix=gm)
+                      spacebar_path=spacebar_path, matrix=gm)
 
 
 def check_exported_stl(stl_path: Path, expected_bounds=None,
@@ -1425,6 +1411,7 @@ def generate(kle_path: Path, settings: Settings, output: Path = Path(DEFAULT_OUT
     print(f"KLE:             {kle_path}")
     print(f"Socket:          {settings.templates.socket}")
     print(f"Stabilizer 2u:   {settings.templates.stabilizer_2u}")
+    print(f"Stabilizer 3u:   {settings.templates.stabilizer_3u}")
     mirrored_note = ", mirrored" if any(model.mirrored) else ""
     if model.spacebar_path is not None:
         print(f"Spacebar:        {model.spacebar_path} ({settings.spacebar_position}{mirrored_note})")
@@ -1464,13 +1451,9 @@ def generate(kle_path: Path, settings: Settings, output: Path = Path(DEFAULT_OUT
     else:
         print("Plate transform: none (--no-global-transform)")
     report_template_warnings(model.warnings)
-    if model.substitutions:
-        print("\nTemplate substitutions:", file=sys.stderr)
-        for substitution in model.substitutions:
-            print(f"WARNING: {substitution}", file=sys.stderr)
     mesh, problems = check_exported_stl(output, expected_bounds=expected_bounds)
     report_stl_check(mesh, problems, output)
-    print("\nDone." if not (problems or model.warnings or model.substitutions)
+    print("\nDone." if not (problems or model.warnings)
           else "\nDone, with warnings.")
 
 
@@ -1497,6 +1480,8 @@ def build_parser():
                              f"(default: {DEFAULT_SOCKET_WIDE_CAPS})")
     parser.add_argument("--stabilizer-2u", type=Path, default=None,
                         help=f"2u stabilizer template (default: {DEFAULT_STABILIZER_2U})")
+    parser.add_argument("--stabilizer-3u", type=Path, default=None,
+                        help=f"3u stabilizer template (default: {DEFAULT_STABILIZER_3U})")
     parser.add_argument("--spacebar-position", choices=SPACEBAR_POSITIONS, default=None,
                         help="Spacebar switch position, seen from above with the typist at the "
                              "bottom: centered, off-centered-left or off-centered-right "
@@ -1562,7 +1547,8 @@ def settings_from_args(args: argparse.Namespace) -> Settings:
     templates = given(
         socket=args.socket,
         wide_caps=args.socket_wide_caps,
-        stabilizer_2u=args.stabilizer_2u)
+        stabilizer_2u=args.stabilizer_2u,
+        stabilizer_3u=args.stabilizer_3u)
     return replace(
         settings,
         orientation=replace(settings.orientation, **orientation),

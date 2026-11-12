@@ -62,6 +62,7 @@ global_mirror_x = true
 socket = "stl-templates/switch_socket.stl"
 wide_caps = "stl-templates/switch_socket_wide-caps.stl"
 stabilizer_2u = "stl-templates/stabilizer_2-00u.stl"
+stabilizer_3u = "stl-templates/stabilizer_3-00u.stl"
 spacebar_6u_centered = "stl-templates/stabilizer_6-00u_centered.stl"
 spacebar_6u_off_centered = "stl-templates/stabilizer_6-00u_off-center.stl"
 spacebar_6_25u_centered = "stl-templates/stabilizer_6-25u_centered.stl"
