@@ -23,7 +23,8 @@ If a template STL is not exact (for example one you designed yourself), the gene
 - `requirements-dev.txt` – additional packages for the preview tool and the tests
 - `stl-templates/switch_socket.stl` – template for standard switch sockets
 - `stl-templates/switch_socket_wide-caps.stl` – template for stepped keys such as a stepped Caps Lock (see *Stepped Keys*)
-- `stl-templates/stabilizer_2-00u.stl` – template for standard stabilized keys
+- `stl-templates/stabilizer_2-00u.stl` – template for standard stabilized keys (2u to under 3u)
+- `stl-templates/stabilizer_3-00u.stl` – template for 3u stabilized keys
 - `stl-templates/stabilizer_6-00u_centered.stl` – 6u centered spacebar template
 - `stl-templates/stabilizer_6-00u_off-center.stl` – 6u off-centered spacebar template
 - `stl-templates/stabilizer_6-25u_centered.stl` – centered 6.25u spacebar template
@@ -101,6 +102,7 @@ Fat-Plate-Generator
 ├── stl-templates
 │   ├── switch_socket.stl
 │   ├── stabilizer_2-00u.stl
+│   ├── stabilizer_3-00u.stl
 │   ├── stabilizer_6-00u_centered.stl
 │   ├── stabilizer_6-00u_off-center.stl
 │   ├── stabilizer_6-25u_centered.stl
@@ -281,6 +283,10 @@ This file defines the cutout for a stepped key (for example a stepped Caps Lock)
 
 This file contains the **switch socket + stabilizer cutout**.
 
+## `stl-templates/stabilizer_3-00u.stl`
+
+This file contains the **switch socket + stabilizer cutout** for 3u keys.
+
 ## Key widths and templates
 
 The stabilizer template is selected by the key width, not by its label. A
@@ -290,7 +296,7 @@ widths are:
 | Key width | Template | Status |
 | --- | --- | --- |
 | 2u to under 3u | `stabilizer_2-00u.stl` | available |
-| 3u | `stabilizer_2-00u.stl` | replacement with warning; a 3u template is still missing |
+| 3u | `stabilizer_3-00u.stl` | available |
 | 6u | `stabilizer_6-00u_centered.stl` / `stabilizer_6-00u_off-center.stl` | available |
 | 6.25u, 6.5u | `stabilizer_6-25u_centered.stl` / `stabilizer_6-25u_off-center.stl` | available |
 | 7u, 8u | `stabilizer_7-00u_centered.stl` | available |
@@ -338,6 +344,7 @@ The outer size of every template is fixed. If you design a new template (for exa
 | ----------------------- | ------------------------------------------ | ------------- |
 | socket                  | 19.05 × 19.05 mm                           | −5.0 … 1.2 mm |
 | stabilizer-2u           | 38.1 × 19.05 mm                            | −5.0 … 1.2 mm |
+| stabilizer-3u           | not fixed yet (only the height is checked); measured 52.3993 × 19.05 mm | −5.0 … 1.2 mm |
 | spacebar-6-25u          | 114.3015 × 19.05 mm                        | −5.0 … 1.2 mm |
 | spacebar-6u             | not fixed yet (only the height is checked); measured 109.3004 × 19.05 mm | −5.0 … 1.2 mm |
 | spacebar-7u             | not fixed yet (only the height is checked); measured 128.6008 × 19.05 mm | −5.0 … 1.2 mm |
@@ -393,7 +400,10 @@ Reads all settings from a TOML file (see *Configuration File* below). Options on
 
 ```powershell
 --stabilizer-2u stl-templates/stabilizer_2-00u.stl
+--stabilizer-3u stl-templates/stabilizer_3-00u.stl
 ```
+
+`--stabilizer-2u` is the template for keys from 2u to under 3u, `--stabilizer-3u` the one for 3u keys (see *Key widths and templates*).
 
 ### Spacebar switch position
 
@@ -573,6 +583,7 @@ global_mirror_x = true
 socket = "stl-templates/switch_socket.stl"
 wide_caps = "stl-templates/switch_socket_wide-caps.stl"
 stabilizer_2u = "stl-templates/stabilizer_2-00u.stl"
+stabilizer_3u = "stl-templates/stabilizer_3-00u.stl"
 spacebar_6u_centered = "stl-templates/stabilizer_6-00u_centered.stl"
 spacebar_6u_off_centered = "stl-templates/stabilizer_6-00u_off-center.stl"
 spacebar_6_25u_centered = "stl-templates/stabilizer_6-25u_centered.stl"
@@ -598,6 +609,7 @@ spacebar_7u_centered = "stl-templates/stabilizer_7-00u_centered.stl"
 | `templates.socket` | `--socket` |
 | `templates.wide_caps` | `--socket-wide-caps` |
 | `templates.stabilizer_2u` | `--stabilizer-2u` |
+| `templates.stabilizer_3u` | `--stabilizer-3u` |
 | `templates.spacebar_6u_centered` | config only |
 | `templates.spacebar_6u_off_centered` | config only |
 | `templates.spacebar_6_25u_centered` | config only |
@@ -788,7 +800,7 @@ KLE Key Positions
    |
    +--> Standard Key ------> switch_socket.stl
    |
-   +--> Stabilizer Key ----> stabilizer_2-00u.stl  (turned per key class)
+   +--> Stabilizer Key ----> stabilizer_2-00u.stl / stabilizer_3-00u.stl  (turned per key class)
    |
    +--> Spacebar ---------> dedicated spacebar STL  (turned)
    |

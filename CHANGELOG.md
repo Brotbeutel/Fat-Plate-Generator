@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- 3u stabilizer: keys that are exactly 3u long (horizontal `w = 3` or vertical `h = 3`) use the new template `stl-templates/stabilizer_3-00u.stl` (template kind `stabilizer-3u`). Settings: `TemplateSet.stabilizer_3u`, `DEFAULT_STABILIZER_3U`, config key `templates.stabilizer_3u` (also in `fat_plate_config.example.toml`) and `--stabilizer-3u PATH`. Its bounding box is not fixed yet (`TEMPLATE_BOUNDING_BOXES["stabilizer-3u"]` is `(None, None)`, only the height is checked); it measures 52.3993 x 19.05 mm. Tests for the selection, the CAD result (width, outline, STL check, no warning, vertical key), the config and CLI, and for the template itself; preview images of a horizontal and a vertical 3u key in `docs/stabilizer-sizes/`.
 - 6u and 7u spacebar templates are selected by key width. A missing 3u template uses the 2u template with an explicit warning; unsupported widths are errors.
 - `--fuse-f-row` / `--no-fuse-f-row` (off by default) and the config key `fuse_f_row` join the top row of the layout (for a 100% layout Esc, F1-F12, PrtSc, Scroll Lock and Pause Break) into one strip of plate. Only that row is joined, not the main block: the space between its keys is filled with the same bridges as `--single-mesh` (`gap_bridges`), over the rectangles of these keys only (`top_row_keys()`: unrotated keys with the smallest KLE `y`). In the G80-3000 and ISO-105 layouts the plate has 5 instead of 9 parts. With `--single-mesh` the option changes nothing and the generator prints a note; without the option the plate is byte-identical to before. The header shows `top row fused (N keys)`.
 
@@ -62,6 +63,7 @@ All notable changes to this project are documented in this file.
 
 ### Removed
 
+- The 3u template substitution (the 2u template used for 3u keys, with a warning): `PlateModel.substitutions`, the "Template substitutions" section of the output, its effect on `Done, with warnings.` and the tests for it. There is no missing key width left that needs a substitute.
 - All rounding and tolerances of the old template reading: points rounded to 1e-6, heights rounded to 1e-5 and merged within 2 um, layers thinner than 2 um skipped, `SIZE_TOL` of 0.08 mm, `remove_collinear` and the rule to keep only the largest contour of a layer. The remaining tolerances are listed in the README.
 - The stabilizer stretch function: `--stabilizer-scale`, the scale modes and their code. Templates are always used exactly as supplied.
 - Voxel wording and the unused `wire_at()` helper.

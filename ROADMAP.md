@@ -6,7 +6,7 @@ Stand: `main` @ `98a9f94` (WP-07 bis WP-15 gemerged; 397 Tests grün, vom Planne
 
 ## Reihenfolge
 
-~~WP-07~~ → ~~WP-08~~ → ~~WP-09~~ → ~~WP-10~~ → ~~WP-11~~ → ~~WP-12~~ → ~~WP-13~~ → ~~WP-14~~ → ~~WP-15~~. Alle bisher beauftragten Pakete sind durch. Offen sind WP-03 (Testdruck, Nutzer), der Rest von WP-04, WP-05, WP-06 und der Vorschlag WP-16; die nächste Reihenfolge legt der Nutzer fest.
+~~WP-07~~ → ~~WP-08~~ → ~~WP-09~~ → ~~WP-10~~ → ~~WP-11~~ → ~~WP-12~~ → ~~WP-13~~ → ~~WP-14~~ → ~~WP-15~~ → ~~WP-16~~. Alle bisher beauftragten Pakete sind durch. Offen sind WP-03 (Testdruck, Nutzer), der Rest von WP-04, WP-05, WP-06 und der Vorschlag WP-17; die nächste Reihenfolge legt der Nutzer fest.
 
 ## Arbeitspakete
 
@@ -14,14 +14,14 @@ Stand: `main` @ `98a9f94` (WP-07 bis WP-15 gemerged; 397 Tests grün, vom Planne
   - Orientierung zentral konfigurierbar (`OrientationConfig`: horizontal / vertical / spacebar getrennt, Ganzplatten-Transformation)
   - Preview-Tool (`tools/preview.py`) und pytest-Suite
   - Die Defaults hat der Nutzer nach Sichtprüfung angepasst: horizontal 180°, vertical 90°, spacebar 180°, Platte 180° + Spiegelung an X (= KLE-Y-Umrechnung ohne weitere Drehung); die Ausschnitte werden nur gedreht, nie gespiegelt
-- [x] **WP-02** Aufräumen (abgeschlossen; die zwei offenen Punkte sind nach WP-15/WP-16 verschoben)
+- [x] **WP-02** Aufräumen (abgeschlossen; die zwei offenen Punkte sind nach WP-15/WP-17 verschoben)
   - [x] Stretch-/Voxel-Reste entfernt, README/Version/Dateinamen konsistent
   - [x] Socket, Stabilizer und Spacebar werden gleich und exakt erzeugt (ein Loader, jede Schicht ein Loft, keine Rundungen)
   - [x] Feste Bounding Boxen je Template (nur Prüfung mit Warnung), in der README dokumentiert
   - [x] Stabilizer-Ausschnitte werden nur gedreht, nie gespiegelt; Spacebar-Varianten links/rechts (`--spacebar-position`)
   - [x] STL-Prüfung als ausdrückliche Warnung statt Abbruch, STL wird nicht neu exportiert
-  - → KLE-Rotation (`r`) für Cavities: **WP-16**
-  - → robustere Spacebar-/Caps-Lock-Erkennung: **WP-15** (Spacebar nach Breite, erledigt) und **WP-16** (Caps Lock)
+  - → KLE-Rotation (`r`) für Cavities: **WP-17**
+  - → robustere Spacebar-/Caps-Lock-Erkennung: **WP-15** (Spacebar nach Breite, erledigt) und **WP-17** (Caps Lock)
 - [ ] **WP-03** Testdruck: Mini-Testplatte drucken, Passung und Toleranzen prüfen (Nutzer)
 - [~] **WP-04** Layout-Features
   - [x] Stepped Caps Lock (`"l": true`): `--stepped-key standard` oder `wide-caps` (Template `switch_socket_wide-caps.stl` bei `w2`)
@@ -31,7 +31,7 @@ Stand: `main` @ `98a9f94` (WP-07 bis WP-15 gemerged; 397 Tests grün, vom Planne
   - → F-Row als ein Mesh: **WP-12** (erledigt)
   - → Caps-Lock-Optionen (große Aussparung, linksbündig, zentriert): nach **WP-09**, falls dann noch gewünscht
 - [ ] **WP-05** Plattenform: abgerundete/gefaste Ecken, Standoffs/Spacer
-- [ ] **WP-06** Weitere Stabilizer-Varianten (7 u und 6 u sind mit **WP-15** erledigt; offen: 3-u-Stabilizer)
+- [ ] **WP-06** Weitere Stabilizer-Varianten (7 u und 6 u sind mit **WP-15**, 3 u mit **WP-16** erledigt)
 
 ### Neue Arbeitspakete
 
@@ -64,7 +64,13 @@ Stand: `main` @ `98a9f94` (WP-07 bis WP-15 gemerged; 397 Tests grün, vom Planne
   - Vom Planner nachgemessen: G80-1800 (6 u) nutzt das 6u-Template, ISO-102/G80-3000 (7 u) das 7u-Template, beide ohne Warnung und mit bestandener STL-Prüfung; 3 u gibt die Warnung und `Done, with warnings.`; 4 u und 7 u mit Off-Center brechen mit klarer Meldung ab; eine 6,25-u-Taste mit Label „Space“ ist jetzt eine Spacebar.
   - Hinweis: `stabilizer_2-00u.stl` wurde im Commit `557deea` (WP-15) vom Nutzer leicht geändert (Schnittdifferenz 3e-5 mm²). Dadurch ändern sich die Referenz-Hashes aller Platten mit 2-u-Stabilizern (siehe „Regression-Referenzen“), ohne dass der Generator etwas damit zu tun hat.
   - Kleinigkeit: die Warnung schreibt „3u key (1 keys; …)“ (Mehrzahl bei 1)
-- [ ] **WP-16** Parser-Robustheit und Aufräumen (Vorschlag, noch nicht beauftragt)
+- [x] **WP-16** 3-u-Stabilizer anschließen
+  - Tasten mit genau 3 u Länge (waagerecht `w = 3`, senkrecht `h = 3`) nutzen `stl-templates/stabilizer_3-00u.stl` (Art `stabilizer-3u`); der Ersatz (2-u-Template plus Warnung) ist entfernt, samt der Ersatz-Liste im `PlateModel`, dem zugehörigen Abschnitt der Ausgabe, der Wirkung auf `Done, with warnings.` und den Tests dafür. Alle anderen Zuordnungsregeln bleiben; 3 < L < 6 ist weiter ein Fehler, die Meldung führt 3u als unterstützte Breite.
+  - Einstellungen: `TemplateSet.stabilizer_3u`, `DEFAULT_STABILIZER_3U`, Config-Schlüssel `templates.stabilizer_3u`, `--stabilizer-3u PATH`.
+  - Bounding Box: `TEMPLATE_BOUNDING_BOXES["stabilizer-3u"] = (None, None)` (nur die Höhe wird geprüft); gemessen 52,3993 × 19,05 mm. Der Wert ist Sache des Nutzers (siehe „Laufend“).
+  - Vorschaubilder einer waagerechten und einer senkrechten 3-u-Taste: `docs/stabilizer-sizes/3u_horizontal.png`, `docs/stabilizer-sizes/3u_vertical.png`.
+  - Die fünf Regression-Referenzen (siehe unten) sind byte-identisch geblieben.
+- [ ] **WP-17** Parser-Robustheit und Aufräumen (Vorschlag, noch nicht beauftragt; hieß zuvor WP-16, die Nummer 16 ging an den 3-u-Stabilizer)
   - KLE-Rotation (`r`) für Cavities: Footprint und Switch-Zentrum werden gedreht, die Cavity nicht. **Konkret betroffen:** `kle-jsons/ergodox_split_ergo_67-keys.json` (12 Tasten mit ±30°). Gemessen: 10 von 76 Cavities ragen aus dem Plattenumriss (bis 27 mm²), ohne dass der Generator warnt. Nutzer: Layouts mit diagonalen Teilen sollen möglich sein, niedrige Priorität. Bis dahin mindestens eine Warnung statt stillem Falschbau.
   - Caps-Lock-Ausnahme per Label-Vergleich ersetzen (nach WP-08 nur noch für Caps Lock ab 2 u relevant)
   - Platzierungslogik nur einmal (Generator und `tools/preview.py` rechnen sie getrennt)
@@ -76,9 +82,10 @@ Stand: `main` @ `98a9f94` (WP-07 bis WP-15 gemerged; 397 Tests grün, vom Planne
 - [x] **Template-Neubau**: Templates sind exakt neu gebaut (Socket 19,05 × 19,05 mm, Stabilizer 38,1 × 19,05 mm, Spacebar 114,3015 × 19,05 mm), der Generator meldet für diese keine Warnungen mehr.
   - `FLAT_WALL_TOLERANCE` (50 nm) lässt sich noch nicht senken: bei 1e-6 und 1e-7 ändern sich die Eckenzahlen von `stabilizer_2-00u.stl`, bei 1e-9 lässt sich `stabilizer_2-00u.stl` nicht mehr loften. Möglich wäre es erst, wenn die Wände der Templates bis auf Float32-Genauigkeit exakt gerade sind.
 - [x] Templates liegen im Repo: Wide-Caps, 6 u (zentriert und Off-Center), 7 u; der Generator nutzt sie.
-- [ ] **3-u-Stabilizer-Template** bauen (bis dahin Ersatz mit Warnung); danach den Ersatz in der Zuordnung entfernen.
-- [ ] **Bounding Boxen** selbst festlegen: `TEMPLATE_BOUNDING_BOXES` in `fat_plate_generator.py` (Einträge `wide-caps`, `spacebar-6u`, `spacebar-7u`, jetzt `(None, None)`) und die Tabelle „Fixed bounding boxes“ in der README. Gemessen: Wide-Caps 23,8125 × 19,05 mm, 6 u 109,3004 × 19,05 mm, 7 u 128,6008 × 19,05 mm.
+- [x] **3-u-Stabilizer-Template**: liegt im Repo (`stabilizer_3-00u.stl`), der Generator nutzt es; der Ersatz in der Zuordnung ist mit **WP-16** entfernt.
+- [ ] **Bounding Boxen** selbst festlegen: `TEMPLATE_BOUNDING_BOXES` in `fat_plate_generator.py` (Einträge `wide-caps`, `stabilizer-3u`, `spacebar-6u`, `spacebar-7u`, jetzt `(None, None)`) und die Tabelle „Fixed bounding boxes“ in der README. Gemessen: Wide-Caps 23,8125 × 19,05 mm, 3 u 52,3993 × 19,05 mm, 6 u 109,3004 × 19,05 mm, 7 u 128,6008 × 19,05 mm.
 - [ ] **Orientierung** der 6u- und 7u-Templates anhand der Bilder in `docs/spacebar-sizes/` bestätigen. (Der Planner hat 6 u und 6,25 u verglichen: Schalter rechts von der Mitte, Kerben zur Tippseite, beide gleich; 7 u bitte selbst ansehen.)
+- [ ] **Orientierung** des 3-u-Templates anhand der Bilder in `docs/stabilizer-sizes/` bestätigen (waagerecht und senkrecht; die Bilder sind unbewertet).
 - [ ] `fat_plate_export_example.stl` neu erzeugen, wenn sich die Geometrie ändert.
 
 ## Regression-Referenzen
