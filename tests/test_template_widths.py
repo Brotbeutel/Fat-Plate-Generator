@@ -57,9 +57,10 @@ def test_unsupported_width_is_rejected_when_selecting_template(width):
         fpg.template_kind_for_key(k, fpg.classify_key(k), 2.0)
 
 
-def test_unsupported_width_error_mentions_3u():
-    k = key("example", w=3.25)
-    with pytest.raises(ValueError, match=r"3u"):
+@pytest.mark.parametrize("width", [3.25, 4.0])
+def test_unsupported_width_error_lists_3u_as_supported(width):
+    k = key("example", w=width)
+    with pytest.raises(ValueError, match=r"supported widths are .*\b3u\b"):
         fpg.template_kind_for_key(k, fpg.classify_key(k), 2.0)
 
 
