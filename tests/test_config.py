@@ -163,6 +163,25 @@ def test_orientation_switches_and_the_new_options(tmp_path):
     assert settings("--global-mirror-x").orientation.global_mirror_x is True
 
 
+def test_stab_mirror_switches_and_the_usual_precedence(tmp_path):
+    horizontal_on = write_config(tmp_path, "[orientation]\nstab_mirror_horizontal = true\n", "h.toml")
+    vertical_off = write_config(tmp_path, "[orientation]\nstab_mirror_vertical = false\n", "v.toml")
+    # default: both off
+    default = settings().orientation
+    assert (default.stab_mirror_horizontal, default.stab_mirror_vertical) == (False, False)
+    # config beats the default; a key that is not given leaves the default alone
+    from_config = settings("--config", horizontal_on).orientation
+    assert (from_config.stab_mirror_horizontal, from_config.stab_mirror_vertical) == (True, False)
+    # command line beats the config, in both forms, for each switch
+    cli = settings("--config", horizontal_on, "--no-stab-mirror-horizontal", "--stab-mirror-vertical").orientation
+    assert (cli.stab_mirror_horizontal, cli.stab_mirror_vertical) == (False, True)
+    assert settings("--config", vertical_off, "--stab-mirror-vertical").orientation.stab_mirror_vertical is True
+    assert settings("--stab-mirror-horizontal").orientation.stab_mirror_horizontal is True
+    # an option that was not given leaves the config value alone
+    assert settings("--config", horizontal_on, "--stab-mirror-vertical"
+                    ).orientation.stab_mirror_horizontal is True
+
+
 def test_global_transform_has_both_forms_and_the_usual_precedence(tmp_path):
     off = write_config(tmp_path, "[orientation]\nglobal_transform = false\n", "off.toml")
     on = write_config(tmp_path, "[orientation]\nglobal_transform = true\n", "on.toml")
@@ -199,6 +218,10 @@ def test_global_transform_has_both_forms_and_the_usual_precedence(tmp_path):
     ("spacebar_position = 3\n", "'spacebar_position' must be a string"),
     ("[orientation]\nstab_rotation_vertical = 90.0\n", "'orientation.stab_rotation_vertical' must be an integer"),
     ("[orientation]\nglobal_mirror_x = 1\n", "'orientation.global_mirror_x' must be true or false"),
+    ("[orientation]\nstab_mirror_horizontal = 1\n",
+     "cfg.toml: 'orientation.stab_mirror_horizontal' must be true or false, got 1 (int)"),
+    ('[orientation]\nstab_mirror_vertical = "yes"\n',
+     "cfg.toml: 'orientation.stab_mirror_vertical' must be true or false, got 'yes' (str)"),
     ("[templates]\nsocket = 5\n", "'templates.socket' must be a path"),
     ("orientation = 3\n", "'orientation' must be a table"),
     ("[orientation]\nstab_rotation_vertical = 45\n",
