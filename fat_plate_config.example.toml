@@ -37,24 +37,26 @@ spacebar_position = "centered"
 stepped_key = "standard"
 
 [orientation]
-# Rotation of the stabilizer cutouts in degrees, counter-clockwise, around the
-# switch center. Allowed: 0, 90, 180, 270 (CLI: --stab-rotation-horizontal,
+# ADDITIONAL rotation of the cutouts in degrees (an offset), counter-clockwise seen
+# from above, around the switch center, on top of the built-in base orientation.
+# 0 keeps the base orientation. Allowed: 0, 90, 180, 270 (CLI: --stab-rotation-horizontal,
 # --stab-rotation-vertical, --stab-rotation-spacebar, --wide-caps-rotation).
-stab_rotation_horizontal = 180
-stab_rotation_vertical = 90
-stab_rotation_spacebar = 180
-wide_caps_rotation = 180
+stab_rotation_horizontal = 0
+stab_rotation_vertical = 0
+stab_rotation_spacebar = 0
+wide_caps_rotation = 0
 
-# Whole-plate transform: false skips it completely (CLI: --global-transform,
-# --no-global-transform).
+# Whole-plate transform: false skips it completely, including the built-in KLE y flip
+# (CLI: --global-transform, --no-global-transform).
 global_transform = true
 
-# Rotation of the whole plate in degrees (0, 90, 180, 270), then the optional
-# mirror along X. 180 + mirror is the KLE y flip: the plate is the layout seen
-# from above, the typist side at low Y (CLI: --global-rotation,
-# --global-mirror-x, --no-global-mirror-x).
-global_rotation = 180
-global_mirror_x = true
+# ADDITIONAL rotation of the finished plate in degrees (0, 90, 180, 270): outline,
+# switch centers and cutouts turn together. global_mirror_x additionally mirrors the
+# outline and the switch positions along X; the cutouts are never mirrored. The KLE y
+# flip is built in: the plate is the layout seen from above, the typist side at low Y
+# (CLI: --global-rotation, --global-mirror-x, --no-global-mirror-x).
+global_rotation = 0
+global_mirror_x = false
 
 [templates]
 # Spacebar templates are configurable here; spacebar_*_off_centered is the right

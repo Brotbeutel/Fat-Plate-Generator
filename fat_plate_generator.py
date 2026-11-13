@@ -70,66 +70,89 @@ ROTATION_MATRICES = {
 IDENTITY_MATRIX = ROTATION_MATRICES[0]
 MIRROR_X_MATRIX = (-1, 0, 0, 1)  # x -> -x (mirror at the YZ plane)
 
+# Fixed base orientation.  These three constants are the orientation every plate
+# gets with all settings at their defaults.  The values were set by the project
+# owner after checking exported plates; if the templates are turned in Blender so
+# that 0 fits, they can go to 0.  The rotation options of OrientationConfig do not
+# replace them: they turn the result ADDITIONALLY (offsets, default 0).
+#
+# KLE frame (y down, towards the typist) -> CAD frame (y up): the exact flip of y.
+# Applies to the plate outline and the switch centres.
+KLE_TO_CAD_MATRIX = (1, 0, 0, -1)
+# The rotation part of that conversion ("rotate 180 deg, then mirror X" is the same
+# as flipping y).  The cutouts get this rotation, never the mirror.
+CUTOUT_FRAME_ROTATION = 180
+# Base rotation of each cutout class, counter-clockwise about its switch centre
+# (see cutout_rotation_class() for the classes).
+TEMPLATE_BASE_ROTATION = {"horizontal": 180, "vertical": 90, "spacebar": 180, "wide-caps": 180}
+
 
 @dataclass(frozen=True)
 class OrientationConfig:
     """Central configuration of all orientation-related transformations.
 
+    Every rotation here is an ADDITIONAL rotation (an offset) on top of the fixed
+    base orientation (``KLE_TO_CAD_MATRIX``, ``CUTOUT_FRAME_ROTATION``,
+    ``TEMPLATE_BASE_ROTATION``).  With all values at their defaults (0, mirror
+    off) the plate is exactly the one the project owner checked and approved.
+
     Frames
     ------
     * KLE frame: x to the right, y DOWN (= towards the typist), as stored in
-      the KLE JSON, scaled to mm.  KLE y is not flipped anywhere; instead the
-      whole-plate transform below contains the mirror that fixes handedness.
-    * Plate frame: KLE frame after the whole-plate transform, shifted so that
-      the plate's XY bounding box starts at (0, 0).
+      the KLE JSON, scaled to mm.
+    * Plate frame: the CAD frame (y up) after the whole-plate transform below,
+      shifted so that the plate's XY bounding box starts at (0, 0).
 
-    Order of operations (see ``build_plate_model``)
-    ----------------------------------------------
-    1. Per stabilizer: the cutout template (long axis X, wide notches towards
-       -Y) is rotated about its switch centre by ``stab_rotation_*`` degrees
-       (counter-clockwise, in the KLE frame).
-    2. Whole plate: the footprint and the switch centres are rotated by
-       ``global_rotation`` degrees about the origin, then mirrored along X if
-       ``global_mirror_x``.  With the defaults (180 deg + mirror X) this is
-       exactly the KLE -> CAD conversion (y down -> y up), (x, y) -> (x, -y),
-       without any further turn of the plate.  The cutouts get only the
-       ROTATION of this transform, never the mirror: a mirrored stabilizer
-       would be a different part, so every cutout is the template as designed,
-       turned in steps of 90 deg.  The one exception is the left off-centered
-       spacebar, which IS the right template mirrored: an exact integer matrix in
-       the template's own coordinates (x -> -x), applied before step 1, so that
-       it stays the mirror image of the right one for every rotation.
-    3. Everything is shifted so the plate's bounding box (including margin)
+    What goes where (see ``build_plate_model``)
+    -------------------------------------------
+    1. Plate outline and switch centres: ``KLE_TO_CAD_MATRIX`` (the y flip),
+       then the additional whole-plate rotation ``global_rotation`` about the
+       origin, then a mirror along X if ``global_mirror_x``
+       (``global_matrix()`` is this map).
+    2. Each cutout: the template as designed (switch centre at the origin) is
+       rotated about its switch centre, counter-clockwise seen from above, by
+       ``TEMPLATE_BASE_ROTATION[class] + offset``.  The offset of the class is
+       ``stab_rotation_horizontal``, ``stab_rotation_vertical``,
+       ``stab_rotation_spacebar`` or ``wide_caps_rotation``.
+    3. Then the cutout gets the rotation of the whole plate:
+       ``global_rotation`` plus ``CUTOUT_FRAME_ROTATION``
+       (``plate_rotation_matrix()``).  So ``global_rotation`` turns the finished
+       plate: outline, switch centres and cutouts together.  The mirror never
+       reaches a cutout: a mirrored stabilizer would be a different part, so
+       every cutout is the template as designed, turned in steps of 90 deg.
+       The one exception is the left off-centered spacebar, which IS the right
+       template mirrored: an exact integer matrix in the template's own
+       coordinates (x -> -x), applied before step 2, so that it stays the mirror
+       image of the right one for every rotation.
+    4. Everything is shifted so the plate's bounding box (including margin)
        starts at (0, 0).
 
-    The wide-caps socket template of stepped keys is turned like a stabilizer
-    (``wide_caps_rotation``); with the default 180 it comes out as designed.
+    ``global_transform = False`` skips the whole conversion, including the KLE
+    to CAD flip: both whole-plate matrices are the identity (mainly for
+    comparison with older output).  The class rotations still apply.
 
-    Defaults
-    --------
-    horizontal 180, vertical 90, spacebar 180, whole plate 180 deg + mirror X.
-    The stabilizer rotations are measured in the KLE frame, about the switch
-    centre.  Horizontal and spacebar cutouts have their long axis along X and
-    the wider side of the cutout (the template is about 0.7 mm wider towards
-    -Y) ends up towards the typist (low Y of the plate); vertical cutouts have
-    their long axis along Y.  The values were chosen by the project owner after
-    checking the exported plate; earlier versions mirrored the cutouts with the
-    plate and therefore needed vertical 270 for the same result.  The old
-    whole-plate transform is still available as ``global_rotation=90`` (a
-    transposition, (x, y) -> (y, x)).
+    Base orientation
+    ----------------
+    horizontal 180, vertical 90, spacebar 180, wide-caps 180; plate frame
+    ``CUTOUT_FRAME_ROTATION`` 180 and the y flip.  Horizontal and spacebar
+    cutouts then have their long axis along X and the wider side of the cutout
+    (the template is about 0.7 mm wider towards -Y) towards the typist (low Y of
+    the plate); vertical cutouts have their long axis along Y.  The values were
+    chosen by the project owner after checking the exported plate.  Old calls
+    that gave the rotations as absolute values: new value = old value minus the
+    base rotation of the class, modulo 360 (see the README).
 
     "Rotate 180 deg, then mirror X" equals "flip KLE y".  That is the
-    KLE -> CAD handedness fix and nothing else; any other ``global_rotation``
-    just turns the finished plate by a further multiple of 90 deg.
+    KLE -> CAD handedness fix and nothing else.
     """
 
-    stab_rotation_horizontal: int = 180
-    stab_rotation_vertical: int = 90
-    stab_rotation_spacebar: int = 180
-    wide_caps_rotation: int = 180
+    stab_rotation_horizontal: int = 0
+    stab_rotation_vertical: int = 0
+    stab_rotation_spacebar: int = 0
+    wide_caps_rotation: int = 0
     global_transform: bool = True
-    global_rotation: int = 180
-    global_mirror_x: bool = True
+    global_rotation: int = 0
+    global_mirror_x: bool = False
 
     def __post_init__(self):
         for name in ("stab_rotation_horizontal", "stab_rotation_vertical",
@@ -377,10 +400,14 @@ def rotation_matrix(degrees):
 
 
 def global_matrix(orientation: OrientationConfig):
-    """Linear part of the whole-plate transform (rotation, then optional mirror X)."""
+    """Linear part of the whole-plate transform for outline and switch centres.
+
+    The KLE -> CAD flip first, then the additional rotation ``global_rotation``,
+    then the optional mirror X.  The identity if ``global_transform`` is off.
+    """
     if not orientation.global_transform:
         return IDENTITY_MATRIX
-    m = rotation_matrix(orientation.global_rotation)
+    m = matrix_multiply(rotation_matrix(orientation.global_rotation), KLE_TO_CAD_MATRIX)
     if orientation.global_mirror_x:
         m = matrix_multiply(MIRROR_X_MATRIX, m)
     return m
@@ -389,11 +416,15 @@ def global_matrix(orientation: OrientationConfig):
 def plate_rotation_matrix(orientation: OrientationConfig):
     """Rotation part of the whole-plate transform, without the mirror.
 
-    This is what the cutouts get: they turn with the plate but are never mirrored.
+    This is what the cutouts get after their class rotation: the additional
+    ``global_rotation`` and the rotation part of the KLE -> CAD conversion
+    (``CUTOUT_FRAME_ROTATION``).  They turn with the plate but are never
+    mirrored.  The identity if ``global_transform`` is off.
     """
     if not orientation.global_transform:
         return IDENTITY_MATRIX
-    return rotation_matrix(orientation.global_rotation)
+    return matrix_multiply(rotation_matrix(orientation.global_rotation),
+                           rotation_matrix(CUTOUT_FRAME_ROTATION))
 
 
 def apply_matrix(matrix, x, y):
@@ -1118,27 +1149,51 @@ def template_kind_for_key(k, kind, min_units):
 
 
 def stabilizer_rotation(k, orientation: "OrientationConfig", min_units=DEFAULT_STABILIZER_MIN_UNIT, stepped="standard"):
-    """Rotation (degrees, counter-clockwise, KLE frame) of a key's cutout.
+    """Effective rotation (degrees, counter-clockwise) of a key's cutout.
 
-    Returns ``None`` for keys with a normal switch socket.  Stabilized keys
-    that are wider than tall count as horizontal, all others as vertical.  The
-    wide-caps socket of a stepped key is turned by ``wide_caps_rotation``.
+    The base rotation of the key's class plus the offset from ``orientation``
+    (see ``rotation_for_kind``).  Returns ``None`` for keys with a normal switch
+    socket.
     """
     kind = classify_key(k, min_units, stepped)
     return rotation_for_kind(k, kind, orientation)
 
 
-def rotation_for_kind(k, kind, orientation: "OrientationConfig"):
-    """Return the cutout rotation for a previously classified key kind."""
+def cutout_rotation_class(k, kind):
+    """Rotation class of a previously classified key: a key of ``TEMPLATE_BASE_ROTATION``.
+
+    The wide-caps socket of a stepped key and the spacebar have their own class.
+    Other stabilized keys that are wider than tall count as horizontal, all
+    others as vertical.  ``None`` for keys with a normal switch socket.
+    """
     if kind == KIND_WIDE_CAPS:
-        return orientation.wide_caps_rotation
+        return "wide-caps"
     if kind == KIND_SPACEBAR:
-        return orientation.stab_rotation_spacebar
+        return "spacebar"
     if kind == KIND_STABILIZED:
-        if k["w"] > k["h"]:
-            return orientation.stab_rotation_horizontal
-        return orientation.stab_rotation_vertical
+        return "horizontal" if k["w"] > k["h"] else "vertical"
     return None
+
+
+def rotation_offset(orientation: "OrientationConfig", rotation_class):
+    """The additional rotation the user set for a rotation class."""
+    return {"horizontal": orientation.stab_rotation_horizontal,
+            "vertical": orientation.stab_rotation_vertical,
+            "spacebar": orientation.stab_rotation_spacebar,
+            "wide-caps": orientation.wide_caps_rotation}[rotation_class]
+
+
+def rotation_for_kind(k, kind, orientation: "OrientationConfig"):
+    """Effective cutout rotation for a previously classified key kind.
+
+    ``TEMPLATE_BASE_ROTATION`` of the class plus the offset from ``orientation``,
+    modulo 360; ``None`` for keys with a normal switch socket.
+    """
+    rotation_class = cutout_rotation_class(k, kind)
+    if rotation_class is None:
+        return None
+    return (TEMPLATE_BASE_ROTATION[rotation_class]
+            + rotation_offset(orientation, rotation_class)) % 360
 
 
 @dataclass
@@ -1162,15 +1217,19 @@ class PlateModel:
 def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
     """Build the plate solid without exporting it.
 
-    Transformation order (see ``OrientationConfig``): per-stabilizer rotation
-    about its switch centre, then the whole-plate transform about the origin,
-    then a shift so that the plate's bounding box (including margin) starts at
-    (0, 0).  Rotations and the mirror are exact integer matrices applied to
-    the 2D data (footprint, switch centres, cutout sections) before anything
-    is extruded; no mirrored CAD solid is ever created.  The cutouts are only
-    rotated, never mirrored, with one exception: the left off-centered spacebar
-    is the right template mirrored (exact integer matrix in the template's own
-    coordinates, applied before the rotation; ``PlateModel.mirrored`` says where).
+    Frames and order (see ``OrientationConfig``).  Outline and switch centres:
+    the fixed KLE -> CAD flip, then the additional whole-plate rotation and the
+    optional mirror X (``global_matrix``).  Each cutout: its class rotation
+    (``TEMPLATE_BASE_ROTATION`` plus the user's offset) about its switch centre,
+    then the rotation of the whole plate (``plate_rotation_matrix``: the
+    additional ``global_rotation`` plus ``CUTOUT_FRAME_ROTATION``).  Last, a
+    shift so that the plate's bounding box (including margin) starts at (0, 0).
+    All of these are exact integer matrices applied to the 2D data (footprint,
+    switch centres, cutout sections) before anything is extruded; no mirrored CAD
+    solid is ever created.  The cutouts are only rotated, never mirrored, with
+    one exception: the left off-centered spacebar is the right template mirrored
+    (exact integer matrix in the template's own coordinates, applied before the
+    rotation; ``PlateModel.mirrored`` says where).
 
     With ``settings.single_mesh`` the space between keys that face each other
     and voids enclosed by the outline are filled, so the plate is one connected
@@ -1202,6 +1261,9 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
     }
     templates = {}
 
+    # gm: outline and switch centres (KLE -> CAD flip, additional rotation, optional
+    # mirror X).  pm: what a cutout gets on top of its class rotation (additional
+    # rotation and the rotation part of the KLE -> CAD conversion, never a mirror).
     gm = global_matrix(orientation)
     pm = plate_rotation_matrix(orientation)
     footprint = plate_footprint(keys, gm, settings.margin, settings.single_mesh, settings.fuse_f_row)
@@ -1244,8 +1306,9 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
                 choice.size, settings.spacebar_position)
         if template_kind not in templates:
             templates[template_kind] = load_template(template_paths[template_kind], template_kind)
-        # Step 1 (rotation about the switch centre), then step 2 (rotation of the
-        # whole plate).  The mirror of the whole-plate transform never reaches a cutout.
+        # Step 1: the class rotation (base rotation plus the user's offset) about the
+        # switch centre.  Step 2: the rotation of the whole plate (pm).  The mirror
+        # of the whole-plate transform never reaches a cutout.
         m = pm if rotation is None else matrix_multiply(pm, rotation_matrix(rotation))
         if mirror:
             # Left off-centered spacebar: mirror the template in ITS OWN coordinate
@@ -1445,9 +1508,9 @@ def generate(kle_path: Path, settings: Settings, output: Path = Path(DEFAULT_OUT
           f"vertical {settings.orientation.stab_rotation_vertical} deg, "
           f"spacebar {settings.orientation.stab_rotation_spacebar} deg")
     if settings.orientation.global_transform:
-        mirror = " + mirror X" if settings.orientation.global_mirror_x else ""
-        print(f"Plate transform: rotate {settings.orientation.global_rotation} deg{mirror}, "
-              f"matrix {model.matrix}")
+        mirror = "on" if settings.orientation.global_mirror_x else "off"
+        print(f"Plate transform: rotate {settings.orientation.global_rotation} deg, "
+              f"mirror X {mirror} (KLE y flip built in, matrix {model.matrix})")
     else:
         print("Plate transform: none (--no-global-transform)")
     report_template_warnings(model.warnings)
@@ -1493,19 +1556,22 @@ def build_parser():
                         help="minimum key width or height for a stabilizer cutout "
                              f"(default: {defaults.stabilizer_min_unit})")
     parser.add_argument("--stab-rotation-horizontal", type=int, choices=ROTATION_CHOICES, default=None,
-                        help="rotation of horizontal stabilizer cutouts in degrees, counter-clockwise "
-                             f"(default: {orientation.stab_rotation_horizontal})")
+                        help="additional rotation of horizontal stabilizer cutouts in degrees, "
+                             "counter-clockwise seen from above, on top of the built-in base "
+                             f"orientation (default: {orientation.stab_rotation_horizontal})")
     parser.add_argument("--stab-rotation-vertical", type=int, choices=ROTATION_CHOICES, default=None,
-                        help="rotation of vertical stabilizer cutouts in degrees "
-                             f"(default: {orientation.stab_rotation_vertical})")
+                        help="additional rotation of vertical stabilizer cutouts in degrees, on top of "
+                             f"the built-in base orientation (default: {orientation.stab_rotation_vertical})")
     parser.add_argument("--stab-rotation-spacebar", type=int, choices=ROTATION_CHOICES, default=None,
-                        help=f"rotation of the spacebar cutout in degrees (default: {orientation.stab_rotation_spacebar})")
+                        help="additional rotation of the spacebar cutout in degrees, on top of the "
+                             f"built-in base orientation (default: {orientation.stab_rotation_spacebar})")
     parser.add_argument("--stepped-key", choices=STEPPED_MODES, default=None,
                         help="socket of a stepped key (KLE \"l\": true, for example a stepped Caps "
                              "Lock): standard = the normal socket at the centre of w; wide-caps = "
                              f"the wide-caps socket at the centre of w2 (default: {defaults.stepped_key})")
     parser.add_argument("--wide-caps-rotation", type=int, choices=ROTATION_CHOICES, default=None,
-                        help=f"rotation of the wide-caps socket in degrees (default: {orientation.wide_caps_rotation})")
+                        help="additional rotation of the wide-caps socket in degrees, on top of the "
+                             f"built-in base orientation (default: {orientation.wide_caps_rotation})")
     parser.add_argument("--single-mesh", action=argparse.BooleanOptionalAction, default=None,
                         help="generate the plate as one connected mesh without gaps: the space "
                              "between keys that face each other is filled and enclosed voids are "
@@ -1517,15 +1583,18 @@ def build_parser():
                              "is joined, not the main block; it has no effect together with "
                              "--single-mesh (--no-fuse-f-row overrides a config file; default: off)")
     parser.add_argument("--global-transform", action=argparse.BooleanOptionalAction, default=None,
-                        help="apply the whole-plate transform (KLE y flip), or skip it with "
-                             "--no-global-transform, mainly for comparison with older output "
+                        help="apply the whole-plate transform (the built-in KLE y flip and the cutout frame), "
+                             "or skip all of it with --no-global-transform, mainly for comparison "
+                             "with older output "
                              f"(default: {'on' if orientation.global_transform else 'off'})")
     parser.add_argument("--global-rotation", type=int, choices=ROTATION_CHOICES, default=None,
-                        help="rotation of the whole plate in degrees, before the mirror "
-                             f"(default: {orientation.global_rotation})")
+                        help="additional rotation of the finished plate in degrees (outline, switch "
+                             "centres and cutouts together), counter-clockwise seen from above, "
+                             f"before the optional mirror (default: {orientation.global_rotation})")
     parser.add_argument("--global-mirror-x", action=argparse.BooleanOptionalAction, default=None,
-                        help="mirror the plate along X after the rotation; with the default rotation "
-                             f"this is the KLE y flip (default: {'on' if orientation.global_mirror_x else 'off'})")
+                        help="additionally mirror the plate outline and the switch positions along X after "
+                             "the rotation; the cutouts are never mirrored "
+                             f"(default: {'on' if orientation.global_mirror_x else 'off'})")
     return parser
 
 

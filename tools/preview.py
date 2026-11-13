@@ -44,10 +44,12 @@ if str(REPO_ROOT) not in sys.path:
 
 import fat_plate_generator as fpg  # noqa: E402  (needs the sys.path entry above)
 
-# Linear part (a, b, d, e) of the generator's default whole-plate transform:
+# Linear part (a, b, d, e) of the generator's default whole-plate transform, which
+# is the built-in KLE y flip without an additional rotation or mirror:
 #   x' = a*x + b*y,  y' = d*x + e*y
-# Taken from the generator so that preview and plate cannot drift apart.  If you
-# generate with a non-default global_rotation in code, change it here as well.
+# Taken from the generator so that preview and plate cannot drift apart.  For a plate
+# made with an additional global_rotation or global_mirror_x, pass the TOML config
+# with --config: its orientation settings are read through the generator's own code.
 GLOBAL_MATRIX = fpg.global_matrix(fpg.OrientationConfig())
 IDENTITY_MATRIX = fpg.IDENTITY_MATRIX
 SNAP_GRID = 1e-3  # mm, noding tolerance for the section
@@ -294,8 +296,8 @@ def main():
                         help=f"margin that was used for the plate (default: {fpg.DEFAULT_MARGIN} mm, "
                              "or the config file's)")
     parser.add_argument("--no-global-transform", action="store_true",
-                        help="the STL was made without the whole-plate transform "
-                             "(e.g. by generator versions before WP-01)")
+                        help="the STL was made without the whole-plate transform (the generator's "
+                             "--no-global-transform, or generator versions before WP-01)")
     parser.add_argument("--z", type=float, default=None, help="section height in mm (default: half plate height)")
     parser.add_argument("--dpi", type=int, default=150)
     parser.add_argument("--no-labels", action="store_true", help="do not draw key labels")
