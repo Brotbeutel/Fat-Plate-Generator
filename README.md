@@ -469,7 +469,7 @@ Every cutout is its template as designed, turned about its switch center into a 
 
 Allowed values are `0`, `90`, `180` and `270`. The values above are the defaults: `0` means no additional rotation. If a stabilizer faces the wrong way in your plate, change only the option of that key class; for example `--stab-rotation-horizontal 180` turns every horizontal stabilizer by another 180°.
 
-The cutouts are only turned, **never mirrored**: every cutout is the template as designed. The one exception is the left off-centered spacebar (`--spacebar-position off-centered-left`): it is the right template mirrored (see *Spacebar switch position*).
+The cutouts are only turned, **never mirrored**: every cutout is the template as designed. There are two exceptions: the left off-centered spacebar (`--spacebar-position off-centered-left`), which is the right template mirrored (see *Spacebar switch position*), and the stabilizers if you switch on the mirror options (see *Stabilizer Mirror*).
 
 #### Converting old calls and config files
 
@@ -483,6 +483,31 @@ Before, these options gave the rotation as an absolute value, and the old defaul
 | 270       | 90                                          | 180                 |
 
 The old default call is therefore the new default call: all options `0`. The old plate transform `--global-rotation 180` with `--global-mirror-x` is the new default (`--global-rotation 0`, no `--global-mirror-x`). For other old `--global-rotation` values there is no conversion: the cutouts now turn consistently with the plate, so check such a plate with `tools/preview.py`.
+
+### Stabilizer Mirror
+
+The stabilizer cutouts (the `stabilizer_2-00u.stl` and `stabilizer_3-00u.stl` templates) can be mirrored. Horizontal keys (length along X, for example Shift, Backspace, other 2u and 3u keys) and vertical keys (turned by 90°: ISO Enter, numpad `+` and `Enter`) are set **separately**:
+
+```powershell
+--stab-mirror-horizontal
+--stab-mirror-vertical
+```
+
+`--no-stab-mirror-horizontal` and `--no-stab-mirror-vertical` switch them off again, for example if a config file has turned them on. Both are off by default; then nothing changes. In a config file these are the keys `stab_mirror_horizontal` and `stab_mirror_vertical` in `[orientation]` (`true` or `false`).
+
+**Which keys:** only stabilized keys. A key counts as horizontal if it is wider than tall (`w > h`), every other stabilized key as vertical; this is the same rule as for the rotation. The spacebar (it has `--spacebar-position`), the wide-caps socket and the normal sockets are never mirrored by these options.
+
+**Axis:** the mirror is made in the coordinate system of the template, along its long axis, `(x, y) → (x, −y)`, and **before** the base orientation and the rotations, so it holds for every `--stab-rotation-*` and `--global-rotation`. It is an exact integer matrix on the contour; no mirrored CAD solid is made (the same way as for the left off-centered spacebar).
+
+**Same as another 180° for the current templates:** all current stabilizer templates are symmetric left/right and differ only in Y (the side of the notches). A mirror along the long axis swaps the side of the notches, and for these templates that is the same cutout as turning the key class by another 180° (`--stab-rotation-horizontal 180`, `--stab-rotation-vertical 180`); the tests check this for the 2u and the 3u template. The mirror is still a separate switch: it is unambiguous, and it will matter for templates that are not symmetric.
+
+Example:
+
+```powershell
+python .\fat_plate_generator.py --json .\tests\layouts\stabilizer_orientation.json --stab-mirror-vertical --output m.stl
+```
+
+The header output then shows `Stab mirror:     horizontal off, vertical on`.
 
 ### Stepped Keys
 
@@ -516,7 +541,7 @@ The default is `0`: an additional rotation on top of the base orientation, which
 
 KLE counts Y downwards (towards the typist), CAD counts Y upwards. This conversion is built in (it flips the KLE Y axis and is part of the fixed base orientation): the plate is the layout as seen from above, with the typist side at low Y. It needs no option. The plate is then moved so that its bounding box starts at X = 0, Y = 0. The order is: stabilizer rotation first, then the whole-plate transform, then the move.
 
-The whole-plate transform moves the keys and the plate outline. The cutouts get only its rotation (they turn with the plate), so they are never mirrored by it. (The left off-centered spacebar is mirrored on its own, in the template's coordinates; see *Spacebar switch position*.)
+The whole-plate transform moves the keys and the plate outline. The cutouts get only its rotation (they turn with the plate), so they are never mirrored by it. (The left off-centered spacebar and, if you switch it on, a mirrored stabilizer are mirrored on their own, in the template's coordinates; see *Spacebar switch position* and *Stabilizer Mirror*.)
 
 `--global-rotation` and `--global-mirror-x` (or `global_rotation` and `global_mirror_x` in a config file, see *Configuration File*) are **additional** to the built-in conversion. `--global-rotation` turns the finished plate, that is outline, switch positions and cutouts together; `--global-mirror-x` additionally mirrors the outline and the switch positions along X (the cutouts stay unmirrored):
 
@@ -588,6 +613,8 @@ stab_rotation_horizontal = 0        # additional rotations on top of the built-i
 stab_rotation_vertical = 0
 stab_rotation_spacebar = 0
 wide_caps_rotation = 0
+stab_mirror_horizontal = false      # mirror the horizontal stabilizer cutouts (see Stabilizer Mirror)
+stab_mirror_vertical = false
 global_transform = true
 global_rotation = 0                 # additional rotation of the finished plate
 global_mirror_x = false             # additionally mirror outline and switch positions along X
@@ -616,6 +643,8 @@ spacebar_7u_centered = "stl-templates/stabilizer_7-00u_centered.stl"
 | `orientation.stab_rotation_vertical` | `--stab-rotation-vertical` |
 | `orientation.stab_rotation_spacebar` | `--stab-rotation-spacebar` |
 | `orientation.wide_caps_rotation` | `--wide-caps-rotation` |
+| `orientation.stab_mirror_horizontal` | `--stab-mirror-horizontal` / `--no-stab-mirror-horizontal` |
+| `orientation.stab_mirror_vertical` | `--stab-mirror-vertical` / `--no-stab-mirror-vertical` |
 | `orientation.global_transform` | `--global-transform` / `--no-global-transform` |
 | `orientation.global_rotation` | `--global-rotation` |
 | `orientation.global_mirror_x` | `--global-mirror-x` / `--no-global-mirror-x` |

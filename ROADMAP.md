@@ -6,7 +6,7 @@ Stand: `main` @ `98a9f94` (WP-07 bis WP-15 gemerged; 397 Tests grün, vom Planne
 
 ## Reihenfolge
 
-~~WP-07~~ → ~~WP-08~~ → ~~WP-09~~ → ~~WP-10~~ → ~~WP-11~~ → ~~WP-12~~ → ~~WP-13~~ → ~~WP-14~~ → ~~WP-15~~ → ~~WP-16~~ → ~~WP-17~~. Alle bisher beauftragten Pakete sind durch. Offen sind WP-03 (Testdruck, Nutzer), der Rest von WP-04, WP-05, WP-06, WP-18 (Spiegel-Funktion für Stabilizer, noch nicht beauftragt) und der Vorschlag WP-19; die nächste Reihenfolge legt der Nutzer fest.
+~~WP-07~~ → ~~WP-08~~ → ~~WP-09~~ → ~~WP-10~~ → ~~WP-11~~ → ~~WP-12~~ → ~~WP-13~~ → ~~WP-14~~ → ~~WP-15~~ → ~~WP-16~~ → ~~WP-17~~ → ~~WP-18~~. Alle bisher beauftragten Pakete sind durch. Offen sind WP-03 (Testdruck, Nutzer), der Rest von WP-04, WP-05, WP-06 und der Vorschlag WP-19; die nächste Reihenfolge legt der Nutzer fest.
 
 ## Arbeitspakete
 
@@ -73,7 +73,10 @@ Stand: `main` @ `98a9f94` (WP-07 bis WP-15 gemerged; 397 Tests grün, vom Planne
 - [x] **WP-17** Rotations- und Plattentransform-Defaults auf 0
   - Alle Rotationsoptionen (`stab_rotation_*`, `wide_caps_rotation`, `global_rotation`) haben Standard 0, `global_mirror_x` ist standardmäßig aus; sie sind Zusatzdrehungen (Offsets). Die bisherigen Werte sind die feste, benannte Grundausrichtung im Code: `TEMPLATE_BASE_ROTATION` (horizontal 180, vertical 90, spacebar 180, wide-caps 180), `CUTOUT_FRAME_ROTATION` (180) und `KLE_TO_CAD_MATRIX` ((1, 0, 0, -1)). Sie können auf 0 gehen, sobald die Templates in Blender so gedreht sind, dass 0 passt.
   - Es ändert sich keine Geometrie: jede Platte mit Standardeinstellungen ist byte-identisch. Alte Aufrufe und Configs müssen umgerechnet werden (Tabelle in der README, Abschnitt „Stabilizer Orientation“).
-- [ ] **WP-18** Spiegel-Funktion für Stabilizer (noch nicht beauftragt; im Prompt von WP-17 genannt)
+- [x] **WP-18** Spiegel-Funktion für Stabilizer (waagerecht und senkrecht getrennt)
+  - `stab_mirror_horizontal` und `stab_mirror_vertical` (Standard aus; CLI `--stab-mirror-horizontal/--no-…`, `--stab-mirror-vertical/--no-…`; Config in `[orientation]`). Betroffen sind nur `KIND_STABILIZED` (2 u und 3 u); Spacebar, Wide-Caps und Sockel werden nicht gespiegelt.
+  - Spiegelachse: im Koordinatensystem des Templates an der Längsachse, `(x, y) → (x, −y)` (`MIRROR_Y_MATRIX`), vor Grundausrichtung und Rotation. Die aktuellen Templates sind links/rechts-symmetrisch, deshalb ist die Spiegelung für sie dasselbe wie 180° mehr Rotation derselben Klasse (README, Abschnitt „Stabilizer Mirror“).
+  - `PlateModel.mirrored` ist für jede gespiegelte Taste `True`; mit Standardeinstellungen bleibt jede STL byte-identisch.
 - [ ] **WP-19** Parser-Robustheit und Aufräumen (Vorschlag, noch nicht beauftragt; hieß zuvor WP-16 und kurz WP-17, diese Nummern gingen an den 3-u-Stabilizer und die Null-Defaults)
   - KLE-Rotation (`r`) für Cavities: Footprint und Switch-Zentrum werden gedreht, die Cavity nicht. **Konkret betroffen:** `kle-jsons/ergodox_split_ergo_67-keys.json` (12 Tasten mit ±30°). Gemessen: 10 von 76 Cavities ragen aus dem Plattenumriss (bis 27 mm²), ohne dass der Generator warnt. Nutzer: Layouts mit diagonalen Teilen sollen möglich sein, niedrige Priorität. Bis dahin mindestens eine Warnung statt stillem Falschbau.
   - Caps-Lock-Ausnahme per Label-Vergleich ersetzen (nach WP-08 nur noch für Caps Lock ab 2 u relevant)
