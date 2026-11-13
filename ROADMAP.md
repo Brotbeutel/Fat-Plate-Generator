@@ -88,27 +88,25 @@ Stand: `main` @ `98a9f94` (WP-07 bis WP-15 gemerged; 397 Tests grün, vom Planne
 - [x] Templates liegen im Repo: Wide-Caps, 6 u (zentriert und Off-Center), 7 u; der Generator nutzt sie.
 - [x] **3-u-Stabilizer-Template**: liegt im Repo (`stabilizer_3-00u.stl`), der Generator nutzt es; der Ersatz in der Zuordnung ist mit **WP-16** entfernt.
 - [ ] **Bounding Boxen** selbst festlegen: `TEMPLATE_BOUNDING_BOXES` in `fat_plate_generator.py` (Einträge `wide-caps`, `stabilizer-3u`, `spacebar-6u`, `spacebar-7u`, jetzt `(None, None)`) und die Tabelle „Fixed bounding boxes“ in der README. Gemessen: Wide-Caps 23,8125 × 19,05 mm, 3 u 52,3993 × 19,05 mm, 6 u 109,3004 × 19,05 mm, 7 u 128,6008 × 19,05 mm.
-- [ ] **Orientierung** der 6u- und 7u-Templates anhand der Bilder in `docs/spacebar-sizes/` bestätigen. (Der Planner hat 6 u und 6,25 u verglichen: Schalter rechts von der Mitte, Kerben zur Tippseite, beide gleich; 7 u bitte selbst ansehen.)
-- [ ] **Orientierung** des 3-u-Templates anhand der Bilder in `docs/stabilizer-sizes/` bestätigen (waagerecht und senkrecht; die Bilder sind unbewertet).
+- [x] **Orientierung** der 6u- und 7u-Templates anhand der Bilder in `docs/spacebar-sizes/` bestätigen. (Der Planner hat 6 u und 6,25 u verglichen: Schalter rechts von der Mitte, Kerben zur Tippseite, beide gleich; 7 u bitte selbst ansehen.)
+- [x] **Orientierung** des 3-u-Templates anhand der Bilder in `docs/stabilizer-sizes/` bestätigen (waagerecht und senkrecht; die Bilder sind unbewertet).
 - [ ] `fat_plate_export_example.stl` neu erzeugen, wenn sich die Geometrie ändert.
 
 ## Regression-Referenzen
 
 SHA256-Anfang der STLs, mit denen die Implementer „keine Änderung“ nachweisen (Linux, Python 3.12, CadQuery 2.8, vom Planner gemessen; die Hashes ändern sich nur, wenn sich ein Template-STL ändert, dann trägt der Planner sie neu ein):
 
-| Aufruf | SHA256 (Anfang) |
-| --- | --- |
-| `--json tests/layouts/stabilizer_orientation.json` | `91b460a5…` |
-| dasselbe mit `--spacebar-position off-centered-left` | `07c2c64e…` |
-| dasselbe mit `--spacebar-position off-centered-right` | `71d4c0db…` |
-| `--json kle-jsons/keyboard-layout_040-percent_jd40.json` | `74c0c55c…` |
-| `--json kle-jsons/test_stepped-capslock.json --stepped-key wide-caps` | `7642cc2c…` |
+| Aufruf                                                                | SHA256 (Anfang) |
+| --------------------------------------------------------------------- | --------------- |
+| `--json tests/layouts/stabilizer_orientation.json`                    | `91b460a5…`     |
+| dasselbe mit `--spacebar-position off-centered-left`                  | `07c2c64e…`     |
+| dasselbe mit `--spacebar-position off-centered-right`                 | `71d4c0db…`     |
+| `--json kle-jsons/keyboard-layout_040-percent_jd40.json`              | `74c0c55c…`     |
+| `--json kle-jsons/test_stepped-capslock.json --stepped-key wide-caps` | `7642cc2c…`     |
 
 Vor `557deea` galt für das erste Layout `34ed1d42…` (alte 2-u-Stabilizer-Datei); die ältere Datei hieß außerdem `kle-jsons/stepped-capslock.json`.
 
 ## Vorschläge (nicht beauftragt)
-
-- **`.gitignore` für Patch-Dateien:** Dort stehen einzelne Namen (`wp-10-teil-b.patch`, `wp-12-fuse-f-row.patch`); ein allgemeines `*.patch` würde auch künftige Patch-Dateien abfangen (die Patch-Dateien im Repo sind inzwischen entfernt).
 
 - **Layout-Paare als Regressionstests:** Wird ein Layout falsch gelesen, legt der Nutzer den fehlerhaften Export und eine von Hand bereinigte Fassung mit demselben Ergebnis (`…_clean.json`) in `kle-jsons/` ab. Der Implementer ergänzt einen Test, der beide vergleicht. So ist der RK65-Fehler gefunden worden; das Verfahren lohnt sich für jeden weiteren Fall.
 
@@ -120,11 +118,7 @@ Vor `557deea` galt für das erste Layout `34ed1d42…` (alte 2-u-Stabilizer-Date
 
 - Versionen in den Requirements festschreiben, damit Ergebnisse auf verschiedenen Rechnern reproduzierbar sind.
 
-
 - `kle-jsons/keyboard-layout.json` ist identisch mit `…_100-percent-iso-105-keys.json`. Klären, ob beides bleiben soll.
-
-- Dateinamen der neuen Layouts angleichen: `kle-jsons/leyboard-layout_065-percent-iso_royal-kludge-rk65.json` hat einen Tippfehler (`leyboard`), `ergodox_split_ergo_67-keys.json` hat nicht das Präfix `keyboard-layout_`.
-
 
 ## Übernommene offene Punkte aus der alten TODO.txt
 

@@ -1,8 +1,9 @@
 .venv
 
 *.zip
-
+*.patch
 *.blend1
+*.stl
 
 
 # Notes #
@@ -28,8 +29,6 @@ __pycache__/
 
 
 # STL-Files #
-
-*.stl
 
 !fat_plate_export_example.stl
 
