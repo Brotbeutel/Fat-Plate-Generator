@@ -46,6 +46,16 @@ stab_rotation_vertical = 0
 stab_rotation_spacebar = 0
 wide_caps_rotation = 0
 
+# Mirror the stabilizer cutouts (the 2u and 3u templates) along the long axis of their
+# template, before the rotations. Horizontal keys (length along X) and vertical keys (for
+# example ISO Enter, numpad + and Enter) are set separately. The spacebar, the wide-caps
+# socket and the normal sockets are never mirrored by these. The current templates are
+# symmetric left/right, so a mirror gives the same cutout as an additional rotation of
+# 180 degrees of the same class (CLI: --stab-mirror-horizontal, --stab-mirror-vertical,
+# --no-stab-mirror-horizontal, --no-stab-mirror-vertical).
+stab_mirror_horizontal = false
+stab_mirror_vertical = false
+
 # Whole-plate transform: false skips it completely, including the built-in KLE y flip
 # (CLI: --global-transform, --no-global-transform).
 global_transform = true
