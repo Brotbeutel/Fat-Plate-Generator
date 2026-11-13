@@ -134,12 +134,14 @@ def test_the_wide_caps_socket_is_turned_never_mirrored(wide_caps_template, globa
     model = build_model(STEPPED_LAYOUT, stepped_key="wide-caps",
                         wide_caps=wide_caps_template, orientation=config)
     cx, cy = model.centers[0]
-    turned = fpg.matrix_multiply(fpg.plate_rotation_matrix(config), fpg.rotation_matrix(wide_caps_rotation))
+    # wide_caps_rotation is an offset on top of the base rotation of the wide-caps class.
+    rotation = (fpg.TEMPLATE_BASE_ROTATION["wide-caps"] + wide_caps_rotation) % 360
+    turned = fpg.matrix_multiply(fpg.plate_rotation_matrix(config), fpg.rotation_matrix(rotation))
     expected = translate(affine(Polygon(L_OUTLINE), turned), cx, cy)
     found = projected_outline(model.cavities[0])
     assert found.symmetric_difference(expected).area < 1e-6
     mirrored = translate(affine(Polygon(L_OUTLINE), fpg.matrix_multiply(model.matrix,
-                                                                      fpg.rotation_matrix(wide_caps_rotation))), cx, cy)
+                                                                      fpg.rotation_matrix(rotation))), cx, cy)
     assert found.symmetric_difference(mirrored).area > 1.0
 
 
@@ -193,7 +195,7 @@ def test_the_wide_caps_height_is_checked(tmp_path):
 # configuration and CLI
 # --------------------------------------------------------------------------
 def test_the_wide_caps_rotation_default_and_validation():
-    assert OrientationConfig().wide_caps_rotation == 180
+    assert OrientationConfig().wide_caps_rotation == 0          # an offset; the base rotation is 180
     with pytest.raises(ValueError):
         OrientationConfig(wide_caps_rotation=45)
 

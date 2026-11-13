@@ -153,7 +153,8 @@ def test_fuse_f_row_must_be_a_boolean_in_settings():
 
 def test_orientation_switches_and_the_new_options(tmp_path):
     config = write_config(tmp_path, "[orientation]\nglobal_rotation = 90\nglobal_mirror_x = true\n")
-    assert settings().orientation.global_rotation == 180
+    assert settings().orientation.global_rotation == 0
+    assert settings().orientation.global_mirror_x is False
     assert settings("--global-rotation", 270).orientation.global_rotation == 270
     from_config = settings("--config", config).orientation
     assert (from_config.global_rotation, from_config.global_mirror_x) == (90, True)
@@ -318,12 +319,12 @@ def runs(tmp_path_factory):
     """The same layout generated four ways (each run takes a while, so once per module)."""
     folder = tmp_path_factory.mktemp("config_runs")
     layout = str(ORIENTATION_LAYOUT)
-    custom = write_config(folder, "margin = 2.0\n[orientation]\nstab_rotation_horizontal = 0\n", "custom.toml")
+    custom = write_config(folder, "margin = 2.0\n[orientation]\nstab_rotation_horizontal = 180\n", "custom.toml")
     jobs = {
         "plain": [],
         "example": ["--config", str(EXAMPLE_CONFIG)],
         "config": ["--config", str(custom)],
-        "options": ["--margin", "2", "--stab-rotation-horizontal", "0"],
+        "options": ["--margin", "2", "--stab-rotation-horizontal", "180"],
     }
     results = {}
     for name, extra in jobs.items():
@@ -347,8 +348,8 @@ def test_the_config_really_changed_the_plate(runs):
     """Guards against a config that is read but ignored."""
     plain, config = mesh_summary(runs["plain"][0]), mesh_summary(runs["config"][0])
     assert config[2][1][0] - config[2][0][0] > plain[2][1][0] - plain[2][0][0]      # wider margin
-    assert "horizontal 0 deg" in runs["config"][1].stdout
-    assert "horizontal 180 deg" in runs["plain"][1].stdout
+    assert "horizontal 180 deg" in runs["config"][1].stdout      # an offset; the default is 0
+    assert "horizontal 0 deg" in runs["plain"][1].stdout
 
 
 def test_the_header_names_the_config(runs):

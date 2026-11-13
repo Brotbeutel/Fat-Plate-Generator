@@ -55,29 +55,44 @@ def test_classify_key_rules():
     assert fpg.classify_key(key("Space", w=6.25)) == fpg.KIND_SPACEBAR
 
 
+def effective(rotation_class, offset):
+    """What a class gets: its base rotation plus the offset from the configuration."""
+    return (fpg.TEMPLATE_BASE_ROTATION[rotation_class] + offset) % 360
+
+
 def test_horizontal_vs_vertical_rule():
+    # The options are offsets on top of the base rotation of the class (WP-17), so the
+    # expected values are derived from TEMPLATE_BASE_ROTATION, not written as absolutes.
     cfg = OrientationConfig(stab_rotation_horizontal=0, stab_rotation_vertical=270,
                             stab_rotation_spacebar=90)
-    assert fpg.stabilizer_rotation(key("Shift", w=2.25), cfg) == 0
+    horizontal, vertical, spacebar = (effective("horizontal", 0), effective("vertical", 270),
+                                      effective("spacebar", 90))
+    assert fpg.stabilizer_rotation(key("Shift", w=2.25), cfg) == horizontal
     assert fpg.stabilizer_rotation(key("Shift", w=1.75), cfg) is None
-    assert fpg.stabilizer_rotation(key("Shift", w=1.75), cfg, min_units=1.75) == 0
-    assert fpg.stabilizer_rotation(key("+", h=2), cfg) == 270
+    assert fpg.stabilizer_rotation(key("Shift", w=1.75), cfg, min_units=1.75) == horizontal
+    assert fpg.stabilizer_rotation(key("+", h=2), cfg) == vertical
     # Square keys count as vertical (w > h is the horizontal rule); unchanged.
-    assert fpg.stabilizer_rotation(key("big", w=2, h=2), cfg) == 270
-    assert fpg.stabilizer_rotation(key("", w=6.25), cfg) == 90
+    assert fpg.stabilizer_rotation(key("big", w=2, h=2), cfg) == vertical
+    assert fpg.stabilizer_rotation(key("", w=6.25), cfg) == spacebar
     assert fpg.stabilizer_rotation(key("A"), cfg) is None
 
 
 def test_documented_defaults():
-    """The defaults after the cutouts stopped being mirrored: the same plate as
-    before for symmetric stabilizers (the mirrored pipeline needed vertical 270)."""
+    """Every rotation option is an additional rotation and defaults to 0, the mirror is
+    off; the orientation the project owner checked is the fixed base orientation."""
     cfg = OrientationConfig()
-    assert cfg.stab_rotation_horizontal == 180
-    assert cfg.stab_rotation_vertical == 90
-    assert cfg.stab_rotation_spacebar == 180
+    assert cfg.stab_rotation_horizontal == 0
+    assert cfg.stab_rotation_vertical == 0
+    assert cfg.stab_rotation_spacebar == 0
+    assert cfg.wide_caps_rotation == 0
     assert cfg.global_transform
-    assert cfg.global_rotation == 180
-    assert cfg.global_mirror_x
+    assert cfg.global_rotation == 0
+    assert not cfg.global_mirror_x
+    # The fixed base orientation (set by the project owner after checking exported plates).
+    assert fpg.KLE_TO_CAD_MATRIX == (1, 0, 0, -1)
+    assert fpg.CUTOUT_FRAME_ROTATION == 180
+    assert fpg.TEMPLATE_BASE_ROTATION == {"horizontal": 180, "vertical": 90,
+                                          "spacebar": 180, "wide-caps": 180}
 
 
 @pytest.mark.parametrize("field", ["stab_rotation_horizontal", "stab_rotation_vertical",
@@ -89,16 +104,18 @@ def test_invalid_rotation_is_rejected(field, value):
 
 
 def test_default_global_matrix_is_the_plain_kle_y_flip():
-    """Rotate 180 deg + mirror X is exactly KLE y (down) -> CAD y (up): the
-    cause-level fix, with no extra turn of the plate."""
+    """The built-in KLE y (down) -> CAD y (up) conversion, with no extra turn of the
+    plate; "rotate 180 deg, then mirror X" is the same map."""
     y_flip = (1, 0, 0, -1)
+    assert fpg.KLE_TO_CAD_MATRIX == y_flip
+    assert fpg.matrix_multiply(fpg.MIRROR_X_MATRIX, fpg.rotation_matrix(180)) == y_flip
     assert fpg.global_matrix(OrientationConfig()) == y_flip
     assert fpg.global_matrix(OrientationConfig(global_transform=False)) == fpg.IDENTITY_MATRIX
 
 
 def test_old_todo_transform_is_still_available():
-    """The original TODO.txt transform (rotate 90 deg, mirror X) is a transposition,
-    (x, y) -> (y, x), i.e. the y-flip followed by a 90 deg turn."""
+    """The first version's whole-plate transform (rotate 90 deg, mirror X) is a transposition,
+    (x, y) -> (y, x), i.e. the y flip followed by a 90 deg turn: now ``global_rotation=90``."""
     old = fpg.global_matrix(OrientationConfig(global_rotation=90))
     assert old == (0, 1, 1, 0)
     assert fpg.matrix_multiply(fpg.rotation_matrix(90), (1, 0, 0, -1)) == old
