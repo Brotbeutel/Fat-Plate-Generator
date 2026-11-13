@@ -6,22 +6,22 @@ Stand: `main` @ `98a9f94` (WP-07 bis WP-15 gemerged; 397 Tests grün, vom Planne
 
 ## Reihenfolge
 
-~~WP-07~~ → ~~WP-08~~ → ~~WP-09~~ → ~~WP-10~~ → ~~WP-11~~ → ~~WP-12~~ → ~~WP-13~~ → ~~WP-14~~ → ~~WP-15~~ → ~~WP-16~~. Alle bisher beauftragten Pakete sind durch. Offen sind WP-03 (Testdruck, Nutzer), der Rest von WP-04, WP-05, WP-06 und der Vorschlag WP-17; die nächste Reihenfolge legt der Nutzer fest.
+~~WP-07~~ → ~~WP-08~~ → ~~WP-09~~ → ~~WP-10~~ → ~~WP-11~~ → ~~WP-12~~ → ~~WP-13~~ → ~~WP-14~~ → ~~WP-15~~ → ~~WP-16~~ → ~~WP-17~~. Alle bisher beauftragten Pakete sind durch. Offen sind WP-03 (Testdruck, Nutzer), der Rest von WP-04, WP-05, WP-06, WP-18 (Spiegel-Funktion für Stabilizer, noch nicht beauftragt) und der Vorschlag WP-19; die nächste Reihenfolge legt der Nutzer fest.
 
 ## Arbeitspakete
 
 - [x] **WP-01** Stabilizer-Orientierung + Preview/Tests
   - Orientierung zentral konfigurierbar (`OrientationConfig`: horizontal / vertical / spacebar getrennt, Ganzplatten-Transformation)
   - Preview-Tool (`tools/preview.py`) und pytest-Suite
-  - Die Defaults hat der Nutzer nach Sichtprüfung angepasst: horizontal 180°, vertical 90°, spacebar 180°, Platte 180° + Spiegelung an X (= KLE-Y-Umrechnung ohne weitere Drehung); die Ausschnitte werden nur gedreht, nie gespiegelt
-- [x] **WP-02** Aufräumen (abgeschlossen; die zwei offenen Punkte sind nach WP-15/WP-17 verschoben)
+  - Die Defaults hat der Nutzer nach Sichtprüfung angepasst: horizontal 180°, vertical 90°, spacebar 180°, Platte 180° + Spiegelung an X (= KLE-Y-Umrechnung ohne weitere Drehung); die Ausschnitte werden nur gedreht, nie gespiegelt (seit **WP-17** sind diese Werte die feste Grundausrichtung im Code; die Optionen sind Zusatzdrehungen mit Standard 0)
+- [x] **WP-02** Aufräumen (abgeschlossen; die zwei offenen Punkte sind nach WP-15/WP-19 verschoben)
   - [x] Stretch-/Voxel-Reste entfernt, README/Version/Dateinamen konsistent
   - [x] Socket, Stabilizer und Spacebar werden gleich und exakt erzeugt (ein Loader, jede Schicht ein Loft, keine Rundungen)
   - [x] Feste Bounding Boxen je Template (nur Prüfung mit Warnung), in der README dokumentiert
   - [x] Stabilizer-Ausschnitte werden nur gedreht, nie gespiegelt; Spacebar-Varianten links/rechts (`--spacebar-position`)
   - [x] STL-Prüfung als ausdrückliche Warnung statt Abbruch, STL wird nicht neu exportiert
-  - → KLE-Rotation (`r`) für Cavities: **WP-17**
-  - → robustere Spacebar-/Caps-Lock-Erkennung: **WP-15** (Spacebar nach Breite, erledigt) und **WP-17** (Caps Lock)
+  - → KLE-Rotation (`r`) für Cavities: **WP-19**
+  - → robustere Spacebar-/Caps-Lock-Erkennung: **WP-15** (Spacebar nach Breite, erledigt) und **WP-19** (Caps Lock)
 - [ ] **WP-03** Testdruck: Mini-Testplatte drucken, Passung und Toleranzen prüfen (Nutzer)
 - [~] **WP-04** Layout-Features
   - [x] Stepped Caps Lock (`"l": true`): `--stepped-key standard` oder `wide-caps` (Template `switch_socket_wide-caps.stl` bei `w2`)
@@ -70,7 +70,11 @@ Stand: `main` @ `98a9f94` (WP-07 bis WP-15 gemerged; 397 Tests grün, vom Planne
   - Bounding Box: `TEMPLATE_BOUNDING_BOXES["stabilizer-3u"] = (None, None)` (nur die Höhe wird geprüft); gemessen 52,3993 × 19,05 mm. Der Wert ist Sache des Nutzers (siehe „Laufend“).
   - Vorschaubilder einer waagerechten und einer senkrechten 3-u-Taste: `docs/stabilizer-sizes/3u_horizontal.png`, `docs/stabilizer-sizes/3u_vertical.png`.
   - Die fünf Regression-Referenzen (siehe unten) sind byte-identisch geblieben.
-- [ ] **WP-17** Parser-Robustheit und Aufräumen (Vorschlag, noch nicht beauftragt; hieß zuvor WP-16, die Nummer 16 ging an den 3-u-Stabilizer)
+- [x] **WP-17** Rotations- und Plattentransform-Defaults auf 0
+  - Alle Rotationsoptionen (`stab_rotation_*`, `wide_caps_rotation`, `global_rotation`) haben Standard 0, `global_mirror_x` ist standardmäßig aus; sie sind Zusatzdrehungen (Offsets). Die bisherigen Werte sind die feste, benannte Grundausrichtung im Code: `TEMPLATE_BASE_ROTATION` (horizontal 180, vertical 90, spacebar 180, wide-caps 180), `CUTOUT_FRAME_ROTATION` (180) und `KLE_TO_CAD_MATRIX` ((1, 0, 0, -1)). Sie können auf 0 gehen, sobald die Templates in Blender so gedreht sind, dass 0 passt.
+  - Es ändert sich keine Geometrie: jede Platte mit Standardeinstellungen ist byte-identisch. Alte Aufrufe und Configs müssen umgerechnet werden (Tabelle in der README, Abschnitt „Stabilizer Orientation“).
+- [ ] **WP-18** Spiegel-Funktion für Stabilizer (noch nicht beauftragt; im Prompt von WP-17 genannt)
+- [ ] **WP-19** Parser-Robustheit und Aufräumen (Vorschlag, noch nicht beauftragt; hieß zuvor WP-16 und kurz WP-17, diese Nummern gingen an den 3-u-Stabilizer und die Null-Defaults)
   - KLE-Rotation (`r`) für Cavities: Footprint und Switch-Zentrum werden gedreht, die Cavity nicht. **Konkret betroffen:** `kle-jsons/ergodox_split_ergo_67-keys.json` (12 Tasten mit ±30°). Gemessen: 10 von 76 Cavities ragen aus dem Plattenumriss (bis 27 mm²), ohne dass der Generator warnt. Nutzer: Layouts mit diagonalen Teilen sollen möglich sein, niedrige Priorität. Bis dahin mindestens eine Warnung statt stillem Falschbau.
   - Caps-Lock-Ausnahme per Label-Vergleich ersetzen (nach WP-08 nur noch für Caps Lock ab 2 u relevant)
   - Platzierungslogik nur einmal (Generator und `tools/preview.py` rechnen sie getrennt)

@@ -459,17 +459,30 @@ The stabilizer applies from `2u` in either the key's width or height. Keys with 
 
 ### Stabilizer Orientation
 
-The stabilizer cutouts are asymmetric, so each of them can be turned in 90° steps (counter-clockwise, around the switch center). Horizontal keys, vertical keys (for example numpad `+` / `Enter`, ISO Enter) and the spacebar are set separately:
+Every cutout is its template as designed, turned about its switch center into a **fixed base orientation**. That orientation was set after checking exported plates; it is built into the generator (`TEMPLATE_BASE_ROTATION`, `CUTOUT_FRAME_ROTATION` and `KLE_TO_CAD_MATRIX` in `fat_plate_generator.py`) and is what you get with all options at their defaults. The options below turn a key class **additionally**, in 90° steps, counter-clockwise seen from above, around the switch center. Horizontal keys, vertical keys (for example numpad `+` / `Enter`, ISO Enter) and the spacebar are set separately:
 
 ```powershell
---stab-rotation-horizontal 180
---stab-rotation-vertical 90
---stab-rotation-spacebar 180
+--stab-rotation-horizontal 0
+--stab-rotation-vertical 0
+--stab-rotation-spacebar 0
 ```
 
-Allowed values are `0`, `90`, `180` and `270`. The values above are the defaults. If a stabilizer faces the wrong way in your plate, change only the option of that key class.
+Allowed values are `0`, `90`, `180` and `270`. The values above are the defaults: `0` means no additional rotation. If a stabilizer faces the wrong way in your plate, change only the option of that key class; for example `--stab-rotation-horizontal 180` turns every horizontal stabilizer by another 180°.
 
 The cutouts are only turned, **never mirrored**: every cutout is the template as designed. The one exception is the left off-centered spacebar (`--spacebar-position off-centered-left`): it is the right template mirrored (see *Spacebar switch position*).
+
+#### Converting old calls and config files
+
+Before, these options gave the rotation as an absolute value, and the old defaults were 180 (horizontal), 90 (vertical) and 180 (spacebar, wide-caps). Now they are an addition to that base orientation. For a call or config file that used the old default plate transform (`--global-rotation 180` with `--global-mirror-x`), the new value is the old value minus the base rotation of the class, modulo 360:
+
+| old value | horizontal, spacebar, wide-caps (old − 180) | vertical (old − 90) |
+| --------- | ------------------------------------------- | ------------------- |
+| 0         | 180                                         | 270                 |
+| 90        | 270                                         | 0                   |
+| 180       | 0                                           | 90                  |
+| 270       | 90                                          | 180                 |
+
+The old default call is therefore the new default call: all options `0`. The old plate transform `--global-rotation 180` with `--global-mirror-x` is the new default (`--global-rotation 0`, no `--global-mirror-x`). For other old `--global-rotation` values there is no conversion: the cutouts now turn consistently with the plate, so check such a plate with `tools/preview.py`.
 
 ### Stepped Keys
 
@@ -491,28 +504,28 @@ The normal `stl-templates/switch_socket.stl`, with the switch at the center of t
 --stepped-key wide-caps
 ```
 
-The wide-caps socket `stl-templates/switch_socket_wide-caps.stl`, with the switch at the center of the second rectangle (`w2`, here 1.75u). The file is looked up next to `stl-templates/switch_socket.stl`, or you name it with `--socket-wide-caps my_socket.stl`. Because that template is not symmetric, it can be turned in 90° steps like a stabilizer:
+The wide-caps socket `stl-templates/switch_socket_wide-caps.stl`, with the switch at the center of the second rectangle (`w2`, here 1.75u). The file is looked up next to `stl-templates/switch_socket.stl`, or you name it with `--socket-wide-caps my_socket.stl`. Because that template is not symmetric, it can be turned additionally in 90° steps like a stabilizer:
 
 ```powershell
---wide-caps-rotation 180
+--wide-caps-rotation 0
 ```
 
-The default is `180`, which makes the template come out as designed (seen from above with the typist at the bottom of the plate). A stepped key that is wide enough for a stabilizer, and the spacebar, keep their own cutouts.
+The default is `0`: an additional rotation on top of the base orientation, which makes the template come out as designed (seen from above with the typist at the bottom of the plate). A stepped key that is wide enough for a stabilizer, and the spacebar, keep their own cutouts.
 
 ### Whole-Plate Transform
 
-KLE counts Y downwards (towards the typist), CAD counts Y upwards. The generated plate is therefore turned by 180° around Z and mirrored along X, which is the same as flipping the KLE Y axis: the plate is the layout as seen from above, with the typist side at low Y. The plate is then moved so that its bounding box starts at X = 0, Y = 0. The order is: stabilizer rotation first, then the whole-plate transform, then the move.
+KLE counts Y downwards (towards the typist), CAD counts Y upwards. This conversion is built in (it flips the KLE Y axis and is part of the fixed base orientation): the plate is the layout as seen from above, with the typist side at low Y. It needs no option. The plate is then moved so that its bounding box starts at X = 0, Y = 0. The order is: stabilizer rotation first, then the whole-plate transform, then the move.
 
-The mirror of the whole-plate transform only moves the keys and the plate outline. The cutouts get just its rotation (they turn with the plate), so they are not mirrored by it. (The left off-centered spacebar is mirrored on its own, in the template's coordinates; see *Spacebar switch position*.)
+The whole-plate transform moves the keys and the plate outline. The cutouts get only its rotation (they turn with the plate), so they are never mirrored by it. (The left off-centered spacebar is mirrored on its own, in the template's coordinates; see *Spacebar switch position*.)
 
-The whole-plate rotation and the mirror can be set with `--global-rotation` and `--global-mirror-x` (or `global_rotation` and `global_mirror_x` in a config file, see *Configuration File*):
+`--global-rotation` and `--global-mirror-x` (or `global_rotation` and `global_mirror_x` in a config file, see *Configuration File*) are **additional** to the built-in conversion. `--global-rotation` turns the finished plate, that is outline, switch positions and cutouts together; `--global-mirror-x` additionally mirrors the outline and the switch positions along X (the cutouts stay unmirrored):
 
 ```powershell
---global-rotation 180
+--global-rotation 0
 --global-mirror-x
 ```
 
-Allowed rotations are `0`, `90`, `180` and `270`; the values above are the defaults. If you want the plate turned further, use `90` or `270`; `90` gives the transform used in the first version of this tool. `--no-global-mirror-x` leaves the mirror out.
+Allowed rotations are `0`, `90`, `180` and `270`. The default is `--global-rotation 0` and no mirror: the plate with the built-in conversion only. `--global-mirror-x` is off by default, and `--no-global-mirror-x` switches it off again, for example if a config file has turned it on. If you want the plate turned, use `90`, `180` or `270`; `90` together with the built-in flip gives the transform used in the first version of this tool.
 
 To switch the transform off, for example to compare with older plates:
 
@@ -520,7 +533,7 @@ To switch the transform off, for example to compare with older plates:
 --no-global-transform
 ```
 
-`--global-transform` switches it on again, for example if a config file has turned it off. The default is on. (In a config file this is `global_transform = false` or `true`.)
+This skips the whole conversion, including the built-in KLE Y flip. `--global-transform` switches it on again, for example if a config file has turned it off. The default is on. (In a config file this is `global_transform = false` or `true`.)
 
 ### Plate as One Connected Mesh
 
@@ -571,13 +584,13 @@ spacebar_position = "centered"      # centered | off-centered-left | off-centere
 stepped_key = "standard"            # standard | wide-caps
 
 [orientation]
-stab_rotation_horizontal = 180
-stab_rotation_vertical = 90
-stab_rotation_spacebar = 180
-wide_caps_rotation = 180
+stab_rotation_horizontal = 0        # additional rotations on top of the built-in base orientation
+stab_rotation_vertical = 0
+stab_rotation_spacebar = 0
+wide_caps_rotation = 0
 global_transform = true
-global_rotation = 180
-global_mirror_x = true
+global_rotation = 0                 # additional rotation of the finished plate
+global_mirror_x = false             # additionally mirror outline and switch positions along X
 
 [templates]
 socket = "stl-templates/switch_socket.stl"
