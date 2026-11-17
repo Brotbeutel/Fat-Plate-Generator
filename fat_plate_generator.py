@@ -69,9 +69,9 @@ ROTATION_MATRICES = {
 }
 IDENTITY_MATRIX = ROTATION_MATRICES[0]
 MIRROR_X_MATRIX = (-1, 0, 0, 1)  # x -> -x (mirror at the YZ plane)
-# y -> -y: the mirror of a stabilizer cutout along the long axis of its template, in the
-# TEMPLATE's own coordinates (before the base orientation and the rotations).  Used only
-# by the stab_mirror_* options.  It has the same numbers as KLE_TO_CAD_MATRIX below, but
+# y -> -y: the mirror of a stabilizer or spacebar cutout along the long axis of its
+# template, in the TEMPLATE's own coordinates (before the base orientation and the
+# rotations).  Used only by the stab_mirror_* options.  It has the same numbers as KLE_TO_CAD_MATRIX below, but
 # a different meaning: that one converts the KLE frame to the CAD frame for the plate
 # outline and the switch centres; this one mirrors one cutout template.
 MIRROR_Y_MATRIX = (1, 0, 0, -1)
@@ -123,26 +123,37 @@ class OrientationConfig:
     3. Then the cutout gets the rotation of the whole plate:
        ``global_rotation`` plus ``CUTOUT_FRAME_ROTATION``
        (``plate_rotation_matrix()``).  So ``global_rotation`` turns the finished
-       plate: outline, switch centres and cutouts together.  The mirror of the whole-plate transform never reaches a cutout: a
-       cutout is the template as designed, turned in steps of 90 deg.  There
-       are two exceptions, and both are a mirror of the template in ITS OWN
-       coordinates, an exact integer matrix applied before the base orientation
-       and the rotations (so it holds for every rotation): the left
-       off-centered spacebar, which IS the right template mirrored (x -> -x),
-       and the stabilizers if the user switches on ``stab_mirror_horizontal`` /
-       ``stab_mirror_vertical`` (along the long axis of the template,
-       y -> -y, ``MIRROR_Y_MATRIX``).  The spacebar otherwise, the wide-caps
-       socket and the normal sockets are never mirrored.
+       plate: outline, switch centres and cutouts together.  The
+       mirror of the whole-plate transform never reaches a cutout: a cutout is
+       the template as designed, turned in steps of 90 deg.  There are two
+       exceptions, and both are a mirror of the template in ITS OWN coordinates,
+       an exact integer matrix applied before the base orientation and the
+       rotations (so it holds for every rotation): the left off-centered
+       spacebar, which IS the right template mirrored (x -> -x), and the
+       stabilizers and the spacebar if the user switches on
+       ``stab_mirror_horizontal`` / ``stab_mirror_vertical`` /
+       ``stab_mirror_spacebar`` (along the long axis of the template,
+       y -> -y, ``MIRROR_Y_MATRIX``).  The wide-caps socket and the normal
+       sockets are never mirrored.
     4. Everything is shifted so the plate's bounding box (including margin)
        starts at (0, 0).
 
-    ``stab_mirror_horizontal`` and ``stab_mirror_vertical`` (default off) mirror the
-    stabilizer cutouts (``KIND_STABILIZED``: the 2u and 3u templates), horizontal keys
-    (``w > h``) and the others separately.  All stabilizer templates are symmetric
-    left/right and differ only in Y (the side of the notches), so for them a
-    mirror gives the same cutout as an additional rotation of 180 deg of the
-    same class.  The option is still a separate switch, for templates that are not
-    symmetric.
+    ``stab_mirror_horizontal``, ``stab_mirror_vertical`` and ``stab_mirror_spacebar``
+    (default off) mirror the stabilizer cutouts.  Stabilized keys (``KIND_STABILIZED``:
+    the 2u and 3u templates) are sorted by the key shape, like the rotation: wider than
+    tall (``w > h``) is horizontal, everything else vertical.  The spacebar is
+    horizontal, too, so ``stab_mirror_horizontal`` mirrors the horizontal stabilizers
+    AND the spacebar.  The rare exception is a spacebar turned by 90 or 270 deg with
+    ``stab_rotation_spacebar``: it counts as vertical and follows ``stab_mirror_vertical``.
+    ``stab_mirror_spacebar`` additionally mirrors the spacebar on its own, whatever its
+    direction; a spacebar that both switches ask for is mirrored once.  This is not the
+    switch position of the spacebar (``spacebar_position``): that mirrors along X and
+    moves the switch, the mirror options mirror along the long axis and swap the side
+    of the notches.  The 2u and 3u templates and the centered spacebar templates are
+    symmetric left/right and differ only in Y, so for them a mirror gives the same
+    cutout as an additional rotation of 180 deg of the same class.  The off-centered
+    spacebar templates are not symmetric: there the mirror keeps the switch on its
+    side, which a rotation would not.
 
     ``global_transform = False`` skips the whole conversion, including the KLE
     to CAD flip: both whole-plate matrices are the identity (mainly for
@@ -172,6 +183,7 @@ class OrientationConfig:
     global_mirror_x: bool = False
     stab_mirror_horizontal: bool = False
     stab_mirror_vertical: bool = False
+    stab_mirror_spacebar: bool = False
 
     def __post_init__(self):
         for name in ("stab_rotation_horizontal", "stab_rotation_vertical",
@@ -308,6 +320,7 @@ CONFIG_ORIENTATION_KEYS = {
     "global_mirror_x": "boolean",
     "stab_mirror_horizontal": "boolean",
     "stab_mirror_vertical": "boolean",
+    "stab_mirror_spacebar": "boolean",
 }
 CONFIG_TEMPLATE_KEYS = {key: "path" for key in (
     "socket", "wide_caps", "stabilizer_2u", "stabilizer_3u", "spacebar_6u_centered",
@@ -1220,16 +1233,25 @@ def rotation_for_kind(k, kind, orientation: "OrientationConfig"):
 def stabilizer_mirror(k, kind, orientation: "OrientationConfig"):
     """True if the cutout of a classified key is mirrored by ``stab_mirror_*``.
 
-    Only stabilized keys (``KIND_STABILIZED``) are: the horizontal ones (the same
-    ``w > h`` rule as for the rotation) by ``stab_mirror_horizontal``, all others by
-    ``stab_mirror_vertical``.  The spacebar (see ``--spacebar-position``), the
-    wide-caps socket and the normal sockets never are.
+    Stabilized keys (``KIND_STABILIZED``) are sorted by the shape of the key, the same
+    ``w > h`` rule as for the rotation: horizontal ones are mirrored by
+    ``stab_mirror_horizontal``, all others by ``stab_mirror_vertical``.
+
+    The spacebar is horizontal as well, so it follows ``stab_mirror_horizontal``.  The
+    rare exception is a spacebar whose cutout is turned by 90 or 270 deg
+    (``stab_rotation_spacebar``): that one is vertical and follows
+    ``stab_mirror_vertical``.  Besides that ``stab_mirror_spacebar`` mirrors the
+    spacebar whatever its direction (both together: mirrored once).  All of this is
+    separate from the switch position of the spacebar (``--spacebar-position``).  The
+    wide-caps socket and the normal sockets never are mirrored.
     """
-    rotation_class = cutout_rotation_class(k, kind) if kind == KIND_STABILIZED else None
-    if rotation_class == "horizontal":
-        return orientation.stab_mirror_horizontal
-    if rotation_class == "vertical":
-        return orientation.stab_mirror_vertical
+    if kind == KIND_SPACEBAR:
+        turned = orientation.stab_rotation_spacebar in (90, 270)
+        by_direction = orientation.stab_mirror_vertical if turned else orientation.stab_mirror_horizontal
+        return by_direction or orientation.stab_mirror_spacebar
+    if kind == KIND_STABILIZED:
+        return (orientation.stab_mirror_horizontal if k["w"] > k["h"]
+                else orientation.stab_mirror_vertical)
     return False
 
 
@@ -1240,7 +1262,8 @@ class PlateModel:
     keys: list          # parsed KLE keys
     kinds: list         # classify_key() result per key
     rotations: list     # stabilizer rotation per key in degrees, None if normal
-    mirrored: list      # True where the cutout is the mirrored template (left off-centered spacebar, mirrored stabilizers)
+    mirrored: list      # True where a mirror is applied to the template: the left off-centered spacebar and
+                        # the cutouts of stab_mirror_* (both together give a rotation, the flag stays True)
     centers: list       # switch centre per key (mm)
     footprint: object   # shapely (Multi)Polygon of the plate outline
     cavities: list      # one CAD solid per key, same order as ``keys``
@@ -1249,6 +1272,7 @@ class PlateModel:
     warnings: list      # problems found in the templates
     spacebar_path: Path | None
     matrix: tuple       # linear part of the whole-plate transform
+    spacebar_left: bool = False  # the spacebar position is off-centered-left (the right template mirrored)
 
 
 def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
@@ -1264,9 +1288,9 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
     All of these are exact integer matrices applied to the 2D data (footprint,
     switch centres, cutout sections) before anything is extruded; no mirrored CAD
     solid is ever created.  The cutouts are only rotated, never mirrored, with
-    two exceptions: the stabilizers if ``stab_mirror_horizontal`` or
-    ``stab_mirror_vertical`` is on (``MIRROR_Y_MATRIX``, before the rotations), and
-    the left off-centered spacebar is the right template mirrored
+    two exceptions: the stabilizers and the spacebar if ``stab_mirror_horizontal``,
+    ``stab_mirror_vertical`` or ``stab_mirror_spacebar`` is on (``MIRROR_Y_MATRIX``,
+    before the rotations), and the left off-centered spacebar is the right template mirrored
     (exact integer matrix in the template's own coordinates, applied before the
     rotation; ``PlateModel.mirrored`` says where).
 
@@ -1314,19 +1338,22 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
                for k, kind in zip(keys, kinds)]
     rotations = [rotation_for_kind(k, kind, orientation) for k, kind in zip(keys, kinds)]
     # The exceptions to "cutouts are only turned" (see below): the left off-centered
-    # spacebar is the right template mirrored, and stabilizers are mirrored if the
-    # user switched that on.  Nothing else is.
-    mirrored = []
+    # spacebar is the right template mirrored (by its position), and stabilizers and
+    # the spacebar are mirrored if the user switched that on.  Nothing else is.  The
+    # two are kept apart: both can apply to the same spacebar.
+    position_mirrored, option_mirrored = [], []
     spacebar_path = None
     for k, kind, choice in zip(keys, kinds, choices):
+        option_mirrored.append(stabilizer_mirror(k, kind, orientation))
         if choice.size is None:
-            mirrored.append(stabilizer_mirror(k, kind, orientation))
+            position_mirrored.append(False)
             continue
-        path, is_mirrored = settings.templates.spacebar_for(
+        path, is_left = settings.templates.spacebar_for(
             choice.size, settings.spacebar_position)
         if spacebar_path is None:
             spacebar_path = path
-        mirrored.append(is_mirrored)
+        position_mirrored.append(is_left)
+    mirrored = [left or option for left, option in zip(position_mirrored, option_mirrored)]
     centers = []
     for k, kind in zip(keys, kinds):
         cx, cy = apply_matrix(gm, *switch_center(k, second=(kind == KIND_WIDE_CAPS)))
@@ -1338,8 +1365,8 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
     # templates are used exactly as supplied (nothing is scaled); the spacebar
     # templates keep their internal switch position (centered/off-centered).
     cavities, cutters = [], {}
-    for kind, choice, rotation, mirror, (cx, cy) in zip(
-            kinds, choices, rotations, mirrored, centers):
+    for choice, rotation, left, option, (cx, cy) in zip(
+            choices, rotations, position_mirrored, option_mirrored, centers):
         template_kind = choice.kind
         if choice.size is not None:
             template_paths[template_kind], _ = settings.templates.spacebar_for(
@@ -1350,7 +1377,7 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
         # switch centre.  Step 2: the rotation of the whole plate (pm).  The mirror
         # of the whole-plate transform never reaches a cutout.
         m = pm if rotation is None else matrix_multiply(pm, rotation_matrix(rotation))
-        if mirror:
+        if left or option:
             # A mirrored cutout is mirrored in ITS OWN template coordinate system, i.e.
             # before the base orientation and the rotations (matrix_multiply applies the
             # right-hand matrix first).  Mirroring after the rotation would be a different
@@ -1359,9 +1386,15 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
             # Left off-centered spacebar: the old left template file is the right one
             # mirrored at the template's Y axis (x -> -x), MIRROR_X_MATRIX; only "mirror
             # first, then rotate" gives exactly that file for every stab_rotation_spacebar
-            # and global_rotation.  Stabilizer: along the long axis of the template
-            # (y -> -y), MIRROR_Y_MATRIX, which swaps the side of the notches.
-            m = matrix_multiply(m, MIRROR_Y_MATRIX if kind == KIND_STABILIZED else MIRROR_X_MATRIX)
+            # and global_rotation.  stab_mirror_*: along the long axis of the template
+            # (y -> -y), MIRROR_Y_MATRIX, which swaps the side of the notches.  Both on
+            # one spacebar: the two mirrors commute, together they are a rotation of 180 deg.
+            template_mirror = IDENTITY_MATRIX
+            if left:
+                template_mirror = matrix_multiply(MIRROR_X_MATRIX, template_mirror)
+            if option:
+                template_mirror = matrix_multiply(MIRROR_Y_MATRIX, template_mirror)
+            m = matrix_multiply(m, template_mirror)
         if (template_kind, m) not in cutters:
             cutters[(template_kind, m)] = template_cutter(templates[template_kind], m)
         cavities.append(cutters[(template_kind, m)].moved(cq.Location(cq.Vector(cx, cy, 0))))
@@ -1381,7 +1414,8 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
                       footprint=footprint, cavities=cavities, plate=result,
                       templates=templates,
                       warnings=[w for t in templates.values() for w in t.warnings],
-                      spacebar_path=spacebar_path, matrix=gm)
+                      spacebar_path=spacebar_path, matrix=gm,
+                      spacebar_left=any(position_mirrored))
 
 
 def check_exported_stl(stl_path: Path, expected_bounds=None,
@@ -1518,9 +1552,9 @@ def generate(kle_path: Path, settings: Settings, output: Path = Path(DEFAULT_OUT
     print(f"Socket:          {settings.templates.socket}")
     print(f"Stabilizer 2u:   {settings.templates.stabilizer_2u}")
     print(f"Stabilizer 3u:   {settings.templates.stabilizer_3u}")
-    # only the spacebar can be mirrored by its switch position; stabilizers have their own line
-    mirrored_note = ", mirrored" if any(
-        mirrored for mirrored, kind in zip(model.mirrored, model.kinds) if kind == KIND_SPACEBAR) else ""
+    # "mirrored" here is the switch position (left = the right template mirrored); the
+    # mirror options have their own line below
+    mirrored_note = ", mirrored" if model.spacebar_left else ""
     if model.spacebar_path is not None:
         print(f"Spacebar:        {model.spacebar_path} ({settings.spacebar_position}{mirrored_note})")
     print(f"Output:          {output}")
@@ -1553,7 +1587,8 @@ def generate(kle_path: Path, settings: Settings, output: Path = Path(DEFAULT_OUT
           f"vertical {settings.orientation.stab_rotation_vertical} deg, "
           f"spacebar {settings.orientation.stab_rotation_spacebar} deg")
     print(f"Stab mirror:     horizontal {'on' if settings.orientation.stab_mirror_horizontal else 'off'}, "
-          f"vertical {'on' if settings.orientation.stab_mirror_vertical else 'off'}")
+          f"vertical {'on' if settings.orientation.stab_mirror_vertical else 'off'}, "
+          f"spacebar {'on' if settings.orientation.stab_mirror_spacebar else 'off'}")
     if settings.orientation.global_transform:
         mirror = "on" if settings.orientation.global_mirror_x else "off"
         print(f"Plate transform: rotate {settings.orientation.global_rotation} deg, "
@@ -1614,18 +1649,29 @@ def build_parser():
                              f"built-in base orientation (default: {orientation.stab_rotation_spacebar})")
     parser.add_argument("--stab-mirror-horizontal", action=argparse.BooleanOptionalAction, default=None,
                         help="mirror the horizontal stabilizer cutouts (2u and 3u keys with the length "
-                             "along X) along the long axis of their template, before the rotations; with "
-                             "the current symmetric templates this equals --stab-rotation-horizontal "
-                             "turned by another 180 degrees "
+                             "along X) and the spacebar (unless its cutout is turned by 90 degrees with "
+                             "--stab-rotation-spacebar) along the long axis of their template, before the "
+                             "rotations; with the current symmetric templates this equals "
+                             "--stab-rotation-horizontal turned by another 180 degrees "
                              "(--no-stab-mirror-horizontal overrides a config file; "
                              f"default: {'on' if orientation.stab_mirror_horizontal else 'off'})")
     parser.add_argument("--stab-mirror-vertical", action=argparse.BooleanOptionalAction, default=None,
                         help="mirror the vertical stabilizer cutouts (for example ISO Enter, numpad + and "
-                             "Enter) along the long axis of their template, before the rotations; with "
-                             "the current symmetric templates this equals --stab-rotation-vertical "
-                             "turned by another 180 degrees "
+                             "Enter) and a spacebar whose cutout is turned by 90 degrees with "
+                             "--stab-rotation-spacebar, along the long axis of their template, before "
+                             "the rotations; with the current symmetric templates this equals "
+                             "--stab-rotation-vertical turned by another 180 degrees "
                              "(--no-stab-mirror-vertical overrides a config file; "
                              f"default: {'on' if orientation.stab_mirror_vertical else 'off'})")
+    parser.add_argument("--stab-mirror-spacebar", action=argparse.BooleanOptionalAction, default=None,
+                        help="mirror the spacebar cutout on its own, in addition to --stab-mirror-horizontal "
+                             "(which mirrors a horizontal spacebar, too), along the long axis of its "
+                             "template, before the rotations; this swaps the side of the notches and keeps "
+                             "the switch where it is, unlike --spacebar-position, which moves the switch "
+                             "(the centered templates are symmetric, so there it equals "
+                             "--stab-rotation-spacebar turned by another 180 degrees) "
+                             "(--no-stab-mirror-spacebar overrides a config file; "
+                             f"default: {'on' if orientation.stab_mirror_spacebar else 'off'})")
     parser.add_argument("--stepped-key", choices=STEPPED_MODES, default=None,
                         help="socket of a stepped key (KLE \"l\": true, for example a stepped Caps "
                              "Lock): standard = the normal socket at the centre of w; wide-caps = "
@@ -1675,7 +1721,8 @@ def settings_from_args(args: argparse.Namespace) -> Settings:
         global_rotation=args.global_rotation,
         global_mirror_x=args.global_mirror_x,
         stab_mirror_horizontal=args.stab_mirror_horizontal,
-        stab_mirror_vertical=args.stab_mirror_vertical)
+        stab_mirror_vertical=args.stab_mirror_vertical,
+        stab_mirror_spacebar=args.stab_mirror_spacebar)
     templates = given(
         socket=args.socket,
         wide_caps=args.socket_wide_caps,
