@@ -425,7 +425,7 @@ or:
 --spacebar-position off-centered-right
 ```
 
-`centered` selects the centered template for the detected width; `off-centered-right` selects its right-hand template, and `off-centered-left` uses the same file mirrored. The switch position is seen from above with the typist at the bottom of the plate. The five spacebar template paths are configurable only in `[templates]`.
+`centered` selects the centered template for the detected width; `off-centered-right` selects its right-hand template, and `off-centered-left` uses the same file mirrored. The switch position is seen from above with the typist at the bottom of the plate. This moves the switch; to swap the side of the notches instead, see *Stabilizer Mirror* (`--stab-mirror-spacebar`). The five spacebar template paths are configurable only in `[templates]`.
 
 ### Output
 
@@ -469,7 +469,7 @@ Every cutout is its template as designed, turned about its switch center into a 
 
 Allowed values are `0`, `90`, `180` and `270`. The values above are the defaults: `0` means no additional rotation. If a stabilizer faces the wrong way in your plate, change only the option of that key class; for example `--stab-rotation-horizontal 180` turns every horizontal stabilizer by another 180°.
 
-The cutouts are only turned, **never mirrored**: every cutout is the template as designed. There are two exceptions: the left off-centered spacebar (`--spacebar-position off-centered-left`), which is the right template mirrored (see *Spacebar switch position*), and the stabilizers if you switch on the mirror options (see *Stabilizer Mirror*).
+The cutouts are only turned, **never mirrored**: every cutout is the template as designed. There are two exceptions: the left off-centered spacebar (`--spacebar-position off-centered-left`), which is the right template mirrored (see *Spacebar switch position*), and the stabilizers and the spacebar if you switch on the mirror options (see *Stabilizer Mirror*).
 
 #### Converting old calls and config files
 
@@ -486,20 +486,23 @@ The old default call is therefore the new default call: all options `0`. The old
 
 ### Stabilizer Mirror
 
-The stabilizer cutouts (the `stabilizer_2-00u.stl` and `stabilizer_3-00u.stl` templates) can be mirrored. Horizontal keys (length along X, for example Shift, Backspace, other 2u and 3u keys) and vertical keys (turned by 90°: ISO Enter, numpad `+` and `Enter`) are set **separately**:
+The stabilizer cutouts can be mirrored: the `stabilizer_2-00u.stl` and `stabilizer_3-00u.stl` templates and the spacebar templates. Horizontal keys (length along X, for example Shift, Backspace, other 2u and 3u keys, and the spacebar), vertical keys (turned by 90°: ISO Enter, numpad `+` and `Enter`) and the spacebar on its own are set **separately**:
 
 ```powershell
 --stab-mirror-horizontal
 --stab-mirror-vertical
+--stab-mirror-spacebar
 ```
 
-`--no-stab-mirror-horizontal` and `--no-stab-mirror-vertical` switch them off again, for example if a config file has turned them on. Both are off by default; then nothing changes. In a config file these are the keys `stab_mirror_horizontal` and `stab_mirror_vertical` in `[orientation]` (`true` or `false`).
+`--no-stab-mirror-horizontal`, `--no-stab-mirror-vertical` and `--no-stab-mirror-spacebar` switch them off again, for example if a config file has turned them on. All are off by default; then nothing changes. In a config file these are the keys `stab_mirror_horizontal`, `stab_mirror_vertical` and `stab_mirror_spacebar` in `[orientation]` (`true` or `false`).
 
-**Which keys:** only stabilized keys. A key counts as horizontal if it is wider than tall (`w > h`), every other stabilized key as vertical; this is the same rule as for the rotation. The spacebar (it has `--spacebar-position`), the wide-caps socket and the normal sockets are never mirrored by these options.
+**Which keys:** stabilized keys and the spacebar. A stabilized key counts as horizontal if it is wider than tall (`w > h`), every other stabilized key as vertical; this is the same rule as for the rotation. The spacebar is horizontal, too, so **`--stab-mirror-horizontal` mirrors the horizontal stabilizers and the spacebar**. The one exception is a spacebar whose cutout you have turned by 90° or 270° (`--stab-rotation-spacebar 90`): it counts as vertical then, and `--stab-mirror-vertical` mirrors it instead. In addition, `--stab-mirror-spacebar` mirrors the spacebar **on its own**, whatever its direction: use it to mirror the spacebar without the other horizontal stabilizers. A spacebar that both switches ask for is mirrored once, not twice. The wide-caps socket and the normal sockets are never mirrored by these options.
 
 **Axis:** the mirror is made in the coordinate system of the template, along its long axis, `(x, y) → (x, −y)`, and **before** the base orientation and the rotations, so it holds for every `--stab-rotation-*` and `--global-rotation`. It is an exact integer matrix on the contour; no mirrored CAD solid is made (the same way as for the left off-centered spacebar).
 
-**Same as another 180° for the current templates:** all current stabilizer templates are symmetric left/right and differ only in Y (the side of the notches). A mirror along the long axis swaps the side of the notches, and for these templates that is the same cutout as turning the key class by another 180° (`--stab-rotation-horizontal 180`, `--stab-rotation-vertical 180`); the tests check this for the 2u and the 3u template. The mirror is still a separate switch: it is unambiguous, and it will matter for templates that are not symmetric.
+**Not the same as `--spacebar-position`:** the switch position moves the switch of the spacebar (`off-centered-left` is the right template mirrored along X). The mirror options mirror along the long axis: they swap the side of the notches and leave the switch where it is. Both can be used together; the left template mirrored along its long axis is then the right template turned by 180°.
+
+**Same as another 180° for most templates:** the 2u and 3u templates and the centered spacebar templates are symmetric left/right and differ only in Y (the side of the notches). A mirror along the long axis swaps the side of the notches, and for these templates that is the same cutout as turning the key class by another 180° (`--stab-rotation-horizontal 180`, `--stab-rotation-vertical 180`, `--stab-rotation-spacebar 180`); the tests check this for the 2u, the 3u and the 6u, 6.25u and 7u centered templates. The **off-centered spacebar templates are not symmetric** (the switch sits beside the center): there the mirror keeps the switch on its side, which turning by 180° would not. The mirror is still a separate switch: it is unambiguous, and it will matter for further templates that are not symmetric.
 
 Example:
 
@@ -507,7 +510,7 @@ Example:
 python .\fat_plate_generator.py --json .\tests\layouts\stabilizer_orientation.json --stab-mirror-vertical --output m.stl
 ```
 
-The header output then shows `Stab mirror:     horizontal off, vertical on`.
+The header output then shows `Stab mirror:     horizontal off, vertical on, spacebar off`.
 
 ### Stepped Keys
 
@@ -541,7 +544,7 @@ The default is `0`: an additional rotation on top of the base orientation, which
 
 KLE counts Y downwards (towards the typist), CAD counts Y upwards. This conversion is built in (it flips the KLE Y axis and is part of the fixed base orientation): the plate is the layout as seen from above, with the typist side at low Y. It needs no option. The plate is then moved so that its bounding box starts at X = 0, Y = 0. The order is: stabilizer rotation first, then the whole-plate transform, then the move.
 
-The whole-plate transform moves the keys and the plate outline. The cutouts get only its rotation (they turn with the plate), so they are never mirrored by it. (The left off-centered spacebar and, if you switch it on, a mirrored stabilizer are mirrored on their own, in the template's coordinates; see *Spacebar switch position* and *Stabilizer Mirror*.)
+The whole-plate transform moves the keys and the plate outline. The cutouts get only its rotation (they turn with the plate), so they are never mirrored by it. (The left off-centered spacebar and, if you switch it on, a stabilizer or the spacebar mirrored by the mirror options are mirrored on their own, in the template's coordinates; see *Spacebar switch position* and *Stabilizer Mirror*.)
 
 `--global-rotation` and `--global-mirror-x` (or `global_rotation` and `global_mirror_x` in a config file, see *Configuration File*) are **additional** to the built-in conversion. `--global-rotation` turns the finished plate, that is outline, switch positions and cutouts together; `--global-mirror-x` additionally mirrors the outline and the switch positions along X (the cutouts stay unmirrored):
 
@@ -613,8 +616,9 @@ stab_rotation_horizontal = 0        # additional rotations on top of the built-i
 stab_rotation_vertical = 0
 stab_rotation_spacebar = 0
 wide_caps_rotation = 0
-stab_mirror_horizontal = false      # mirror the horizontal stabilizer cutouts (see Stabilizer Mirror)
+stab_mirror_horizontal = false      # mirror the horizontal stabilizer cutouts and the spacebar (see Stabilizer Mirror)
 stab_mirror_vertical = false
+stab_mirror_spacebar = false
 global_transform = true
 global_rotation = 0                 # additional rotation of the finished plate
 global_mirror_x = false             # additionally mirror outline and switch positions along X
@@ -645,6 +649,7 @@ spacebar_7u_centered = "stl-templates/stabilizer_7-00u_centered.stl"
 | `orientation.wide_caps_rotation` | `--wide-caps-rotation` |
 | `orientation.stab_mirror_horizontal` | `--stab-mirror-horizontal` / `--no-stab-mirror-horizontal` |
 | `orientation.stab_mirror_vertical` | `--stab-mirror-vertical` / `--no-stab-mirror-vertical` |
+| `orientation.stab_mirror_spacebar` | `--stab-mirror-spacebar` / `--no-stab-mirror-spacebar` |
 | `orientation.global_transform` | `--global-transform` / `--no-global-transform` |
 | `orientation.global_rotation` | `--global-rotation` |
 | `orientation.global_mirror_x` | `--global-mirror-x` / `--no-global-mirror-x` |
