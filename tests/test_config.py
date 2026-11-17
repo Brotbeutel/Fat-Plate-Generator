@@ -180,6 +180,13 @@ def test_stab_mirror_switches_and_the_usual_precedence(tmp_path):
     # an option that was not given leaves the config value alone
     assert settings("--config", horizontal_on, "--stab-mirror-vertical"
                     ).orientation.stab_mirror_horizontal is True
+    # the spacebar switch: the same rules, and it leaves the other two alone
+    spacebar_on = write_config(tmp_path, "[orientation]\nstab_mirror_spacebar = true\n", "s.toml")
+    assert default.stab_mirror_spacebar is False
+    only = settings("--config", spacebar_on).orientation
+    assert (only.stab_mirror_horizontal, only.stab_mirror_vertical, only.stab_mirror_spacebar) == (False, False, True)
+    assert settings("--config", spacebar_on, "--no-stab-mirror-spacebar").orientation.stab_mirror_spacebar is False
+    assert settings("--stab-mirror-spacebar").orientation.stab_mirror_spacebar is True
 
 
 def test_global_transform_has_both_forms_and_the_usual_precedence(tmp_path):
@@ -222,6 +229,8 @@ def test_global_transform_has_both_forms_and_the_usual_precedence(tmp_path):
      "cfg.toml: 'orientation.stab_mirror_horizontal' must be true or false, got 1 (int)"),
     ('[orientation]\nstab_mirror_vertical = "yes"\n',
      "cfg.toml: 'orientation.stab_mirror_vertical' must be true or false, got 'yes' (str)"),
+    ("[orientation]\nstab_mirror_spacebar = 1\n",
+     "cfg.toml: 'orientation.stab_mirror_spacebar' must be true or false, got 1 (int)"),
     ("[templates]\nsocket = 5\n", "'templates.socket' must be a path"),
     ("orientation = 3\n", "'orientation' must be a table"),
     ("[orientation]\nstab_rotation_vertical = 45\n",
