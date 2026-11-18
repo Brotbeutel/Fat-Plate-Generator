@@ -1,8 +1,9 @@
 """Stabilizer mirror (WP-18): stab_mirror_horizontal / _vertical / _spacebar.
 
 The spacebar is horizontal, so stab_mirror_horizontal mirrors it too; a spacebar turned by
-90 deg (stab_rotation_spacebar) follows stab_mirror_vertical; stab_mirror_spacebar mirrors it
-on its own.
+90 deg (stab_rotation_spacebar) follows stab_mirror_vertical; stab_mirror_spacebar REVERSES
+that: alone it mirrors the spacebar, together with the switch of its direction the spacebar is
+back in its original position.
 
 The mirror is made in the template's own coordinates along its long axis,
 (x, y) -> (x, -y), before the base orientation and the rotations.  The 2u and
@@ -72,10 +73,10 @@ def test_the_decision_per_key_class(horizontal, vertical, spacebar):
         "vertical 2u": (key(h=2), vertical),
         "vertical 3u": (key(h=3), vertical),
         "square 2x2 counts as vertical": (key(w=2, h=2), vertical),
-        # the spacebar is horizontal: stab_mirror_horizontal mirrors it, and so does its own switch
-        "spacebar 6u": (key("", w=6), horizontal or spacebar),
-        "spacebar 6.25u": (key("", w=6.25), horizontal or spacebar),
-        "spacebar 7u": (key("", w=7), horizontal or spacebar),
+        # the spacebar is horizontal: stab_mirror_horizontal mirrors it, and its own switch reverses that
+        "spacebar 6u": (key("", w=6), horizontal != spacebar),
+        "spacebar 6.25u": (key("", w=6.25), horizontal != spacebar),
+        "spacebar 7u": (key("", w=7), horizontal != spacebar),
         "wide-caps": (key(l=True), False),
         "socket": (key(), False),
         "caps lock": (key("Caps Lock", w=1.75), False),
@@ -90,11 +91,12 @@ def test_the_decision_per_key_class(horizontal, vertical, spacebar):
 def test_a_spacebar_turned_by_90_degrees_follows_the_vertical_switch(
         rotation, turned, horizontal, vertical, spacebar):
     """The rare exception: stab_mirror_horizontal does not reach a spacebar whose cutout is turned
-    by 90 or 270 deg; it is vertical then.  Its own switch works in every direction."""
+    by 90 or 270 deg; it is vertical then.  Its own switch reverses what the switch of its
+    direction does, in every direction."""
     config = OrientationConfig(stab_mirror_horizontal=horizontal, stab_mirror_vertical=vertical,
                                stab_mirror_spacebar=spacebar, stab_rotation_spacebar=rotation)
     k = key("", w=6.25)
-    expected = (vertical if turned else horizontal) or spacebar
+    expected = (vertical if turned else horizontal) != spacebar
     assert fpg.stabilizer_mirror(k, fpg.classify_key(k), config) is expected
     # the rotation of the spacebar changes nothing for the stabilizers
     stabilizer = key(w=2)
@@ -116,9 +118,9 @@ def test_exactly_the_selected_stabilizers_are_mirrored(mirror_model):
     labels = [k["label"] for k in model.keys]
     assert sorted(labels) == sorted(HORIZONTAL + VERTICAL + SPACEBAR + NOT_MIRRORED)
     mirrored = [label for label, flag in zip(labels, model.mirrored) if flag]
-    # the spacebar is horizontal: stab_mirror_horizontal mirrors it, too, and so does its own switch
+    # the spacebar is horizontal: stab_mirror_horizontal mirrors it, too, and its own switch reverses that
     assert sorted(mirrored) == sorted((HORIZONTAL if horizontal else []) + (VERTICAL if vertical else [])
-                                      + (SPACEBAR if horizontal or spacebar else []))
+                                      + (SPACEBAR if horizontal != spacebar else []))
     assert len(model.mirrored) == len(model.keys)
 
 
@@ -137,7 +139,7 @@ def test_by_default_nothing_but_the_left_spacebar_is_mirrored(orientation_model)
 
 def test_the_left_spacebar_stays_mirrored_when_stabilizers_are_too():
     both = build_model(ORIENTATION_LAYOUT, spacebar_position="off-centered-left", orientation=OrientationConfig(
-        stab_mirror_horizontal=True, stab_mirror_vertical=True, stab_mirror_spacebar=True))
+        stab_mirror_horizontal=True, stab_mirror_vertical=True))
     assert all(both.mirrored[i] for i, kind in enumerate(both.kinds)
                if kind in (fpg.KIND_SPACEBAR, fpg.KIND_STABILIZED))
     assert not any(flag for flag, kind in zip(both.mirrored, both.kinds) if kind == fpg.KIND_NORMAL)
@@ -234,18 +236,20 @@ def test_wide_caps_and_sockets_are_never_mirrored_by_the_mirror_options(tmp_path
 @pytest.mark.parametrize("flags, rotation, mirrored", [
     ({"stab_mirror_horizontal": True}, 0, True),             # a horizontal spacebar follows the horizontal switch
     ({"stab_mirror_vertical": True}, 0, False),
-    ({"stab_mirror_spacebar": True}, 0, True),
-    ({"stab_mirror_horizontal": True, "stab_mirror_spacebar": True}, 0, True),   # once, not twice
+    ({"stab_mirror_spacebar": True}, 0, True),               # its own switch alone mirrors it
+    ({"stab_mirror_horizontal": True, "stab_mirror_spacebar": True}, 0, False),   # reversed: the original position
+    ({"stab_mirror_horizontal": True, "stab_mirror_vertical": True, "stab_mirror_spacebar": True}, 0, False),
     ({"stab_mirror_horizontal": True}, 90, False),           # the rare exception: turned by 90 deg
     ({"stab_mirror_vertical": True}, 90, True),
     ({"stab_mirror_horizontal": True}, 270, False),
     ({"stab_mirror_vertical": True}, 270, True),
-    ({"stab_mirror_horizontal": True, "stab_mirror_spacebar": True}, 90, True),   # its own switch, any direction
+    ({"stab_mirror_horizontal": True, "stab_mirror_spacebar": True}, 90, True),   # horizontal does not reach it
+    ({"stab_mirror_vertical": True, "stab_mirror_spacebar": True}, 90, False),    # reversed
     ({"stab_mirror_horizontal": True}, 180, True),
 ])
 def test_which_switch_mirrors_the_spacebar(tmp_path, flags, rotation, mirrored):
-    """Through the real pipeline with an asymmetric template: mirrored exactly once, with the
-    matrix MIRROR_Y before the rotations, or not at all."""
+    """Through the real pipeline with an asymmetric template: mirrored with the matrix MIRROR_Y
+    before the rotations, or not at all (also when the two switches reverse each other)."""
     config = OrientationConfig(stab_rotation_spacebar=rotation, **flags)
     model = build_l_model(tmp_path, "spacebar", config)
     assert model.mirrored == [mirrored]
@@ -254,6 +258,27 @@ def test_which_switch_mirrors_the_spacebar(tmp_path, flags, rotation, mirrored):
     template_mirror = fpg.MIRROR_Y_MATRIX if mirrored else fpg.IDENTITY_MATRIX
     expected = translate(affine(Polygon(L_OUTLINE), mul(turn, template_mirror)), cx, cy)
     assert projected_outline(model.cavities[0]).symmetric_difference(expected).area < 1e-6
+
+
+def test_both_switches_mirror_the_horizontal_stabilizers_but_leave_the_spacebar_as_it_is(tmp_path):
+    """The reversal with the real templates: horizontal + spacebar = the horizontal stabilizers
+    are mirrored, the spacebar is back in its original position."""
+    layout = tmp_path / "keys.json"
+    layout.write_text('[[{"w": 2}, "x"], [{"w": 6.25}, ""]]', encoding="utf-8")
+    plain = build_model(layout)
+    both = build_model(layout, orientation=OrientationConfig(
+        stab_mirror_horizontal=True, stab_mirror_spacebar=True))
+    only_horizontal = build_model(layout, orientation=OrientationConfig(stab_mirror_horizontal=True))
+    assert both.mirrored == [True, False] and only_horizontal.mirrored == [True, True]
+    stabilizer, spacebar = 0, 1
+    z = -3.0
+    plain_2u, both_2u = sections_at([cutter_mesh(plain.cavities[stabilizer]), cutter_mesh(both.cavities[stabilizer])], z)
+    plain_space, both_space, only_space = sections_at(
+        [cutter_mesh(plain.cavities[spacebar]), cutter_mesh(both.cavities[spacebar]),
+         cutter_mesh(only_horizontal.cavities[spacebar])], z)
+    assert both_space.symmetric_difference(plain_space).area < 1e-4          # the spacebar is as it was
+    assert only_space.symmetric_difference(plain_space).area > 1.0           # horizontal alone mirrors it
+    assert both_2u.symmetric_difference(plain_2u).area > 1.0                 # the 2u stabilizer is mirrored
 
 
 # --------------------------------------------------------------------------
@@ -352,11 +377,11 @@ def test_the_exported_stl_with_a_mirrored_spacebar_passes_the_check(tmp_path, ca
     layout.write_text('[[{"w": 2}, "H"], [{"h": 2}, "V"], [{"y": 1, "w": 6.25}, ""]]', encoding="utf-8")
     out = tmp_path / "plate.stl"
     settings = fpg.Settings(orientation=OrientationConfig(
-        stab_mirror_horizontal=True, stab_mirror_vertical=True, stab_mirror_spacebar=True))
+        stab_mirror_horizontal=False, stab_mirror_vertical=True, stab_mirror_spacebar=True))
     fpg.generate(layout, settings, output=out)
     captured = capsys.readouterr()
     assert "STL check:       passed" in captured.out and "exported STL has problems" not in captured.err
-    assert "Stab mirror:     horizontal on, vertical on, spacebar on" in captured.out
+    assert "Stab mirror:     horizontal off, vertical on, spacebar on" in captured.out
     _, problems = fpg.check_exported_stl(out)
     assert problems == []
 
