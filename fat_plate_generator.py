@@ -145,15 +145,16 @@ class OrientationConfig:
     horizontal, too, so ``stab_mirror_horizontal`` mirrors the horizontal stabilizers
     AND the spacebar.  The rare exception is a spacebar turned by 90 or 270 deg with
     ``stab_rotation_spacebar``: it counts as vertical and follows ``stab_mirror_vertical``.
-    ``stab_mirror_spacebar`` additionally mirrors the spacebar on its own, whatever its
-    direction; a spacebar that both switches ask for is mirrored once.  This is not the
-    switch position of the spacebar (``spacebar_position``): that mirrors along X and
-    moves the switch, the mirror options mirror along the long axis and swap the side
-    of the notches.  The 2u and 3u templates and the centered spacebar templates are
-    symmetric left/right and differ only in Y, so for them a mirror gives the same
-    cutout as an additional rotation of 180 deg of the same class.  The off-centered
-    spacebar templates are not symmetric: there the mirror keeps the switch on its
-    side, which a rotation would not.
+    ``stab_mirror_spacebar`` REVERSES what that switch does to the spacebar: alone it
+    mirrors the spacebar, together with the switch of its direction the spacebar is
+    back in its original position (to mirror the horizontal stabilizers but not the
+    spacebar, switch both on).  This is not the switch position of the spacebar
+    (``spacebar_position``): that mirrors along X and moves the switch, the mirror
+    options mirror along the long axis and swap the side of the notches.  The 2u and 3u
+    templates and the centered spacebar templates are symmetric left/right and differ
+    only in Y, so for them a mirror gives the same cutout as an additional rotation of
+    180 deg of the same class.  The off-centered spacebar templates are not symmetric:
+    there the mirror keeps the switch on its side, which a rotation would not.
 
     ``global_transform = False`` skips the whole conversion, including the KLE
     to CAD flip: both whole-plate matrices are the identity (mainly for
@@ -1240,15 +1241,16 @@ def stabilizer_mirror(k, kind, orientation: "OrientationConfig"):
     The spacebar is horizontal as well, so it follows ``stab_mirror_horizontal``.  The
     rare exception is a spacebar whose cutout is turned by 90 or 270 deg
     (``stab_rotation_spacebar``): that one is vertical and follows
-    ``stab_mirror_vertical``.  Besides that ``stab_mirror_spacebar`` mirrors the
-    spacebar whatever its direction (both together: mirrored once).  All of this is
-    separate from the switch position of the spacebar (``--spacebar-position``).  The
-    wide-caps socket and the normal sockets never are mirrored.
+    ``stab_mirror_vertical``.  ``stab_mirror_spacebar`` REVERSES that for the spacebar:
+    alone it mirrors the spacebar, together with the switch of its direction the spacebar
+    is back in its original position (mirrored twice).  All of this is separate from the
+    switch position of the spacebar (``--spacebar-position``).  The wide-caps socket and
+    the normal sockets never are mirrored.
     """
     if kind == KIND_SPACEBAR:
         turned = orientation.stab_rotation_spacebar in (90, 270)
         by_direction = orientation.stab_mirror_vertical if turned else orientation.stab_mirror_horizontal
-        return by_direction or orientation.stab_mirror_spacebar
+        return by_direction != orientation.stab_mirror_spacebar
     if kind == KIND_STABILIZED:
         return (orientation.stab_mirror_horizontal if k["w"] > k["h"]
                 else orientation.stab_mirror_vertical)
@@ -1664,12 +1666,12 @@ def build_parser():
                              "(--no-stab-mirror-vertical overrides a config file; "
                              f"default: {'on' if orientation.stab_mirror_vertical else 'off'})")
     parser.add_argument("--stab-mirror-spacebar", action=argparse.BooleanOptionalAction, default=None,
-                        help="mirror the spacebar cutout on its own, in addition to --stab-mirror-horizontal "
-                             "(which mirrors a horizontal spacebar, too), along the long axis of its "
-                             "template, before the rotations; this swaps the side of the notches and keeps "
-                             "the switch where it is, unlike --spacebar-position, which moves the switch "
-                             "(the centered templates are symmetric, so there it equals "
-                             "--stab-rotation-spacebar turned by another 180 degrees) "
+                        help="mirror the spacebar cutout on its own: this REVERSES what "
+                             "--stab-mirror-horizontal does to the spacebar (which mirrors it, too), so "
+                             "alone it mirrors the spacebar, and together with --stab-mirror-horizontal "
+                             "the spacebar stays as it is while the other horizontal stabilizers are "
+                             "mirrored; the mirror swaps the side of the notches and keeps the switch where "
+                             "it is, unlike --spacebar-position, which moves the switch "
                              "(--no-stab-mirror-spacebar overrides a config file; "
                              f"default: {'on' if orientation.stab_mirror_spacebar else 'off'})")
     parser.add_argument("--stepped-key", choices=STEPPED_MODES, default=None,

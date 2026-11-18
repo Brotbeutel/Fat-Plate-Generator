@@ -50,13 +50,14 @@ wide_caps_rotation = 0
 # long axis of their template, before the rotations. Horizontal keys (length along X, and the
 # spacebar) and vertical keys (for example ISO Enter, numpad + and Enter) are set separately;
 # stab_mirror_horizontal mirrors the spacebar, too (unless its cutout is turned by 90 degrees
-# with stab_rotation_spacebar, then stab_mirror_vertical does), and stab_mirror_spacebar mirrors
-# the spacebar on its own, whatever its direction. The wide-caps socket and the normal sockets
-# are never mirrored by these. The 2u and 3u templates and the
-# centered spacebar templates are symmetric left/right, so a mirror gives the same cutout as an
-# additional rotation of 180 degrees of the same class; the off-centered spacebar templates are
-# not, there the mirror keeps the switch where it is and swaps the notches (unlike
-# spacebar_position, which moves the switch). CLI: --stab-mirror-horizontal,
+# with stab_rotation_spacebar, then stab_mirror_vertical does). stab_mirror_spacebar REVERSES
+# that for the spacebar: alone it mirrors only the spacebar, together with
+# stab_mirror_horizontal the spacebar stays as it is while the horizontal stabilizers are
+# mirrored. The wide-caps socket and the normal sockets are never mirrored by these. The 2u and
+# 3u templates and the centered spacebar templates are symmetric left/right, so a mirror gives
+# the same cutout as an additional rotation of 180 degrees of the same class; the off-centered
+# spacebar templates are not, there the mirror keeps the switch where it is and swaps the
+# notches (unlike spacebar_position, which moves the switch). CLI: --stab-mirror-horizontal,
 # --stab-mirror-vertical, --stab-mirror-spacebar and the matching --no-... options.
 stab_mirror_horizontal = false
 stab_mirror_vertical = false
