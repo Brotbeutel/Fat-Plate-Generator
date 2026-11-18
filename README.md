@@ -486,7 +486,7 @@ The old default call is therefore the new default call: all options `0`. The old
 
 ### Stabilizer Mirror
 
-The stabilizer cutouts can be mirrored: the `stabilizer_2-00u.stl` and `stabilizer_3-00u.stl` templates and the spacebar templates. Horizontal keys (length along X, for example Shift, Backspace, other 2u and 3u keys, and the spacebar), vertical keys (turned by 90°: ISO Enter, numpad `+` and `Enter`) and the spacebar on its own are set **separately**:
+The stabilizer cutouts can be mirrored: the `stabilizer_2-00u.stl` and `stabilizer_3-00u.stl` templates and the spacebar templates. Horizontal keys (length along X, for example Shift, Backspace, other 2u and 3u keys, and the spacebar), vertical keys (turned by 90°: ISO Enter, numpad `+` and `Enter`) and a reversing switch for the spacebar are set **separately**:
 
 ```powershell
 --stab-mirror-horizontal
@@ -496,7 +496,18 @@ The stabilizer cutouts can be mirrored: the `stabilizer_2-00u.stl` and `stabiliz
 
 `--no-stab-mirror-horizontal`, `--no-stab-mirror-vertical` and `--no-stab-mirror-spacebar` switch them off again, for example if a config file has turned them on. All are off by default; then nothing changes. In a config file these are the keys `stab_mirror_horizontal`, `stab_mirror_vertical` and `stab_mirror_spacebar` in `[orientation]` (`true` or `false`).
 
-**Which keys:** stabilized keys and the spacebar. A stabilized key counts as horizontal if it is wider than tall (`w > h`), every other stabilized key as vertical; this is the same rule as for the rotation. The spacebar is horizontal, too, so **`--stab-mirror-horizontal` mirrors the horizontal stabilizers and the spacebar**. The one exception is a spacebar whose cutout you have turned by 90° or 270° (`--stab-rotation-spacebar 90`): it counts as vertical then, and `--stab-mirror-vertical` mirrors it instead. In addition, `--stab-mirror-spacebar` mirrors the spacebar **on its own**, whatever its direction: use it to mirror the spacebar without the other horizontal stabilizers. A spacebar that both switches ask for is mirrored once, not twice. The wide-caps socket and the normal sockets are never mirrored by these options.
+**Which keys:** stabilized keys and the spacebar. A stabilized key counts as horizontal if it is wider than tall (`w > h`), every other stabilized key as vertical; this is the same rule as for the rotation. The spacebar is horizontal, too, so **`--stab-mirror-horizontal` mirrors the horizontal stabilizers and the spacebar**. The one exception is a spacebar whose cutout you have turned by 90° or 270° (`--stab-rotation-spacebar 90`): it counts as vertical then, and `--stab-mirror-vertical` mirrors it instead. The wide-caps socket and the normal sockets are never mirrored by these options.
+
+**The spacebar switch reverses:** `--stab-mirror-spacebar` turns around what the switch of its direction does to the spacebar. Alone, it mirrors the spacebar and nothing else. Together with `--stab-mirror-horizontal`, the horizontal stabilizers are mirrored and the spacebar stays as it was (mirrored twice is the original position):
+
+| `--stab-mirror-horizontal` | `--stab-mirror-spacebar` | horizontal stabilizers | spacebar |
+| -------------------------- | ------------------------ | ---------------------- | -------- |
+| off                        | off                      | as designed            | as designed |
+| on                         | off                      | mirrored               | mirrored    |
+| off                        | on                       | as designed            | mirrored    |
+| on                         | on                       | mirrored               | as designed |
+
+For a spacebar that is turned by 90° or 270°, read `--stab-mirror-vertical` instead of `--stab-mirror-horizontal`.
 
 **Axis:** the mirror is made in the coordinate system of the template, along its long axis, `(x, y) → (x, −y)`, and **before** the base orientation and the rotations, so it holds for every `--stab-rotation-*` and `--global-rotation`. It is an exact integer matrix on the contour; no mirrored CAD solid is made (the same way as for the left off-centered spacebar).
 
@@ -618,7 +629,7 @@ stab_rotation_spacebar = 0
 wide_caps_rotation = 0
 stab_mirror_horizontal = false      # mirror the horizontal stabilizer cutouts and the spacebar (see Stabilizer Mirror)
 stab_mirror_vertical = false
-stab_mirror_spacebar = false
+stab_mirror_spacebar = false       # reverses what the horizontal switch does to the spacebar
 global_transform = true
 global_rotation = 0                 # additional rotation of the finished plate
 global_mirror_x = false             # additionally mirror outline and switch positions along X
