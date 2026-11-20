@@ -39,7 +39,7 @@ python .\tools\preview.py plate.stl --layout my_layout.json --output plate.png
 - Die Rotationsoptionen in `OrientationConfig` sind Zusatzdrehungen (Offsets) mit Standard 0 (`global_mirror_x` aus). Die Grundausrichtung steht fest im Code: `TEMPLATE_BASE_ROTATION` (je Klasse), `CUTOUT_FRAME_ROTATION` und `KLE_TO_CAD_MATRIX`. Die Werte hat der Nutzer nach Sichtprüfung festgelegt; nicht ohne Auftrag ändern.
 - Die exportierte STL wird nur im Speicher geprüft, nie repariert, nach Komponenten gefiltert oder neu exportiert.
 - Socket, Stabilizer und Spacebar laufen durch denselben Code. Keine Sonderwege je Template, keine stille Glättung von Schrägen, keine Konturen weglassen.
-- Die Bounding Boxen der Templates sind fest (`TEMPLATE_BOUNDING_BOXES`) und werden nur geprüft (Warnung), nie angepasst. Neue Toleranzen nur mit Begründung, benannter Konstante und Eintrag in der README; die bestehenden stehen dort.
+- Die Bounding Boxen der Templates sind fest (`TEMPLATE_BOUNDING_BOXES`, aus `TEMPLATE_WIDTH_UNITS × UNIT`) und werden nur geprüft (Warnung), nie angepasst. Neue Toleranzen nur mit Begründung, benannter Konstante und Eintrag in der README; die bestehenden stehen dort.
 
 ## Dateien und Abhängigkeiten
 
