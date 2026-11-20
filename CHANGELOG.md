@@ -34,6 +34,8 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- `--fuse-f-row` now bridges only top-row gaps strictly smaller than `1.75 u`; gaps of `1.75 u` or more stay open. The G80-3000 layout is unchanged, while the G80-1800 layout keeps the F12-to-Insert gap open. `--single-mesh` is unaffected, and the header reports the rule plus any open gaps.
+
 - `single_mesh` is now enabled by default, so layouts with multiple separated parts, gaps or enclosed voids produce a connected plate. Use `--no-single-mesh` (or `single_mesh = false`) for the previous separate-part behavior; `--single-mesh` remains available explicitly.
 
 - Template bounding boxes are now fixed as multiples of 1u: widths come from `TEMPLATE_WIDTH_UNITS` and depth is exactly `UNIT = 19.05 mm`; every template kind has a fixed box and no `None` entry remains.

@@ -2,11 +2,11 @@
 
 Status: `[ ]` offen, `[~]` in Arbeit, `[x]` erledigt.
 
-Stand: `main` @ `98a9f94` (WP-07 bis WP-15 gemerged; 397 Tests grün, vom Planner in einem frischen Clone gemessen).
+Stand: `main` @ `771cdc6` (WP-07 bis WP-18 gemerged; Tests grün: 589 Tests in 6:34 min, vom Planner in einem frischen Clone gemessen).
 
 ## Reihenfolge
 
-~~WP-07~~ → ~~WP-08~~ → ~~WP-09~~ → ~~WP-10~~ → ~~WP-11~~ → ~~WP-12~~ → ~~WP-13~~ → ~~WP-14~~ → ~~WP-15~~ → ~~WP-16~~ → ~~WP-17~~ → ~~WP-18~~ → ~~WP-19~~ → ~~WP-20~~. Alle bisher beauftragten Pakete sind durch. Offen sind WP-03 (Testdruck, Nutzer), der Rest von WP-04, WP-05 und WP-06; die nächste Reihenfolge legt der Nutzer fest.
+~~WP-07~~ → … → ~~WP-18~~ → WP-19 → WP-20 → WP-21 → WP-05. WP-21 und WP-05 warten auf Antworten des Nutzers (siehe dort). WP-22 hat niedrige Priorität.
 
 ## Arbeitspakete
 
@@ -14,23 +14,23 @@ Stand: `main` @ `98a9f94` (WP-07 bis WP-15 gemerged; 397 Tests grün, vom Planne
   - Orientierung zentral konfigurierbar (`OrientationConfig`: horizontal / vertical / spacebar getrennt, Ganzplatten-Transformation)
   - Preview-Tool (`tools/preview.py`) und pytest-Suite
   - Die Defaults hat der Nutzer nach Sichtprüfung angepasst: horizontal 180°, vertical 90°, spacebar 180°, Platte 180° + Spiegelung an X (= KLE-Y-Umrechnung ohne weitere Drehung); die Ausschnitte werden nur gedreht, nie gespiegelt (seit **WP-17** sind diese Werte die feste Grundausrichtung im Code; die Optionen sind Zusatzdrehungen mit Standard 0)
-- [x] **WP-02** Aufräumen (abgeschlossen; die zwei offenen Punkte sind nach WP-15/WP-19 verschoben)
+- [x] **WP-02** Aufräumen (abgeschlossen; die zwei offenen Punkte sind nach WP-15/WP-22 verschoben)
   - [x] Stretch-/Voxel-Reste entfernt, README/Version/Dateinamen konsistent
   - [x] Socket, Stabilizer und Spacebar werden gleich und exakt erzeugt (ein Loader, jede Schicht ein Loft, keine Rundungen)
   - [x] Feste Bounding Boxen je Template (nur Prüfung mit Warnung), in der README dokumentiert
   - [x] Stabilizer-Ausschnitte werden nur gedreht, nie gespiegelt; Spacebar-Varianten links/rechts (`--spacebar-position`)
   - [x] STL-Prüfung als ausdrückliche Warnung statt Abbruch, STL wird nicht neu exportiert
-  - → KLE-Rotation (`r`) für Cavities: **WP-19**
-  - → robustere Spacebar-/Caps-Lock-Erkennung: **WP-15** (Spacebar nach Breite, erledigt) und **WP-19** (Caps Lock)
+  - → KLE-Rotation (`r`) für Cavities: **WP-22**
+  - → robustere Spacebar-/Caps-Lock-Erkennung: **WP-15** (Spacebar nach Breite, erledigt) und **WP-22** (Caps Lock)
 - [ ] **WP-03** Testdruck: Mini-Testplatte drucken, Passung und Toleranzen prüfen (Nutzer)
 - [~] **WP-04** Layout-Features
   - [x] Stepped Caps Lock (`"l": true`): `--stepped-key standard` oder `wide-caps` (Template `switch_socket_wide-caps.stl` bei `w2`)
-  - [x] Option `--single-mesh`: die Platte als Standard ein zusammenhängendes Mesh ohne Lücken
-  - getrennte Meshes → `--no-single-mesh` (mehrere STL-Dateien)
+  - [x] Option `--single-mesh`: die Platte als ein zusammenhängendes Mesh ohne Lücken
+  - getrennte Meshes → mehrere STL-Dateien
   - Pfeilcluster-Box (gefüllte Ecken)
   - → F-Row als ein Mesh: **WP-12** (erledigt)
   - → Caps-Lock-Optionen (große Aussparung, linksbündig, zentriert): nach **WP-09**, falls dann noch gewünscht
-- [ ] **WP-05** Plattenform: abgerundete/gefaste Ecken, Standoffs/Spacer
+- [ ] **WP-05** Plattenform: abgerundete/gefaste Ecken (vom Nutzer als Nächstes gewünscht, Spezifikation offen: welche Kanten, Radius/Fase, Konvex und Konkav), Standoffs/Spacer
 - [ ] **WP-06** Weitere Stabilizer-Varianten (7 u und 6 u sind mit **WP-15**, 3 u mit **WP-16** erledigt)
 
 ### Neue Arbeitspakete
@@ -77,9 +77,15 @@ Stand: `main` @ `98a9f94` (WP-07 bis WP-15 gemerged; 397 Tests grün, vom Planne
   - `stab_mirror_horizontal`, `stab_mirror_vertical` und `stab_mirror_spacebar` (Standard aus; CLI `--stab-mirror-horizontal/--no-…`, `--stab-mirror-vertical/--no-…`, `--stab-mirror-spacebar/--no-…`; Config in `[orientation]`). Betroffen sind `KIND_STABILIZED` (2 u und 3 u) und die Spacebar (Nachtrag auf Wunsch des Nutzers, im ursprünglichen WP-18-Prompt war sie ausgenommen): `stab_mirror_horizontal` spiegelt die Spacebar mit (Ausnahme: ein um 90°/270° gedrehter Spacebar-Cutout folgt `stab_mirror_vertical`), `stab_mirror_spacebar` kehrt das für die Spacebar um (allein: nur die Spacebar gespiegelt; zusammen mit `stab_mirror_horizontal`: Horizontale gespiegelt, Spacebar in der Ausgangslage); Wide-Caps und Sockel werden nicht gespiegelt.
   - Spiegelachse: im Koordinatensystem des Templates an der Längsachse, `(x, y) → (x, −y)` (`MIRROR_Y_MATRIX`), vor Grundausrichtung und Rotation. 2 u, 3 u und die zentrierten Spacebars sind links/rechts-symmetrisch, deshalb ist die Spiegelung für sie dasselbe wie 180° mehr Rotation derselben Klasse; die Off-Center-Spacebars sind es nicht (dort bleibt der Schalter an seiner Seite). Die Spiegelung ist nicht `--spacebar-position` (das verschiebt den Schalter). README, Abschnitt „Stabilizer Mirror“.
   - `PlateModel.mirrored` ist für jede gespiegelte Taste `True`; mit Standardeinstellungen bleibt jede STL byte-identisch.
-- [x] **WP-19** Feste Bounding Boxen als Vielfache von 1 u
-  - Alle Template-Arten haben feste Breiten aus `TEMPLATE_WIDTH_UNITS × UNIT` und genau 1 u Tiefe; Warnungen nennen Breite und Sollwert in u. Alle echten Templates laden ohne Warnung.
-  - Offene Teile des ehemaligen Vorschlags „Parser-Robustheit und Aufräumen“ bleiben Vorschläge:
+- [ ] **WP-19** Feste Bounding Boxen als Vielfache von 1 u (Priorität 1)
+  - Auslöser: Der Nutzer hat die Template-Zellen auf Vielfache von 1 u gebaut (`a57f24c`; Wide-Caps 1,75 u, 2 u, 3 u, 6 u, 6,25 u, 7 u, Tiefe 1 u). Der Generator kennt noch die alten Werte und warnt bei jeder Platte mit Spacebar (`stabilizer_6-25u_centered.stl: bounding box x is 119.0620 mm, the fixed size is 114.3015 mm`).
+  - Eine Quelle der Wahrheit: Tabelle in u (`TEMPLATE_WIDTH_UNITS`), die mm-Werte werden daraus berechnet; alle Arten haben eine feste Box, der Sonderfall `None` entfällt; alle neun Template-Dateien laden ohne Warnung. Platten bleiben byte-identisch.
+- [ ] **WP-20** Single Mesh als Standard
+  - `single_mesh = True`; wer getrennte Teile will, nutzt `--no-single-mesh`. Vom Planner geprüft: Für alle Layouts in `kle-jsons/` liefert der Single-Mesh-Umriss ein Polygon, in unter 0,6 s (100 %-Layouts: 9 Teile → 1, Fläche +12 bis +24 %; Ergodox 2 → 1).
+  - Folgen: Die Platten ändern sich bei jedem Layout mit mehr als einem Teil; Tests mit „getrennten Teilen“ bekommen `single_mesh=False`; `--fuse-f-row` wirkt nur noch mit `--no-single-mesh`; die Beispiel-STL muss der Nutzer neu erzeugen.
+- [x] **WP-21** F-Reihe: Lückenbegrenzung
+  - `--fuse-f-row` bridgt nur Lücken kleiner als `1,75 u`; Lücken ab `1,75 u` bleiben offen. `--single-mesh` ist davon nicht betroffen. G80-3000 bleibt 5 Teile, G80-1800 hat mit der Option 4 Teile (F12 → Insert bleibt offen), Ergodox 2 Teile.
+- [ ] **WP-22** Parser-Robustheit und Aufräumen (Vorschlag, noch nicht beauftragt; hieß zuvor WP-16 und kurz WP-17, diese Nummern gingen an den 3-u-Stabilizer und die Null-Defaults)
   - KLE-Rotation (`r`) für Cavities: Footprint und Switch-Zentrum werden gedreht, die Cavity nicht. **Konkret betroffen:** `kle-jsons/ergodox_split_ergo_67-keys.json` (12 Tasten mit ±30°). Gemessen: 10 von 76 Cavities ragen aus dem Plattenumriss (bis 27 mm²), ohne dass der Generator warnt. Nutzer: Layouts mit diagonalen Teilen sollen möglich sein, niedrige Priorität. Bis dahin mindestens eine Warnung statt stillem Falschbau.
   - Caps-Lock-Ausnahme per Label-Vergleich ersetzen (nach WP-08 nur noch für Caps Lock ab 2 u relevant)
   - Platzierungslogik nur einmal (Generator und `tools/preview.py` rechnen sie getrennt)
@@ -92,28 +98,28 @@ Stand: `main` @ `98a9f94` (WP-07 bis WP-15 gemerged; 397 Tests grün, vom Planne
   - `FLAT_WALL_TOLERANCE` (50 nm) lässt sich noch nicht senken: bei 1e-6 und 1e-7 ändern sich die Eckenzahlen von `stabilizer_2-00u.stl`, bei 1e-9 lässt sich `stabilizer_2-00u.stl` nicht mehr loften. Möglich wäre es erst, wenn die Wände der Templates bis auf Float32-Genauigkeit exakt gerade sind.
 - [x] Templates liegen im Repo: Wide-Caps, 6 u (zentriert und Off-Center), 7 u; der Generator nutzt sie.
 - [x] **3-u-Stabilizer-Template**: liegt im Repo (`stabilizer_3-00u.stl`), der Generator nutzt es; der Ersatz in der Zuordnung ist mit **WP-16** entfernt.
-- [x] **Bounding Boxen** festlegen: alle Template-Zellen sind Vielfache von 1 u in der Breite und 1 u tief; `TEMPLATE_WIDTH_UNITS` und `TEMPLATE_BOUNDING_BOXES` sind in der README dokumentiert.
-- [x] **WP-20** Single Mesh als Standard
-- `single_mesh` ist standardmäßig aktiv; `--no-single-mesh` stellt die getrennten Teile wieder her. `--fuse-f-row` ist nur zusammen mit `--no-single-mesh` sinnvoll.
+- [x] **Bounding Boxen** sind festgelegt (Vielfache von 1 u); die Umsetzung im Generator folgt mit WP-19.
 - [x] **Orientierung** der 6u- und 7u-Templates anhand der Bilder in `docs/spacebar-sizes/` bestätigen. (Der Planner hat 6 u und 6,25 u verglichen: Schalter rechts von der Mitte, Kerben zur Tippseite, beide gleich; 7 u bitte selbst ansehen.)
 - [x] **Orientierung** des 3-u-Templates anhand der Bilder in `docs/stabilizer-sizes/` bestätigen (waagerecht und senkrecht; die Bilder sind unbewertet).
-- [ ] `fat_plate_export_example.stl` neu erzeugen, wenn sich die Geometrie ändert (wegen WP-20 muss der Nutzer die Beispiel-STL neu erzeugen).
+- [ ] `fat_plate_export_example.stl` neu erzeugen: nach WP-20 (neuer Standard) fällig.
 
 ## Regression-Referenzen
 
-SHA256-Anfang der STLs, mit denen die Implementer „keine Änderung“ nachweisen (Linux, Python 3.12, CadQuery 2.8, vom Planner gemessen; die Hashes ändern sich nur, wenn sich ein Template-STL ändert, dann trägt der Planner sie neu ein):
+SHA256-Anfang der STLs, mit denen die Implementer „keine Änderung“ nachweisen (Linux, Python 3.12, CadQuery 2.8, vom Planner gemessen). Die Hashes ändern sich nur, wenn sich ein Template-STL ändert, dann trägt der Planner sie neu ein. Gültig für den Stand `771cdc6` (Templates mit Zellen als Vielfache von 1 u, Commits `a57f24c` und `552d270`); **Standardeinstellungen**, bis WP-20 den Standard von `single_mesh` ändert (danach gelten diese Hashes mit `--no-single-mesh`).
 
-| Aufruf                                                                | SHA256 (Anfang) |
-| --------------------------------------------------------------------- | --------------- |
-| `--json tests/layouts/stabilizer_orientation.json`                    | `91b460a5…`     |
-| dasselbe mit `--spacebar-position off-centered-left`                  | `07c2c64e…`     |
-| dasselbe mit `--spacebar-position off-centered-right`                 | `71d4c0db…`     |
-| `--json kle-jsons/keyboard-layout_040-percent_jd40.json`              | `74c0c55c…`     |
-| `--json kle-jsons/test_stepped-capslock.json --stepped-key wide-caps` | `7642cc2c…`     |
+| Aufruf | SHA256 (Anfang) |
+| --- | --- |
+| `--json tests/layouts/stabilizer_orientation.json` | `393edc89…` |
+| dasselbe mit `--spacebar-position off-centered-left` | `8c3bb3e1…` |
+| dasselbe mit `--spacebar-position off-centered-right` | `60e2a86e…` |
+| `--json kle-jsons/keyboard-layout_040-percent_jd40.json` | `2cf586b5…` |
+| `--json kle-jsons/test_stepped-capslock.json --stepped-key wide-caps` | `5cae9066…` |
 
-Vor `557deea` galt für das erste Layout `34ed1d42…` (alte 2-u-Stabilizer-Datei); die ältere Datei hieß außerdem `kle-jsons/stepped-capslock.json`.
+Frühere Werte (`91b460a5…`, `07c2c64e…`, `71d4c0db…`, `74c0c55c…`, `7642cc2c…`) galten für die Templates vor `a57f24c`. Der Planner hat nachgewiesen, dass der Generator zwischen WP-15 und WP-18 byte-neutral ist: Der aktuelle Code mit den alten Templates erzeugt den alten Hash `74c0c55c…`. Die neuen Hashes kommen allein von den ersetzten Template-Dateien (Cutout-Konturen unverändert, nur Zellen und Eckenreihenfolge).
 
 ## Vorschläge (nicht beauftragt)
+
+- **README zu „geschlossenen Templates“ klarstellen:** Dort steht „The mesh should be closed“. Tatsächlich haben die Templates keine Außenwände (alle offenen Kanten liegen am Zellrand), und der Loader verlangt nur, dass die Wände der Aussparung geschlossene Konturen bilden; eine Kontur um die Aussparung herum (Außenwände) bricht den Loader mit „nested contours“ ab (geprüft). Nur falls der Nutzer die Templates auch direkt in Blender oder im Slicer als Körper braucht, könnte der Loader die äußerste Zellkontur ignorieren.
 
 - **Layout-Paare als Regressionstests:** Wird ein Layout falsch gelesen, legt der Nutzer den fehlerhaften Export und eine von Hand bereinigte Fassung mit demselben Ergebnis (`…_clean.json`) in `kle-jsons/` ab. Der Implementer ergänzt einen Test, der beide vergleicht. So ist der RK65-Fehler gefunden worden; das Verfahren lohnt sich für jeden weiteren Fall.
 
