@@ -151,6 +151,19 @@ def test_exact_bounding_box_gives_no_warning(tmp_path):
     assert fpg.load_template(path, "socket").warnings == []
 
 
+def test_template_bounding_boxes_come_from_unit_widths():
+    for kind, width_units in fpg.TEMPLATE_WIDTH_UNITS.items():
+        assert fpg.TEMPLATE_BOUNDING_BOXES[kind] == pytest.approx(
+            (width_units * fpg.UNIT, fpg.UNIT)
+        )
+
+
+@pytest.mark.parametrize("name, kind", REAL_TEMPLATES)
+def test_real_template_has_no_bounding_box_warning(name, kind):
+    template = fpg.load_template(ROOT / name, kind)
+    assert template.warnings == []
+
+
 @pytest.mark.parametrize("extents, expected", [
     ((19.0, 19.05, 6.2), "bounding box x is 19.0000"),
     ((19.05, 19.0478, 6.2), "bounding box y is 19.0478"),
@@ -160,6 +173,15 @@ def test_deviating_bounding_box_warns(tmp_path, extents, expected):
                       tmp_path / "cell.stl")
     warnings = fpg.load_template(path, "socket").warnings
     assert any(expected in w for w in warnings), warnings
+    assert any("19.0500 mm (1 u)" in w for w in warnings)
+
+
+def test_deviating_stabilizer_length_warns(tmp_path):
+    path = write_mesh(box_mesh(38.0, 19.05, fpg.PLATE_Z_MIN, fpg.PLATE_Z_MAX),
+                      tmp_path / "stabilizer.stl")
+    warnings = fpg.load_template(path, "stabilizer-2u").warnings
+    assert any("bounding box x is 38.0000 mm" in w for w in warnings), warnings
+    assert any("fixed size is 38.1000 mm (2 u)" in w for w in warnings), warnings
 
 
 def test_deviating_height_warns(tmp_path):

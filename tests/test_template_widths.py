@@ -145,6 +145,29 @@ def test_three_unit_export_passes_stl_check(tmp_path):
     assert problems == []
 
 
+def test_mixed_socket_stabilizer_and_spacebar_export_has_no_warning(tmp_path):
+    layout = tmp_path / "mixed-layout.json"
+    layout.write_text(
+        json.dumps([[{"w": 2}, "S"], [{"w": 6.25}, ""], [{"w": 1}, "A"]]),
+        encoding="utf-8",
+    )
+    output = tmp_path / "mixed-plate.stl"
+    old_stdout, old_stderr = sys.stdout, sys.stderr
+    captured_out = io.StringIO()
+    captured_err = io.StringIO()
+    sys.stdout = captured_out
+    sys.stderr = captured_err
+    try:
+        fpg.generate(layout, fpg.Settings(templates=fpg.TemplateSet.defaults(REPO_ROOT)),
+                     output=output)
+    finally:
+        sys.stdout = old_stdout
+        sys.stderr = old_stderr
+    assert "Done." in captured_out.getvalue()
+    assert "Done, with warnings." not in captured_out.getvalue()
+    assert "WARNING" not in captured_err.getvalue()
+
+
 def test_vertical_three_unit_key_cavity_runs_along_y(tmp_path):
     """A vertical 3u key (h=3) has its cavity elongated along Y."""
     layout = tmp_path / "layout.json"

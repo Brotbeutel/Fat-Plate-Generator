@@ -338,19 +338,19 @@ Caps Lock is intentionally **not** treated as a stabilized key. It always receiv
 
 ## Fixed bounding boxes
 
-The outer size of every template is fixed. If you design a new template (for example in Blender), build it inside this box and do not change the box:
+The outer size of every template is fixed. If you design a new template (for example in Blender), build it inside this cell and do not change the box. All template cells are a whole number of key units wide (a quarter-unit step for 1.75 u and 6.25 u) and exactly 1 u deep.
 
-| Template                | Size X × Y                                 | Height Z      |
-| ----------------------- | ------------------------------------------ | ------------- |
-| socket                  | 19.05 × 19.05 mm                           | −5.0 … 1.2 mm |
-| stabilizer-2u           | 38.1 × 19.05 mm                            | −5.0 … 1.2 mm |
-| stabilizer-3u           | not fixed yet (only the height is checked); measured 52.3993 × 19.05 mm | −5.0 … 1.2 mm |
-| spacebar-6-25u          | 114.3015 × 19.05 mm                        | −5.0 … 1.2 mm |
-| spacebar-6u             | not fixed yet (only the height is checked); measured 109.3004 × 19.05 mm | −5.0 … 1.2 mm |
-| spacebar-7u             | not fixed yet (only the height is checked); measured 128.6008 × 19.05 mm | −5.0 … 1.2 mm |
-| wide-caps socket        | not fixed yet (only the height is checked) | −5.0 … 1.2 mm |
+| Art | Width in u | Width in mm | Depth | Height Z |
+| --- | ----------: | ----------: | ---: | -------- |
+| socket | 1 | 19.05 | 1 u = 19.05 mm | −5.0 … 1.2 mm |
+| wide-caps | 1.75 | 33.3375 | 1 u = 19.05 mm | −5.0 … 1.2 mm |
+| stabilizer-2u | 2 | 38.1 | 1 u = 19.05 mm | −5.0 … 1.2 mm |
+| stabilizer-3u | 3 | 57.15 | 1 u = 19.05 mm | −5.0 … 1.2 mm |
+| spacebar-6u | 6 | 114.3 | 1 u = 19.05 mm | −5.0 … 1.2 mm |
+| spacebar-6-25u | 6.25 | 119.0625 | 1 u = 19.05 mm | −5.0 … 1.2 mm |
+| spacebar-7u | 7 | 133.35 | 1 u = 19.05 mm | −5.0 … 1.2 mm |
 
-The plate is exactly 6.2 mm thick (z from −5.0 to 1.2); this comes from the fixed values, not from a template. 19.05 mm is the pitch of a 1u key; the lengths of the stabilizer and spacebar box are the sizes of the current templates.
+The plate is exactly 6.2 mm thick (z from −5.0 to 1.2); this comes from the fixed values, not from a template. 19.05 mm is the pitch of a 1u key; template lengths are therefore exact multiples of 1 u. For Stabilizer and Spacebar templates, lengths follow this rule instead of a measured current-template size.
 
 The box is only **checked**. If a template deviates by more than 0.001 mm, the generator prints a warning with the deviation. The geometry is never stretched, cut or moved to fit the box.
 
