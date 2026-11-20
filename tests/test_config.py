@@ -119,10 +119,10 @@ def test_precedence_of_stabilizer_3u_path(tmp_path):
 
 
 def test_precedence_of_a_switch(tmp_path):
-    config = write_config(tmp_path, "single_mesh = true\n")
-    assert settings().single_mesh is False
+    config = write_config(tmp_path, "single_mesh = false\n")
+    assert settings().single_mesh is True
     assert settings("--single-mesh").single_mesh is True
-    assert settings("--config", config).single_mesh is True
+    assert settings("--config", config).single_mesh is False
     assert settings("--config", config, "--single-mesh").single_mesh is True
     assert settings("--config", config, "--no-single-mesh").single_mesh is False
 

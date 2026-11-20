@@ -576,27 +576,27 @@ This skips the whole conversion, including the built-in KLE Y flip. `--global-tr
 
 ### Plate as One Connected Mesh
 
-By default the plate follows the keys: where the distance between two groups of keys is larger than twice the margin (for example between F-row, main block and numpad of a 100% layout), the plate falls apart into separate parts. With
+By default the plate is one connected mesh without gaps. The space between two keys that face each other, horizontally or vertically, is filled over the whole gap (for example between F-row, main block and numpad of a 100% layout). With
 
 ```powershell
 --single-mesh
 ```
 
-the plate is one connected mesh without gaps. The space between two keys that face each other, horizontally or vertically, is filled over the whole gap, whatever its width (for example between Esc and F1, or between F-row, main block and numpad). Parts that are still separate after that are joined with the smallest radius that connects them, and voids that are enclosed by the plate outline are filled as well. Where no key faces another one (for example the step above the numpad of a 100% layout) the outline stays as it was. The key cutouts are not affected. Without the option the plate is generated as before. `--no-single-mesh` switches it off again, for example if a config file turns it on.
+the same connected-mesh behavior can be selected explicitly. Parts that are still separate after that are joined with the smallest radius that connects them, and voids that are enclosed by the plate outline are filled as well. Where no key faces another one (for example the step above the numpad of a 100% layout) the outline stays as it was. The key cutouts are not affected. `--no-single-mesh` follows the keys and separates the plate wherever groups are far apart.
 
 ### Fused F-Row
 
-By default the top row of a full-size layout falls apart into separate islands of plate (Esc, the groups of F keys, PrtSc / Scroll Lock / Pause Break), because the gaps between them are much wider than twice the margin. With
+With `--no-single-mesh`, the top row of a full-size layout falls apart into separate islands of plate (Esc, the groups of F keys, PrtSc / Scroll Lock / Pause Break), because the gaps between them are much wider than twice the margin. With
 
 ```powershell
 --fuse-f-row
 ```
 
-the top row becomes one connected strip of plate. The space between the keys of that row is filled over the whole key height, in the same way as `--single-mesh` does it, but only for the keys of this row. Nothing else is connected: the strip stays a part of its own and is not joined with the main block (in the G80-3000 layout it is 0.75 u above it). The key cutouts are not affected. Without the option the plate is generated exactly as before; `--no-fuse-f-row` switches it off again, for example if a config file turns it on (config key `fuse_f_row = true`).
+the top row becomes one connected strip of plate. The space between the keys of that row is filled over the whole key height, in the same way as `--single-mesh` does it, but only for the keys of this row. Nothing else is connected: the strip stays a part of its own and is not joined with the main block (in the G80-3000 layout it is 0.75 u above it). The key cutouts are not affected. Use this option together with `--no-single-mesh`; `--no-fuse-f-row` switches it off again, for example if a config file turns it on (config key `fuse_f_row = true`).
 
 Which row is meant: all keys without rotation (no `r` in the KLE data) whose KLE `y` is the smallest `y` among the unrotated keys. Rotated keys are never part of the row, and a layout without an unrotated key is not changed. For a 100% layout these are Esc, F1 to F12, PrtSc, Scroll Lock and Pause Break (16 keys); the generator names the number of keys in its header (`top row fused (16 keys)`). Layouts whose top row has no gaps (for example a 40% layout) come out unchanged. Two tolerances are used, both as named constants in the generator: keys whose `y` differs by at most 1e-9 u are in the same row (`TOP_ROW_TOLERANCE`), and a rotation below 1e-9 degrees counts as no rotation (`ROTATION_TOLERANCE`).
 
-Together with `--single-mesh` the option changes nothing, because that option already connects the whole plate. The generator prints a note (`--fuse-f-row has no effect with --single-mesh`); it is neither an error nor a warning.
+Together with `--single-mesh` the option changes nothing, because that option already connects the whole plate. The generator prints a note (`--fuse-f-row has no effect with --single-mesh; use --no-single-mesh together with --fuse-f-row`); it is neither an error nor a warning.
 
 ---
 
@@ -608,7 +608,7 @@ All settings of the generator can be kept in a TOML file instead of being typed 
 python .\fat_plate_generator.py --json my_keyboard.json --config .\fat_plate_config.example.toml --output my_keyboard.stl
 ```
 
-The file is a convenience, not a different behavior: without `--config`, and with the example file as it is, the generator makes exactly the same plate as before. `fat_plate_config.example.toml` lists every setting with its built-in default and a short explanation. Copy it and keep only the keys you want to change; all keys are optional.
+The file is a convenience, not a different behavior: without `--config`, and with the example file as it is, the generator uses the same settings. `fat_plate_config.example.toml` lists every setting with its built-in default and a short explanation. Copy it and keep only the keys you want to change; all keys are optional.
 
 ## Format
 
@@ -617,7 +617,7 @@ The key names are the option names with an underscore instead of a hyphen. Orien
 ```toml
 margin = 1.0
 stabilizer_min_unit = 2.0
-single_mesh = false
+single_mesh = true                  # default: one connected mesh; use false to separate far-apart groups
 fuse_f_row = false                  # true: join only the top row (the F-row) into one strip
 spacebar_position = "centered"      # centered | off-centered-left | off-centered-right
 stepped_key = "standard"            # standard | wide-caps
@@ -650,7 +650,7 @@ spacebar_7u_centered = "stl-templates/stabilizer_7-00u_centered.stl"
 | --- | --- |
 | `margin` | `--margin` |
 | `stabilizer_min_unit` | `--stabilizer-min-unit` |
-| `single_mesh` | `--single-mesh` / `--no-single-mesh` |
+| `single_mesh` | `--single-mesh` / `--no-single-mesh` (default: `true`) |
 | `fuse_f_row` | `--fuse-f-row` / `--no-fuse-f-row` |
 | `spacebar_position` | `--spacebar-position` |
 | `stepped_key` | `--stepped-key` |
@@ -915,7 +915,7 @@ Currently, the generator supports in particular:
 - Exact template STLs: the exported plates are watertight
 - STL export with automatic validation
 - Top-view preview of generated plates (`tools/preview.py`)
-- Optional single connected plate without gaps (`--single-mesh`)
+- One connected plate without gaps by default; use `--no-single-mesh` for separate parts
 - Optional fused F-row: the top row of the layout as one strip of plate (`--fuse-f-row`)
 - Stepped keys (stepped Caps Lock): normal socket or wide-caps socket (`--stepped-key`)
 - All settings in an optional TOML config file (`--config`)

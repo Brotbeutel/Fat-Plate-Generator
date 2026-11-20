@@ -6,7 +6,7 @@ Stand: `main` @ `98a9f94` (WP-07 bis WP-15 gemerged; 397 Tests grün, vom Planne
 
 ## Reihenfolge
 
-~~WP-07~~ → ~~WP-08~~ → ~~WP-09~~ → ~~WP-10~~ → ~~WP-11~~ → ~~WP-12~~ → ~~WP-13~~ → ~~WP-14~~ → ~~WP-15~~ → ~~WP-16~~ → ~~WP-17~~ → ~~WP-18~~. Alle bisher beauftragten Pakete sind durch. Offen sind WP-03 (Testdruck, Nutzer), der Rest von WP-04, WP-05, WP-06 und der Vorschlag WP-19; die nächste Reihenfolge legt der Nutzer fest.
+~~WP-07~~ → ~~WP-08~~ → ~~WP-09~~ → ~~WP-10~~ → ~~WP-11~~ → ~~WP-12~~ → ~~WP-13~~ → ~~WP-14~~ → ~~WP-15~~ → ~~WP-16~~ → ~~WP-17~~ → ~~WP-18~~ → ~~WP-19~~ → ~~WP-20~~. Alle bisher beauftragten Pakete sind durch. Offen sind WP-03 (Testdruck, Nutzer), der Rest von WP-04, WP-05 und WP-06; die nächste Reihenfolge legt der Nutzer fest.
 
 ## Arbeitspakete
 
@@ -25,8 +25,8 @@ Stand: `main` @ `98a9f94` (WP-07 bis WP-15 gemerged; 397 Tests grün, vom Planne
 - [ ] **WP-03** Testdruck: Mini-Testplatte drucken, Passung und Toleranzen prüfen (Nutzer)
 - [~] **WP-04** Layout-Features
   - [x] Stepped Caps Lock (`"l": true`): `--stepped-key standard` oder `wide-caps` (Template `switch_socket_wide-caps.stl` bei `w2`)
-  - [x] Option `--single-mesh`: die Platte als ein zusammenhängendes Mesh ohne Lücken
-  - getrennte Meshes → mehrere STL-Dateien
+  - [x] Option `--single-mesh`: die Platte als Standard ein zusammenhängendes Mesh ohne Lücken
+  - getrennte Meshes → `--no-single-mesh` (mehrere STL-Dateien)
   - Pfeilcluster-Box (gefüllte Ecken)
   - → F-Row als ein Mesh: **WP-12** (erledigt)
   - → Caps-Lock-Optionen (große Aussparung, linksbündig, zentriert): nach **WP-09**, falls dann noch gewünscht
@@ -93,9 +93,11 @@ Stand: `main` @ `98a9f94` (WP-07 bis WP-15 gemerged; 397 Tests grün, vom Planne
 - [x] Templates liegen im Repo: Wide-Caps, 6 u (zentriert und Off-Center), 7 u; der Generator nutzt sie.
 - [x] **3-u-Stabilizer-Template**: liegt im Repo (`stabilizer_3-00u.stl`), der Generator nutzt es; der Ersatz in der Zuordnung ist mit **WP-16** entfernt.
 - [x] **Bounding Boxen** festlegen: alle Template-Zellen sind Vielfache von 1 u in der Breite und 1 u tief; `TEMPLATE_WIDTH_UNITS` und `TEMPLATE_BOUNDING_BOXES` sind in der README dokumentiert.
+- [x] **WP-20** Single Mesh als Standard
+- `single_mesh` ist standardmäßig aktiv; `--no-single-mesh` stellt die getrennten Teile wieder her. `--fuse-f-row` ist nur zusammen mit `--no-single-mesh` sinnvoll.
 - [x] **Orientierung** der 6u- und 7u-Templates anhand der Bilder in `docs/spacebar-sizes/` bestätigen. (Der Planner hat 6 u und 6,25 u verglichen: Schalter rechts von der Mitte, Kerben zur Tippseite, beide gleich; 7 u bitte selbst ansehen.)
 - [x] **Orientierung** des 3-u-Templates anhand der Bilder in `docs/stabilizer-sizes/` bestätigen (waagerecht und senkrecht; die Bilder sind unbewertet).
-- [ ] `fat_plate_export_example.stl` neu erzeugen, wenn sich die Geometrie ändert.
+- [ ] `fat_plate_export_example.stl` neu erzeugen, wenn sich die Geometrie ändert (wegen WP-20 muss der Nutzer die Beispiel-STL neu erzeugen).
 
 ## Regression-Referenzen
 

@@ -269,7 +269,7 @@ class Settings:
     stabilizer_min_unit: float = DEFAULT_STABILIZER_MIN_UNIT
     spacebar_position: str = DEFAULT_SPACEBAR_POSITION
     stepped_key: str = DEFAULT_STEPPED_KEY
-    single_mesh: bool = False
+    single_mesh: bool = True
     fuse_f_row: bool = False
     orientation: OrientationConfig = field(default_factory=OrientationConfig)
     templates: TemplateSet = field(default_factory=TemplateSet.defaults)
@@ -1571,9 +1571,10 @@ def generate(kle_path: Path, settings: Settings, output: Path = Path(DEFAULT_OUT
     print(f"Plate thickness: {PLATE_Z_MAX - PLATE_Z_MIN:.4f} mm")
     parts = len(polygons(model.footprint))
     if settings.single_mesh:
-        print(f"Plate shape:     one connected mesh (--single-mesh), {parts} part")
+        print(f"Plate shape:     one connected mesh, {parts} part")
         if settings.fuse_f_row:
-            print("Note:            --fuse-f-row has no effect with --single-mesh")
+            print("Note:            --fuse-f-row has no effect with --single-mesh; use "
+                  "--no-single-mesh together with --fuse-f-row")
     elif settings.fuse_f_row:
         row = len(top_row_keys(keys))
         fused = f"top row fused ({row} keys)" if row else "--fuse-f-row has no effect (no unrotated keys)"
@@ -1690,12 +1691,13 @@ def build_parser():
                         help="generate the plate as one connected mesh without gaps: the space "
                              "between keys that face each other is filled and enclosed voids are "
                              "closed; without it the plate falls apart where the keys are far apart "
-                             "(--no-single-mesh overrides a config file; default: off)")
+                             "(--no-single-mesh overrides a config file; default: on)")
     parser.add_argument("--fuse-f-row", action=argparse.BooleanOptionalAction, default=None,
                         help="join the top row of the layout (the F-row of a full-size layout: Esc, F1-F12, "
                              "PrtSc, Scroll Lock, Pause Break) into one strip of plate; only that row "
                              "is joined, not the main block; it has no effect together with "
-                             "--single-mesh (--no-fuse-f-row overrides a config file; default: off)")
+                             "--single-mesh; use --no-single-mesh together with --fuse-f-row "
+                             "(--no-fuse-f-row overrides a config file; default: off)")
     parser.add_argument("--global-transform", action=argparse.BooleanOptionalAction, default=None,
                         help="apply the whole-plate transform (the built-in KLE y flip and the cutout frame), "
                              "or skip all of it with --no-global-transform, mainly for comparison "

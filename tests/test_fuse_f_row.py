@@ -126,8 +126,9 @@ def test_top_row_of_the_ergodox_layout_has_no_rotated_key():
 def test_a_layout_without_an_unrotated_key_has_no_top_row():
     keys = fpg.parse_kle(json.loads('[[{"r": 15, "rx": 0, "ry": 0}, "A", "B"]]'))
     assert fpg.top_row_keys(keys) == []
-    plain = fpg.plate_footprint(keys, fpg.IDENTITY_MATRIX, MARGIN)
-    assert fpg.plate_footprint(keys, fpg.IDENTITY_MATRIX, MARGIN, fuse_top_row=True).equals(plain)
+    plain = fpg.plate_footprint(keys, fpg.IDENTITY_MATRIX, MARGIN, single_mesh=False)
+    assert fpg.plate_footprint(keys, fpg.IDENTITY_MATRIX, MARGIN,
+                               single_mesh=False, fuse_top_row=True).equals(plain)
 
 
 def test_keys_whose_y_differs_by_less_than_the_tolerance_are_one_row():
@@ -147,8 +148,8 @@ def g80_footprints(request):
     matrix = MATRICES[request.param]
     _, keys = load(G80)
     return (matrix, keys,
-            fpg.plate_footprint(keys, matrix, MARGIN),
-            fpg.plate_footprint(keys, matrix, MARGIN, fuse_top_row=True))
+            fpg.plate_footprint(keys, matrix, MARGIN, single_mesh=False),
+            fpg.plate_footprint(keys, matrix, MARGIN, single_mesh=False, fuse_top_row=True))
 
 
 def test_all_top_row_keys_lie_in_one_part_with_the_option(g80_footprints):
@@ -203,7 +204,7 @@ def test_without_the_option_the_outline_is_what_it_was(path, matrix_name):
     _, keys = load(path)
     matrix = MATRICES[matrix_name]
     reference = old_footprint(keys, matrix, MARGIN)
-    assert fpg.plate_footprint(keys, matrix, MARGIN).equals(reference)
+    assert fpg.plate_footprint(keys, matrix, MARGIN, single_mesh=False).equals(reference)
     assert fpg.plate_footprint(keys, matrix, MARGIN, single_mesh=False, fuse_top_row=False).equals(reference)
 
 
@@ -219,8 +220,8 @@ def test_with_single_mesh_the_option_changes_nothing(path):
 def test_a_top_row_without_gaps_changes_nothing():
     _, keys = load(JD40)
     matrix = MATRICES["default plate transform"]
-    plain = fpg.plate_footprint(keys, matrix, MARGIN)
-    fused = fpg.plate_footprint(keys, matrix, MARGIN, fuse_top_row=True)
+    plain = fpg.plate_footprint(keys, matrix, MARGIN, single_mesh=False)
+    fused = fpg.plate_footprint(keys, matrix, MARGIN, single_mesh=False, fuse_top_row=True)
     assert len(footprint_parts(plain)) == len(footprint_parts(fused)) == 1
     assert fused.equals(plain)
 
@@ -230,8 +231,8 @@ def test_the_top_row_of_other_layouts_becomes_one_strip(path):
     _, keys = load(path)
     matrix = MATRICES["default plate transform"]
     centers = [center(k, matrix) for k in fpg.top_row_keys(keys)]
-    plain = fpg.plate_footprint(keys, matrix, MARGIN)
-    fused = fpg.plate_footprint(keys, matrix, MARGIN, fuse_top_row=True)
+    plain = fpg.plate_footprint(keys, matrix, MARGIN, single_mesh=False)
+    fused = fpg.plate_footprint(keys, matrix, MARGIN, single_mesh=False, fuse_top_row=True)
     islands = len(parts_containing(plain, centers))
     assert islands > 1
     assert len(parts_containing(fused, centers)) == 1
@@ -243,7 +244,7 @@ def test_the_top_row_is_not_joined_with_the_main_block():
     not contain a key of the next row."""
     _, keys = load(G80)
     matrix = MATRICES["default plate transform"]
-    fused = fpg.plate_footprint(keys, matrix, MARGIN, fuse_top_row=True)
+    fused = fpg.plate_footprint(keys, matrix, MARGIN, single_mesh=False, fuse_top_row=True)
     row_part = parts_containing(fused, [center(k, matrix) for k in fpg.top_row_keys(keys)])
     below = [k for k in keys if k["y"] > fpg.top_row_keys(keys)[0]["y"]]
     assert row_part.isdisjoint(parts_containing(fused, [center(k, matrix) for k in below]))
@@ -261,12 +262,12 @@ def small_layout(tmp_path_factory):
 
 @pytest.fixture(scope="module")
 def small_plain(small_layout):
-    return build_model(small_layout)
+    return build_model(small_layout, single_mesh=False)
 
 
 @pytest.fixture(scope="module")
 def small_fused(small_layout):
-    return build_model(small_layout, fuse_f_row=True)
+    return build_model(small_layout, single_mesh=False, fuse_f_row=True)
 
 
 @pytest.fixture(scope="module")
@@ -318,7 +319,7 @@ def test_the_fused_plate_passes_the_stl_check(small_fused, tmp_path):
 # --------------------------------------------------------------------------
 @pytest.fixture(scope="module")
 def g80_model():
-    return build_model(G80, fuse_f_row=True)
+    return build_model(G80, single_mesh=False, fuse_f_row=True)
 
 
 @pytest.fixture(scope="module")
@@ -342,7 +343,8 @@ def test_g80_top_row_is_one_part_of_the_plate_with_a_hole_per_key(g80_model, g80
 
 def test_g80_has_fewer_parts_than_without_the_option(g80_model):
     _, keys = load(G80)
-    plain = fpg.plate_footprint(keys, fpg.global_matrix(fpg.OrientationConfig()), MARGIN)
+    plain = fpg.plate_footprint(keys, fpg.global_matrix(fpg.OrientationConfig()), MARGIN,
+                                single_mesh=False)
     assert len(footprint_parts(plain)) - len(footprint_parts(g80_model.footprint)) > 1
 
 
@@ -357,7 +359,7 @@ def run_cli(*args):
 @pytest.fixture(scope="module")
 def cli_runs(small_layout, tmp_path_factory):
     folder = tmp_path_factory.mktemp("fuse_f_row_cli")
-    jobs = {"plain": [], "fused": ["--fuse-f-row"],
+    jobs = {"plain": ["--no-single-mesh"], "fused": ["--no-single-mesh", "--fuse-f-row"],
             "single": ["--single-mesh"], "both": ["--fuse-f-row", "--single-mesh"]}
     results = {}
     for name, extra in jobs.items():
