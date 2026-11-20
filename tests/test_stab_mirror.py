@@ -108,7 +108,7 @@ def test_a_spacebar_turned_by_90_degrees_follows_the_vertical_switch(
                 ids=["off", "horizontal", "vertical", "spacebar", "all"])
 def mirror_model(request):
     horizontal, vertical, spacebar = request.param
-    model = build_model(ORIENTATION_LAYOUT, orientation=OrientationConfig(
+    model = build_model(ORIENTATION_LAYOUT, single_mesh=False, orientation=OrientationConfig(
         stab_mirror_horizontal=horizontal, stab_mirror_vertical=vertical, stab_mirror_spacebar=spacebar))
     return model, request.param
 

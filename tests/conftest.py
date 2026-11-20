@@ -49,9 +49,9 @@ def repo_root() -> Path:
 
 @pytest.fixture(scope="session")
 def orientation_model():
-    return build_model(ORIENTATION_LAYOUT)
+    return build_model(ORIENTATION_LAYOUT, single_mesh=False)
 
 
 @pytest.fixture(scope="session")
 def full_model():
-    return build_model(FULL_LAYOUT)
+    return build_model(FULL_LAYOUT, single_mesh=False)

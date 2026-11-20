@@ -17,9 +17,9 @@ margin = 1.0
 # (CLI: --stabilizer-min-unit). Use 1.75 to give 1.75u keys a stabilizer as well.
 stabilizer_min_unit = 2.0
 
-# true: the plate is one connected mesh without gaps (CLI: --single-mesh,
+# true: the plate is one connected mesh without gaps (default; CLI: --single-mesh,
 # --no-single-mesh).
-single_mesh = false
+single_mesh = true
 
 # true: the top row of the layout (for a 100% layout Esc, F1-F12, PrtSc, Scroll Lock
 # and Pause Break) becomes one connected strip of plate. Only that row is joined,

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 from shapely.geometry import Point, box
@@ -143,6 +144,25 @@ def test_the_default_keeps_the_separate_parts(orientation_model):
     assert len(footprint_parts(orientation_model.footprint)) > 1
 
 
+def test_default_full_layout_is_one_polygon(repo_root):
+    keys = fpg.parse_kle(json.loads((repo_root / "kle-jsons" / "keyboard-layout.json").read_text(
+        encoding="utf-8")))
+    footprint = fpg.plate_footprint(
+        keys, fpg.global_matrix(fpg.OrientationConfig()), fpg.DEFAULT_MARGIN, single_mesh=True)
+    separate = fpg.plate_footprint(
+        keys, fpg.global_matrix(fpg.OrientationConfig()), fpg.DEFAULT_MARGIN, single_mesh=False)
+    assert footprint.geom_type == "Polygon"
+    assert len(footprint_parts(separate)) > 1
+
+
+@pytest.mark.parametrize("layout", sorted(Path(__file__).parents[1].joinpath("kle-jsons").glob("*.json")))
+def test_every_layout_can_be_connected(layout):
+    keys = fpg.parse_kle(json.loads(layout.read_text(encoding="utf-8")))
+    footprint = fpg.plate_footprint(
+        keys, fpg.global_matrix(fpg.OrientationConfig()), fpg.DEFAULT_MARGIN, single_mesh=True)
+    assert footprint.geom_type == "Polygon"
+
+
 def test_single_mesh_gives_one_polygon_that_contains_the_default(orientation_model, single_model):
     footprint = single_model.footprint
     assert footprint.geom_type == "Polygon" and not list(footprint.interiors)
@@ -172,7 +192,22 @@ def test_cli_single_mesh(repo_root, tmp_path):
     assert out.exists()
 
 
-def test_cli_default_is_not_single_mesh(repo_root, tmp_path):
+def test_cli_default_is_single_mesh(repo_root, tmp_path):
     result = run_cli(repo_root, "--json", str(ORIENTATION_LAYOUT), "--output", str(tmp_path / "x.stl"))
     assert result.returncode == 0, result.stderr
-    assert "separated where the keys are far apart" in result.stdout
+    assert "one connected mesh, 1 part" in result.stdout
+
+
+def test_two_groups_are_connected_by_default_and_separate_with_no_single_mesh(tmp_path):
+    layout = tmp_path / "two-groups.json"
+    layout.write_text('[["A", "B"], [{"x": 3}, "C", "D"]]', encoding="utf-8")
+    default = tmp_path / "default.stl"
+    separate = tmp_path / "separate.stl"
+    default_result = run_cli(Path(__file__).parents[1], "--json", str(layout), "--output", str(default))
+    separate_result = run_cli(Path(__file__).parents[1], "--json", str(layout),
+                              "--no-single-mesh", "--output", str(separate))
+    assert default_result.returncode == separate_result.returncode == 0
+    assert "one connected mesh, 1 part" in default_result.stdout
+    assert "2 part(s)" in separate_result.stdout
+    _, default_problems = fpg.check_exported_stl(default)
+    assert default_problems == []
