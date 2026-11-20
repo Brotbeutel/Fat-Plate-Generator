@@ -179,10 +179,10 @@ def test_an_unknown_stepped_mode_is_refused():
 
 
 # --------------------------------------------------------------------------
-# bounding box of the wide-caps template: only the height is fixed so far
+# bounding box of the wide-caps template
 # --------------------------------------------------------------------------
-def test_the_wide_caps_box_is_not_checked_in_x_and_y(tmp_path):
-    path = write_mesh(box_mesh(23.0, 17.0, fpg.PLATE_Z_MIN, fpg.PLATE_Z_MAX), tmp_path / "w.stl")
+def test_the_wide_caps_box_is_checked(tmp_path):
+    path = write_mesh(box_mesh(33.3375, 19.05, fpg.PLATE_Z_MIN, fpg.PLATE_Z_MAX), tmp_path / "w.stl")
     assert fpg.load_template(path, "wide-caps").warnings == []
 
 

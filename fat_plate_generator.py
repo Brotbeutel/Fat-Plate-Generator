@@ -595,23 +595,26 @@ def switch_center(k, second=False):
 # Template STLs
 # ---------------------------------------------------------------------------
 # Every template is a plate cell with the cutout in it.  The outer size of each
-# template is fixed (TEMPLATE_BOUNDING_BOXES, PLATE_Z_MIN/MAX) so that new
+# template is fixed (TEMPLATE_WIDTH_UNITS / TEMPLATE_BOUNDING_BOXES, PLATE_Z_MIN/MAX) so that new
 # templates can be designed against it.  The bounding box is only CHECKED: a
 # deviation produces a warning and never changes the geometry.  Only the
 # contour of the cutout is read from the STL; the outer rim of the cell is
 # ignored.  Socket, stabilizer and spacebar are read and built the same way.
 PLATE_Z_MIN = -5.0
 PLATE_Z_MAX = 1.2
-TEMPLATE_BOUNDING_BOXES = {      # x, y size in mm
-    "socket": (19.05, 19.05),
-    "stabilizer-2u": (38.1, 19.05),
-    "spacebar-6-25u": (114.3015, 19.05),
-    # Not fixed yet: only the height is checked.
-    "stabilizer-3u": (None, None),
-    "spacebar-6u": (None, None),
-    "spacebar-7u": (None, None),
-    # Not defined yet: only the height (z) of this template is checked.
-    "wide-caps": (None, None),
+# All template cells are a whole number of key units wide (a quarter-unit step for 1.75 u and 6.25 u) and exactly 1 u deep.
+TEMPLATE_WIDTH_UNITS = {
+    "socket": 1,
+    "wide-caps": 1.75,
+    "stabilizer-2u": 2,
+    "stabilizer-3u": 3,
+    "spacebar-6u": 6,
+    "spacebar-6-25u": 6.25,
+    "spacebar-7u": 7,
+}
+TEMPLATE_BOUNDING_BOXES = {
+    kind: (width_units * UNIT, UNIT)
+    for kind, width_units in TEMPLATE_WIDTH_UNITS.items()
 }
 BOUNDING_BOX_TOLERANCE = 0.001   # mm; only decides whether a warning is printed
 # STL stores float32, so one horizontal plane shows up with slightly different
@@ -863,15 +866,17 @@ def _interval_rings(vertices, faces, z_lo, z_hi, name):
 
 def _bounding_box_warnings(name, kind, bounds):
     spec_x, spec_y = TEMPLATE_BOUNDING_BOXES[kind]
+    width_units = TEMPLATE_WIDTH_UNITS[kind]
     extents = bounds[1] - bounds[0]
     problems = []
-    for axis, label, spec in ((0, "x", spec_x), (1, "y", spec_y)):
-        if spec is None:
-            continue
+    for axis, label, spec, units in (
+        (0, "x", spec_x, width_units),
+        (1, "y", spec_y, 1),
+    ):
         deviation = abs(extents[axis] - spec)
         if deviation > BOUNDING_BOX_TOLERANCE:
             problems.append(f"{name}: bounding box {label} is {extents[axis]:.4f} mm, the fixed "
-                            f"size is {spec} mm (off by {deviation:.4f} mm)")
+                            f"size is {spec:.4f} mm ({units:g} u) (off by {deviation:.4f} mm)")
     for value, spec, label in ((bounds[0][2], PLATE_Z_MIN, "bottom"), (bounds[1][2], PLATE_Z_MAX, "top")):
         deviation = abs(value - spec)
         if deviation > BOUNDING_BOX_TOLERANCE:
