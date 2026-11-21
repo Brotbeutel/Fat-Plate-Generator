@@ -25,6 +25,7 @@ KLE_DIR = REPO_ROOT / "kle-jsons"
 G80 = KLE_DIR / "keyboard-layout_100-percent-iso-105-keys_g80-3000.json"
 ISO105 = KLE_DIR / "keyboard-layout_100-percent-iso-105-keys.json"
 TKL = KLE_DIR / "keyboard-layout_080-percent-iso-cherry_g80-3000n-tkl.json"
+G1800 = KLE_DIR / "keyboard-layout_100-percent-iso-105-keys_g80-1800_stepped-capslock.json"
 JD40 = KLE_DIR / "keyboard-layout_040-percent_jd40.json"
 ERGODOX = KLE_DIR / "keyboard-layout_ergodox_split_ergo_67-keys.json"
 
@@ -35,6 +36,21 @@ MATRICES = {"kle frame": fpg.IDENTITY_MATRIX,
 # Esc | F1 F2 | F3 in the top row (two gaps), two keys 0.75 u below (a separate part).
 SMALL_LAYOUT = ('[["Esc", {"x": 1}, "F1", "F2", {"x": 0.5}, "F3"], '
                 '[{"y": 0.75}, "a", "b"]]')
+
+
+def test_gap_bridges_honor_the_optional_max_gap():
+    max_gap = fpg.FUSE_F_ROW_MAX_GAP_UNITS * fpg.UNIT
+    def pair(gap_units):
+        return [
+            fpg.box(0, 0, fpg.UNIT, fpg.UNIT),
+            fpg.box((1 + gap_units) * fpg.UNIT, 0,
+                    (2 + gap_units) * fpg.UNIT, fpg.UNIT),
+        ]
+
+    assert len(fpg.gap_bridges(pair(1.74), max_gap=max_gap)) == 1
+    assert fpg.gap_bridges(pair(1.75), max_gap=max_gap) == []
+    assert fpg.gap_bridges(pair(1.76), max_gap=max_gap) == []
+    assert len(fpg.gap_bridges(pair(1.75))) == 1
 
 
 def load(path):
@@ -226,6 +242,38 @@ def test_a_top_row_without_gaps_changes_nothing():
     assert fused.equals(plain)
 
 
+def test_g80_1800_keeps_the_1_75_u_gap_open():
+    _, keys = load(G1800)
+    matrix = MATRICES["default plate transform"]
+    plain = fpg.plate_footprint(keys, matrix, MARGIN, single_mesh=False)
+    fused = fpg.plate_footprint(keys, matrix, MARGIN, single_mesh=False, fuse_top_row=True)
+    assert len(footprint_parts(fused)) == len(footprint_parts(plain)) - 3
+    row = fpg.top_row_keys(keys)
+    esc_to_f12 = [key for key in row if key["label"] in {"Esc"} or key["label"].startswith("F")]
+    insert_and_after = [key for key in row if key["label"] not in {k["label"] for k in esc_to_f12}]
+    esc_part = parts_containing(fused, [center(key, matrix) for key in esc_to_f12])
+    insert_part = parts_containing(fused, [center(key, matrix) for key in insert_and_after])
+    assert esc_part.isdisjoint(insert_part)
+    assert len(footprint_parts(fused)) == 4
+
+
+@pytest.mark.parametrize("path", [G1800, ERGODOX], ids=lambda p: p.name)
+def test_single_mesh_still_changes_nothing_for_other_layouts(path):
+    _, keys = load(path)
+    matrix = MATRICES["default plate transform"]
+    plain = fpg.plate_footprint(keys, matrix, MARGIN, single_mesh=True)
+    both = fpg.plate_footprint(keys, matrix, MARGIN, single_mesh=True, fuse_top_row=True)
+    assert both.equals(plain)
+
+
+def test_ergodox_fused_top_row_has_two_parts():
+    _, keys = load(ERGODOX)
+    matrix = MATRICES["default plate transform"]
+    fused = fpg.plate_footprint(
+        keys, matrix, MARGIN, single_mesh=False, fuse_top_row=True)
+    assert len(footprint_parts(fused)) == 2
+
+
 @pytest.mark.parametrize("path", [ISO105, TKL], ids=lambda p: p.name)
 def test_the_top_row_of_other_layouts_becomes_one_strip(path):
     _, keys = load(path)
@@ -314,6 +362,39 @@ def test_the_fused_plate_passes_the_stl_check(small_fused, tmp_path):
     assert problems == []
 
 
+WIDE_GAP_LAYOUT = '[["A", {"x": 0.5}, "B", {"x": 2}, "C"], [{"y": 1}, "D", "E"]]'
+
+
+@pytest.fixture(scope="module")
+def wide_gap_layout(tmp_path_factory):
+    path = tmp_path_factory.mktemp("fuse_f_row_wide_gap") / "wide-gap.json"
+    path.write_text(WIDE_GAP_LAYOUT, encoding="utf-8")
+    return path
+
+
+def test_wide_gap_first_row_keeps_two_parts_and_one_hole_per_key(wide_gap_layout, tmp_path):
+    plain = build_model(wide_gap_layout, single_mesh=False)
+    fused = build_model(wide_gap_layout, single_mesh=False, fuse_f_row=True)
+    plain_row = fpg.top_row_keys(plain.keys)
+    assert len(plain_row) == 3
+    row_centers = [center for key, center in zip(fused.keys, fused.centers)
+                   if id(key) in {id(row_key) for row_key in fpg.top_row_keys(fused.keys)}]
+    assert len(parts_containing(fused.footprint, row_centers)) == 2
+    assert len(fused.cavities) == len(fused.keys) == 5
+
+    from tests.test_plate import export_mesh
+    mesh_path = tmp_path / "wide-gap.stl"
+    mesh = export_mesh(fused, mesh_path)
+    material, _ = preview.plate_section(mesh)
+    parts = footprint_parts(material)
+    assert len(parts) == len(footprint_parts(fused.footprint))
+    assert sum(len(part.interiors) for part in parts) == len(fused.keys)
+    bb = fused.plate.BoundingBox()
+    _, problems = fpg.check_exported_stl(
+        mesh_path, expected_bounds=((bb.xmin, bb.ymin, bb.zmin), (bb.xmax, bb.ymax, bb.zmax)))
+    assert problems == []
+
+
 # --------------------------------------------------------------------------
 # the real G80-3000 layout (CAD, built once)
 # --------------------------------------------------------------------------
@@ -372,7 +453,7 @@ def cli_runs(small_layout, tmp_path_factory):
 
 def test_cli_header_names_the_fused_row(cli_runs):
     stdout = cli_runs["fused"][1].stdout
-    assert "top row fused (4 keys)" in stdout
+    assert "top row fused (4 keys, gaps below 1.75 u)" in stdout
     assert "part(s)" in stdout and "\nDone." in stdout
     assert "top row fused" not in cli_runs["plain"][1].stdout
 
@@ -387,3 +468,16 @@ def test_cli_with_single_mesh_the_plate_is_the_same_and_a_note_appears(cli_runs)
     assert "--fuse-f-row has no effect with --single-mesh" in both.stdout
     assert both.stderr == ""                                         # a note, not a warning
     assert "no effect" not in cli_runs["single"][1].stdout
+
+
+def test_cli_g80_1800_names_the_open_1_75_u_gap(tmp_path):
+    output = tmp_path / "g1800.stl"
+    run = run_cli(
+        "--json", str(G1800),
+        "--no-single-mesh",
+        "--fuse-f-row",
+        "--output", str(output),
+    )
+    assert run.returncode == 0, run.stderr
+    assert "gaps below 1.75 u; 1 gap of 1.75 u or more left open" in run.stdout
+    assert "\nDone." in run.stdout

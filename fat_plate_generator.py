@@ -27,6 +27,7 @@ from shapely.ops import unary_union
 
 VERSION = "0.25"
 UNIT = 19.05
+FUSE_F_ROW_MAX_GAP_UNITS = 1.75  # gaps from this value upward stay open (key widths)
 DEFAULT_MARGIN = 1
 DEFAULT_STABILIZER_MIN_UNIT = 2.0
 DEFAULT_JSON = "kle-jsons/keyboard-layout.json"
@@ -952,13 +953,13 @@ def polygons(geom):
     raise ValueError(f"Unexpected polygon geometry: {geom.geom_type}")
 
 
-def gap_bridges(rectangles):
+def gap_bridges(rectangles, max_gap=None):
     """Rectangles that fill the space between keys that face each other.
 
     Two keys face each other if one lies to the right of (or above) the other
     and their extents overlap along the other axis.  The bridge spans the
-    whole space between them, over the overlap.  This closes gaps of any width
-    between keys of the same row or column, for example between Esc and F1.
+    whole space between them, over the overlap.  With ``max_gap`` only gaps
+    strictly smaller than that distance are closed.
     """
     boxes = [r.bounds for r in rectangles]
     bridges = []
@@ -967,10 +968,14 @@ def gap_bridges(rectangles):
             if i == j:
                 continue
             low, high = max(ay0, by0), min(ay1, by1)
-            if bx0 - ax1 > 1e-9 and high - low > 1e-9:        # B is right of A
+            horizontal_gap = bx0 - ax1
+            if (horizontal_gap > 1e-9 and high - low > 1e-9
+                    and (max_gap is None or horizontal_gap < max_gap - 1e-9)):
                 bridges.append(box(ax1, low, bx0, high))
             low, high = max(ax0, bx0), min(ax1, bx1)
-            if by0 - ay1 > 1e-9 and high - low > 1e-9:        # B is above A
+            vertical_gap = by0 - ay1
+            if (vertical_gap > 1e-9 and high - low > 1e-9
+                    and (max_gap is None or vertical_gap < max_gap - 1e-9)):
                 bridges.append(box(low, ay1, high, by0))
     return bridges
 
@@ -992,6 +997,43 @@ def top_row_keys(keys):
         return []
     top = min(k["y"] for k in unrotated)
     return [k for k in unrotated if abs(k["y"] - top) <= TOP_ROW_TOLERANCE]
+
+
+def open_top_row_gaps(keys, matrix):
+    a, b, d, e = matrix
+    rectangles = []
+    for key in top_row_keys(keys):
+        for rect in local_key_rectangles(key):
+            placed = translate(rect, xoff=key["x"], yoff=key["y"])
+            placed = scale(placed, xfact=UNIT, yfact=UNIT, origin=(0, 0))
+            rectangles.append(affine_transform(placed, [a, b, d, e, 0, 0]))
+
+    max_gap = FUSE_F_ROW_MAX_GAP_UNITS * UNIT
+    open_gaps = set()
+    horizontal = sorted(rectangles, key=lambda rect: (rect.bounds[0], rect.bounds[1]))
+    for i, left in enumerate(horizontal):
+        lx0, ly0, lx1, ly1 = left.bounds
+        for right in horizontal[i + 1:]:
+            rx0, ry0, rx1, ry1 = right.bounds
+            if rx0 >= lx1 - 1e-9:
+                low, high = max(ly0, ry0), min(ly1, ry1)
+                gap = rx0 - lx1
+                if high - low > 1e-9 and gap >= max_gap - 1e-9:
+                    open_gaps.add((lx1, rx0, low, high))
+                break
+
+    vertical = sorted(rectangles, key=lambda rect: (rect.bounds[1], rect.bounds[0]))
+    for i, below in enumerate(vertical):
+        bx0, by0, bx1, by1 = below.bounds
+        for above in vertical[i + 1:]:
+            ax0, ay0, ax1, ay1 = above.bounds
+            if ay0 >= by1 - 1e-9:
+                low, high = max(bx0, ax0), min(bx1, ax1)
+                gap = ay0 - by1
+                if high - low > 1e-9 and gap >= max_gap - 1e-9:
+                    open_gaps.add((by1, ay0, low, high))
+                break
+    return open_gaps
 
 
 def plate_footprint(keys, matrix, margin, single_mesh=False, fuse_top_row=False):
@@ -1017,7 +1059,19 @@ def plate_footprint(keys, matrix, margin, single_mesh=False, fuse_top_row=False)
     if single_mesh:
         shapes += gap_bridges([place(r, k) for k in keys for r in local_key_rectangles(k)])
     elif fuse_top_row:
-        shapes += gap_bridges([place(r, k) for k in top_row_keys(keys) for r in local_key_rectangles(k)])
+        top_rectangles = [
+            place(rect, key)
+            for key in top_row_keys(keys)
+            for rect in local_key_rectangles(key)
+        ]
+        open_gaps = open_top_row_gaps(keys, matrix)
+        if open_gaps:
+            shapes += gap_bridges(
+                top_rectangles,
+                max_gap=FUSE_F_ROW_MAX_GAP_UNITS * UNIT,
+            )
+        else:
+            shapes += gap_bridges(top_rectangles)
     footprint = unary_union(shapes).buffer(margin, join_style=2)
     return connect_footprint(footprint) if single_mesh else footprint
 
@@ -1577,7 +1631,19 @@ def generate(kle_path: Path, settings: Settings, output: Path = Path(DEFAULT_OUT
                   "--no-single-mesh together with --fuse-f-row")
     elif settings.fuse_f_row:
         row = len(top_row_keys(keys))
-        fused = f"top row fused ({row} keys)" if row else "--fuse-f-row has no effect (no unrotated keys)"
+        if row:
+            gm = global_matrix(settings.orientation)
+            open_gaps = open_top_row_gaps(keys, gm)
+            threshold = f"{FUSE_F_ROW_MAX_GAP_UNITS:g}"
+            fused = f"top row fused ({row} keys, gaps below {threshold} u"
+            if open_gaps:
+                count = len(open_gaps)
+                suffix = "gap" if count == 1 else "gaps"
+                fused += f"; {count} {suffix} of {threshold} u or more left open)"
+            else:
+                fused += ")"
+        else:
+            fused = "--fuse-f-row has no effect (no unrotated keys)"
         print(f"Plate shape:     {parts} part(s), separated where the keys are far apart; {fused}")
     else:
         print(f"Plate shape:     {parts} part(s), separated where the keys are far apart")
