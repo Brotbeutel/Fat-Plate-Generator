@@ -24,10 +24,12 @@ import trimesh
 from shapely.affinity import affine_transform, rotate, scale, translate
 from shapely.geometry import Polygon, box
 from shapely.ops import unary_union
+from shapely.validation import make_valid
 
 VERSION = "0.25"
 UNIT = 19.05
 FUSE_F_ROW_MAX_GAP_UNITS = 1.75  # gaps from this value upward stay open (key widths)
+CORNER_ARC_SEGMENTS_PER_QUARTER = 128
 DEFAULT_MARGIN = 1
 DEFAULT_STABILIZER_MIN_UNIT = 2.0
 DEFAULT_JSON = "kle-jsons/keyboard-layout.json"
@@ -272,6 +274,7 @@ class Settings:
     stepped_key: str = DEFAULT_STEPPED_KEY
     single_mesh: bool = True
     fuse_f_row: bool = False
+    corner_radius: float = 0.0
     orientation: OrientationConfig = field(default_factory=OrientationConfig)
     templates: TemplateSet = field(default_factory=TemplateSet.defaults)
 
@@ -288,6 +291,10 @@ class Settings:
             raise ValueError(f"single_mesh must be a boolean, got {self.single_mesh!r}")
         if not isinstance(self.fuse_f_row, bool):
             raise ValueError(f"fuse_f_row must be a boolean, got {self.fuse_f_row!r}")
+        if not isinstance(self.corner_radius, (int, float)) or isinstance(self.corner_radius, bool):
+            raise ValueError(f"corner_radius must be a finite non-negative number, got {self.corner_radius!r}")
+        if not np.isfinite(self.corner_radius) or self.corner_radius < 0:
+            raise ValueError(f"corner_radius must be finite and non-negative, got {self.corner_radius!r}")
         if not isinstance(self.orientation, OrientationConfig):
             raise ValueError(f"orientation must be an OrientationConfig, got {self.orientation!r}")
         if not isinstance(self.templates, TemplateSet):
@@ -309,6 +316,7 @@ CONFIG_KEYS = {                   # key -> kind of value
     "stabilizer_min_unit": "number",
     "single_mesh": "boolean",
     "fuse_f_row": "boolean",
+    "corner_radius": "number",
     "spacebar_position": "string",
     "stepped_key": "string",
 }
@@ -940,6 +948,30 @@ def polygon_wires(poly):
     return outer, holes
 
 
+def rounded_ring_wire(ring, radius):
+    segments, _, _ = rounded_ring_segments(ring, radius)
+    edges = []
+    for segment in segments:
+        if segment["type"] == "line":
+            edges.append(cq.Edge.makeLine(
+                cq.Vector(*segment["start"], 0),
+                cq.Vector(*segment["end"], 0)))
+        else:
+            edges.append(cq.Edge.makeThreePointArc(
+                cq.Vector(*segment["start"], 0),
+                cq.Vector(*segment["middle"], 0),
+                cq.Vector(*segment["end"], 0)))
+    if not edges:
+        raise RuntimeError("Rounded ring has no segments.")
+    return cq.Wire.assembleEdges(edges)
+
+
+def rounded_polygon_wires(poly, radius):
+    outer = rounded_ring_wire(poly.exterior, radius)
+    holes = [rounded_ring_wire(ring, radius) for ring in poly.interiors]
+    return outer, holes
+
+
 def face(poly):
     outer, holes = polygon_wires(poly)
     return cq.Face.makeFromWires(outer, holes)
@@ -951,6 +983,209 @@ def polygons(geom):
     if geom.geom_type == "MultiPolygon":
         return list(geom.geoms)
     raise ValueError(f"Unexpected polygon geometry: {geom.geom_type}")
+
+
+def _ring_points(ring):
+    if hasattr(ring, "coords"):
+        points = [(float(p[0]), float(p[1])) for p in ring.coords]
+    else:
+        points = [(float(p[0]), float(p[1])) for p in ring]
+    if len(points) > 1 and points[0] == points[-1]:
+        points.pop()
+    return points
+
+
+def rounded_ring_segments(ring, radius):
+    """Return exact line/arc segments and corner-trimming statistics for one ring."""
+    points = _ring_points(ring)
+    if len(points) < 3 or radius <= 1e-12:
+        return ([{"type": "line", "start": p, "end": q}
+                 for p, q in zip(points, points[1:] + points[:1])],
+                0, radius)
+
+    n = len(points)
+    incoming, outgoing, turns, straight = [], [], [], []
+    for i, vertex in enumerate(points):
+        prev = points[i - 1]
+        nxt = points[(i + 1) % n]
+        u_in_raw = (vertex[0] - prev[0], vertex[1] - prev[1])
+        u_out_raw = (nxt[0] - vertex[0], nxt[1] - vertex[1])
+        lin = math.hypot(*u_in_raw)
+        lout = math.hypot(*u_out_raw)
+        if lin <= 1e-12 or lout <= 1e-12:
+            incoming.append((0.0, 0.0))
+            outgoing.append((0.0, 0.0))
+            turns.append(0.0)
+            straight.append(True)
+            continue
+        u_in = (u_in_raw[0] / lin, u_in_raw[1] / lin)
+        u_out = (u_out_raw[0] / lout, u_out_raw[1] / lout)
+        dot = max(-1.0, min(1.0, u_in[0] * u_out[0] + u_in[1] * u_out[1]))
+        cross = u_in[0] * u_out[1] - u_in[1] * u_out[0]
+        turn = math.atan2(cross, dot)
+        incoming.append(u_in)
+        outgoing.append(u_out)
+        turns.append(turn)
+        straight.append(abs(turn) <= 1e-9 or abs(math.pi - abs(turn)) <= 1e-9)
+
+    tangent_lengths = [
+        0.0 if straight[i] else radius / math.tan(max(abs(turns[i]) / 2.0, 1e-12))
+        for i in range(n)
+    ]
+    edge_scales = [1.0] * n
+    for i in range(n):
+        nxt = (i + 1) % n
+        edge_length = math.hypot(points[nxt][0] - points[i][0],
+                                 points[nxt][1] - points[i][1])
+        tangent_sum = tangent_lengths[i] + tangent_lengths[nxt]
+        if tangent_sum > edge_length + 1e-9:
+            edge_scales[i] = min(edge_scales[i],
+                                 edge_length / tangent_sum if tangent_sum > 1e-12 else 0.0)
+
+    scales = [min(edge_scales[i - 1], edge_scales[i]) for i in range(n)]
+    arcs = {}
+    min_effective = radius
+    for i, vertex in enumerate(points):
+        if straight[i]:
+            continue
+        effective_radius = radius * scales[i]
+        min_effective = min(min_effective, effective_radius)
+        tangent = effective_radius / math.tan(max(abs(turns[i]) / 2.0, 1e-12))
+        u_in = incoming[i]
+        u_out = outgoing[i]
+        p1 = (vertex[0] - tangent * u_in[0], vertex[1] - tangent * u_in[1])
+        p2 = (vertex[0] + tangent * u_out[0], vertex[1] + tangent * u_out[1])
+        left_in = (-u_in[1], u_in[0])
+        center = None
+        for sign in (1.0, -1.0):
+            candidate = (p1[0] + sign * effective_radius * left_in[0],
+                         p1[1] + sign * effective_radius * left_in[1])
+            if abs(math.hypot(p2[0] - candidate[0], p2[1] - candidate[1])
+                   - effective_radius) <= 1e-9:
+                center = candidate
+                break
+        if center is None:
+            center = ((p1[0] + p2[0]) / 2.0, (p1[1] + p2[1]) / 2.0)
+        a1 = math.atan2(p1[1] - center[1], p1[0] - center[0])
+        a2 = math.atan2(p2[1] - center[1], p2[0] - center[0])
+        delta = (a2 - a1 + math.pi) % (2 * math.pi) - math.pi
+        middle_angle = a1 + delta / 2.0
+        middle = (center[0] + effective_radius * math.cos(middle_angle),
+                  center[1] + effective_radius * math.sin(middle_angle))
+        arcs[i] = {"type": "arc", "start": p1, "middle": middle, "end": p2,
+                   "center": center, "radius": effective_radius}
+
+    truncated_count = sum(1 for i in range(n) if i in arcs and scales[i] < 1.0 - 1e-12)
+    first_index = min(arcs)
+    ordered = [arcs[first_index]]
+    current = arcs[first_index]["end"]
+    for step in range(1, n):
+        i = (first_index + step) % n
+        arc = arcs.get(i)
+        next_i = (i + 1) % n
+        if arc is not None:
+            if math.hypot(current[0] - arc["start"][0],
+                          current[1] - arc["start"][1]) > 1e-9:
+                ordered.append({"type": "line", "start": current, "end": arc["start"]})
+            ordered.append(arc)
+            current = arc["end"]
+        else:
+            line_end = points[next_i]
+            if next_i in arcs:
+                line_end = arcs[next_i]["start"]
+            if math.hypot(current[0] - line_end[0],
+                          current[1] - line_end[1]) > 1e-9:
+                ordered.append({"type": "line", "start": current, "end": line_end})
+            current = line_end
+
+    first_start = arcs[first_index]["start"]
+    if math.hypot(current[0] - first_start[0],
+                  current[1] - first_start[1]) > 1e-9:
+        ordered.append({"type": "line", "start": current, "end": first_start})
+
+    return ordered, truncated_count, (min_effective if truncated_count else radius)
+
+
+def round_ring(ring, radius):
+    segments, _, _ = rounded_ring_segments(ring, radius)
+    return segments
+
+
+def round_polygon_ring(ring, radius):
+    return round_ring(ring, radius)
+
+
+def _sample_arc(segment):
+    p0 = segment["start"]
+    pc = segment["center"]
+    p1 = segment["end"]
+    a0 = math.atan2(p0[1] - pc[1], p0[0] - pc[0])
+    a1 = math.atan2(p1[1] - pc[1], p1[0] - pc[0])
+    delta = (a1 - a0 + math.pi) % (2 * math.pi) - math.pi
+    radius = segment["radius"]
+    count = max(1, int(round(CORNER_ARC_SEGMENTS_PER_QUARTER * abs(delta) / (math.pi / 2))))
+    points = [p0]
+    for i in range(1, count + 1):
+        angle = a0 + delta * i / count
+        points.append((pc[0] + radius * math.cos(angle),
+                       pc[1] + radius * math.sin(angle)))
+    return points
+
+
+def round_shapely_polygon(poly, radius):
+    if radius <= 1e-12:
+        return poly
+
+    def ring_to_polygon_points(ring):
+        points = []
+        segments, _, _ = rounded_ring_segments(ring, radius)
+        for segment in segments:
+            if segment["type"] == "line":
+                if not points:
+                    points.append(segment["start"])
+                if math.hypot(points[-1][0] - segment["end"][0],
+                              points[-1][1] - segment["end"][1]) > 1e-9:
+                    points.append(segment["end"])
+            else:
+                sampled = _sample_arc(segment)
+                if not points:
+                    points.append(sampled[0])
+                for point in sampled[1:]:
+                    if math.hypot(points[-1][0] - point[0], points[-1][1] - point[1]) > 1e-9:
+                        points.append(point)
+        if points and points[-1] != points[0]:
+            points.append(points[0])
+        return points
+
+    raw = Polygon(ring_to_polygon_points(poly.exterior),
+                  [ring_to_polygon_points(ring) for ring in poly.interiors])
+    if raw.is_valid:
+        return raw
+    repaired = make_valid(raw)
+    if repaired.geom_type == "Polygon":
+        return repaired
+    if repaired.geom_type in {"MultiPolygon", "GeometryCollection"}:
+        valid_parts = [part for part in polygons(repaired)
+                       if part.geom_type == "Polygon"] if repaired.geom_type != "GeometryCollection" else [
+            part for part in repaired.geoms if part.geom_type == "Polygon"
+        ]
+        if valid_parts:
+            return unary_union(valid_parts)
+    raise RuntimeError("The rounded plate polygon could not be made valid.")
+
+
+def round_shapely_footprint(footprint, radius):
+    if radius <= 1e-12:
+        return footprint
+    return unary_union([
+        round_shapely_polygon(poly, radius)
+        for poly in polygons(footprint)
+    ])
+
+
+def ring_rounding_stats(ring, radius):
+    _, truncated, minimum = rounded_ring_segments(ring, radius)
+    return truncated, minimum
 
 
 def gap_bridges(rectangles, max_gap=None):
@@ -1036,7 +1271,7 @@ def open_top_row_gaps(keys, matrix):
     return open_gaps
 
 
-def plate_footprint(keys, matrix, margin, single_mesh=False, fuse_top_row=False):
+def plate_footprint(keys, matrix, margin, single_mesh=False, fuse_top_row=False, corner_radius=0.0):
     """Outline of the plate: the keys grown by ``margin`` (before the shift to (0, 0)).
 
     With ``single_mesh`` the space between keys that face each other is filled
@@ -1073,7 +1308,8 @@ def plate_footprint(keys, matrix, margin, single_mesh=False, fuse_top_row=False)
         else:
             shapes += gap_bridges(top_rectangles)
     footprint = unary_union(shapes).buffer(margin, join_style=2)
-    return connect_footprint(footprint) if single_mesh else footprint
+    footprint = connect_footprint(footprint) if single_mesh else footprint
+    return round_shapely_footprint(footprint, corner_radius) if corner_radius > 1e-12 else footprint
 
 
 def connect_footprint(footprint):
@@ -1110,11 +1346,16 @@ def connect_footprint(footprint):
     return Polygon(closed.exterior)
 
 
-def extruded_footprint(footprint, z, height):
+def extruded_footprint(footprint, z, height, corner_radius=0.0):
     solids = []
     for poly in polygons(footprint):
+        if corner_radius <= 1e-12:
+            cad_face = face(poly)
+        else:
+            outer, holes = rounded_polygon_wires(poly, corner_radius)
+            cad_face = cq.Face.makeFromWires(outer, holes)
         solids.append(cq.Solid.extrudeLinear(
-            face(poly), cq.Vector(0, 0, height)
+            cad_face, cq.Vector(0, 0, height)
         ).located(cq.Location(cq.Vector(0, 0, z))))
     if not solids:
         raise RuntimeError("Plate footprint is empty.")
@@ -1331,6 +1572,7 @@ class PlateModel:
     plate: object       # CAD solid with all cavities cut out
     templates: dict     # the templates that were used, by kind
     warnings: list      # problems found in the templates
+    corner_warnings: list
     spacebar_path: Path | None
     matrix: tuple       # linear part of the whole-plate transform
     spacebar_left: bool = False  # the spacebar position is off-centered-left (the right template mirrored)
@@ -1393,6 +1635,22 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
     footprint = plate_footprint(keys, gm, settings.margin, settings.single_mesh, settings.fuse_f_row)
     minx, miny = footprint.bounds[0], footprint.bounds[1]
     footprint = translate(footprint, xoff=-minx, yoff=-miny)
+    extrusion_footprint = footprint
+    corner_warnings = []
+    if settings.corner_radius > 1e-12:
+        truncated_count = 0
+        minimum_effective = settings.corner_radius
+        for poly in polygons(footprint):
+            rings = [poly.exterior, *poly.interiors]
+            for ring in rings:
+                count, minimum = ring_rounding_stats(ring, settings.corner_radius)
+                truncated_count += count
+                minimum_effective = min(minimum_effective, minimum)
+        if truncated_count:
+            corner_warnings.append(
+                f"{truncated_count} corner(s) trimmed to fit short edges; "
+                f"smallest effective radius {minimum_effective:.6f} mm")
+        footprint = round_shapely_footprint(footprint, settings.corner_radius)
 
     kinds = [classify_key(k, settings.stabilizer_min_unit, settings.stepped_key) for k in keys]
     choices = [template_kind_for_key(k, kind, settings.stabilizer_min_unit)
@@ -1420,7 +1678,8 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
         cx, cy = apply_matrix(gm, *switch_center(k, second=(kind == KIND_WIDE_CAPS)))
         centers.append((cx - minx, cy - miny))
 
-    plate = extruded_footprint(footprint, PLATE_Z_MIN, PLATE_Z_MAX - PLATE_Z_MIN)
+    plate = extruded_footprint(
+        extrusion_footprint, PLATE_Z_MIN, PLATE_Z_MAX - PLATE_Z_MIN, settings.corner_radius)
 
     # Socket, stabilizer and spacebar cutouts are built by the same code.  The
     # templates are used exactly as supplied (nothing is scaled); the spacebar
@@ -1475,6 +1734,7 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
                       footprint=footprint, cavities=cavities, plate=result,
                       templates=templates,
                       warnings=[w for t in templates.values() for w in t.warnings],
+                      corner_warnings=corner_warnings,
                       spacebar_path=spacebar_path, matrix=gm,
                       spacebar_left=any(position_mirrored))
 
@@ -1561,6 +1821,14 @@ def check_exported_stl(stl_path: Path, expected_bounds=None,
     return mesh, problems
 
 
+def report_corner_warnings(warnings):
+    if not warnings:
+        return
+    print("\nWARNING: one or more plate corners were trimmed:", file=sys.stderr)
+    for warning in warnings:
+        print(f"  - {warning}", file=sys.stderr)
+
+
 def report_template_warnings(warnings):
     """Print problems found in the templates; the plate is built from them as they are."""
     if not warnings:
@@ -1623,6 +1891,10 @@ def generate(kle_path: Path, settings: Settings, output: Path = Path(DEFAULT_OUT
     print(f"Stabilizer keys: {model.kinds.count(KIND_STABILIZED)}")
     print(f"Spacebar keys:   {model.kinds.count(KIND_SPACEBAR)}")
     print(f"Plate thickness: {PLATE_Z_MAX - PLATE_Z_MIN:.4f} mm")
+    if settings.corner_radius > 1e-12:
+        print(f"Corner radius:   {settings.corner_radius:g} mm (convex and concave)")
+    else:
+        print("Corner radius:   off")
     parts = len(polygons(model.footprint))
     if settings.single_mesh:
         print(f"Plate shape:     one connected mesh, {parts} part")
@@ -1669,10 +1941,11 @@ def generate(kle_path: Path, settings: Settings, output: Path = Path(DEFAULT_OUT
               f"mirror X {mirror} (KLE y flip built in, matrix {model.matrix})")
     else:
         print("Plate transform: none (--no-global-transform)")
+    report_corner_warnings(model.corner_warnings)
     report_template_warnings(model.warnings)
     mesh, problems = check_exported_stl(output, expected_bounds=expected_bounds)
     report_stl_check(mesh, problems, output)
-    print("\nDone." if not (problems or model.warnings)
+    print("\nDone." if not (problems or model.warnings or model.corner_warnings)
           else "\nDone, with warnings.")
 
 
@@ -1708,6 +1981,10 @@ def build_parser():
     parser.add_argument("--output", type=Path, default=SCRIPT_DIR / DEFAULT_OUTPUT)
     parser.add_argument("--margin", type=float, default=None,
                         help=f"margin around the keys in mm (default: {defaults.margin})")
+    parser.add_argument("--corner-radius", type=float, default=None,
+                        help="round convex and concave vertical plate corners in mm; "
+                             "0 keeps the current outline and cutouts unchanged "
+                             f"(default: {defaults.corner_radius})")
     parser.add_argument("--stabilizer-min-unit", type=float, default=None,
                         help="minimum key width or height for a stabilizer cutout "
                              f"(default: {defaults.stabilizer_min_unit})")
@@ -1809,6 +2086,7 @@ def settings_from_args(args: argparse.Namespace) -> Settings:
         templates=replace(settings.templates, **templates),
         **given(margin=args.margin,
                 stabilizer_min_unit=args.stabilizer_min_unit,
+                corner_radius=args.corner_radius,
                 spacebar_position=args.spacebar_position,
                 stepped_key=args.stepped_key,
                 single_mesh=args.single_mesh,
