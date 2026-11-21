@@ -13,6 +13,10 @@
 # Margin around the keys in mm (CLI: --margin).
 margin = 1.0
 
+# Radius of convex and concave vertical plate corners in mm. 0 is off and keeps
+# the outline unchanged (CLI: --corner-radius). Short edges are trimmed with a warning.
+corner_radius = 0.0
+
 # Keys with a width or height of at least this many units get a stabilizer cutout
 # (CLI: --stabilizer-min-unit). Use 1.75 to give 1.75u keys a stabilizer as well.
 stabilizer_min_unit = 2.0
