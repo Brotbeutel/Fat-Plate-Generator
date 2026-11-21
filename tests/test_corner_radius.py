@@ -1,11 +1,10 @@
-import json
 import math
 
 import pytest
 from shapely.geometry import Polygon
 
 import fat_plate_generator as fpg
-from tests.conftest import REPO_ROOT, build_model
+from tests.conftest import build_model
 
 
 def test_square_rounding_uses_the_formula():

@@ -30,7 +30,7 @@ Stand: `main` @ `5d7e746` (WP-07 bis WP-20 gemerged); WP-21 liegt auf dem Branch
   - Pfeilcluster-Box (gefüllte Ecken)
   - → F-Row als ein Mesh: **WP-12** (erledigt)
   - → Caps-Lock-Optionen (große Aussparung, linksbündig, zentriert): nach **WP-09**, falls dann noch gewünscht
-- [~] **WP-05** Plattenform: aufgeteilt in **WP-23** (Umrissecken) und **WP-24** (Kanten oben/unten, Rundung und Fase); Standoffs/Spacer bleiben offen
+- [~] **WP-05** Plattenform: Umrissecken sind mit **WP-23** erledigt; **WP-24** behandelt die Kanten oben/unten (Rundung und Fase), Standoffs/Spacer bleiben offen
 - [ ] **WP-06** Weitere Stabilizer-Varianten (7 u und 6 u sind mit **WP-15**, 3 u mit **WP-16** erledigt)
 
 ### Neue Arbeitspakete
@@ -86,7 +86,7 @@ Stand: `main` @ `5d7e746` (WP-07 bis WP-20 gemerged); WP-21 liegt auf dem Branch
   - Festgelegt (Nutzer): `--fuse-f-row` verbindet nur Lücken **kleiner als 1,75 u**; Lücken von 1,75 u oder mehr bleiben offen. `--single-mesh` ist nicht betroffen. G80-3000 bleibt identisch; im G80-1800-Layout (Lücke F12 → Insert genau 1,75 u) entsteht eine Lücke.
   - Vom Planner mit Prototyp nachgerechnet (Plattenteile ohne Single Mesh, mit `--fuse-f-row`): G80-1800 3 → **4**, Ergodox 1 → **2** (die 10,5-u-Lücke zwischen den Hälften wurde bisher überbrückt); alle anderen Layouts unverändert.
   - Umsetzung: `gap_bridges(rectangles, max_gap=None)`, Konstante `FUSE_F_ROW_MAX_GAP_UNITS = 1.75`, strikt kleiner mit Toleranz.
-- [ ] **WP-23** Abgerundete Ecken des Plattenumrisses (`--corner-radius`)
+- [x] **WP-23** Abgerundete Ecken des Plattenumrisses (`--corner-radius`)
   - Festgelegt (Nutzer): Radius an den senkrechten Ecken des Umrisses (von oben gesehen), konvex **und** konkav, Standard 0 = aus; Cutouts bleiben unberührt.
   - Umsetzung mit **echten Kreisbögen** im CAD (nicht als Polylinie), `PlateModel.footprint` mit abgetasteten Bögen für Tests und Preview, beides aus einer Funktion. Zu große Radien werden an kurzen Kanten gekürzt, mit Warnung.
   - Vom Planner im Prototyp geprüft: Volumen stimmt exakt mit `(A − (4 − π)·R²) · Dicke`; der Körper ist gültig.

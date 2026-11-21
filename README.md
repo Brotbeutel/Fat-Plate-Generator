@@ -584,6 +584,18 @@ By default the plate is one connected mesh without gaps. The space between two k
 
 the same connected-mesh behavior can be selected explicitly. Parts that are still separate after that are joined with the smallest radius that connects them, and voids that are enclosed by the plate outline are filled as well. Where no key faces another one (for example the step above the numpad of a 100% layout) the outline stays as it was. The key cutouts are not affected. `--no-single-mesh` follows the keys and separates the plate wherever groups are far apart.
 
+### Rounded Corners
+
+Use `--corner-radius R` to round the vertical corners of the plate footprint by `R` millimetres. Both convex outer corners and concave (inner) corners are rounded; the switch cutouts and cavities come from the templates and are not changed. The default is `0`, which uses the exact existing outline.
+
+```powershell
+python .\fat_plate_generator.py --json .\kle-jsons\keyboard-layout_100-percent-iso-105-keys_g80-3000.json --corner-radius 3 --output g80r.stl
+```
+
+The rounding is applied after the margin, single-mesh/F-row footprint work and the shift to `(0, 0)`. It uses real CAD arcs. If a short edge cannot accommodate both tangent lengths, neighbouring corners are trimmed proportionally and the effective radius is reduced; the generator prints a separate corner-warning section and finishes as `Done, with warnings.`
+
+The config key is `corner_radius = 0.0`; `--no-global-transform` and this option do not affect each other. This option rounds only the vertical outline corners. Fillets or chamfers on the top and bottom plate edges belong to WP-24.
+
 ### Fused F-Row
 
 With `--no-single-mesh`, the top row of a full-size layout falls apart into separate islands of plate (Esc, the groups of F keys, PrtSc / Scroll Lock / Pause Break), because the gaps between them are much wider than twice the margin. With
