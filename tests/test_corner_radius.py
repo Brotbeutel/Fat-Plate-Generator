@@ -88,6 +88,23 @@ def test_iso_enter_volume_uses_the_right_angle_formula(tmp_path):
     assert abs(measured - expected) / expected < 1e-6
 
 
+def test_g80_1800_small_margin_and_corner_radius_remain_valid():
+    layout = (fpg.SCRIPT_DIR / "kle-jsons"
+              / "keyboard-layout_100-percent-iso-105-keys_g80-1800_stepped-capslock.json")
+    settings = fpg.Settings(
+        margin=9.262315,
+        corner_radius=2.0,
+        stepped_key="wide-caps",
+        fuse_f_row=True,
+        single_mesh=False,
+        spacebar_position="off-centered-right",
+    )
+    model = fpg.build_plate_model(layout, settings)
+    assert model.plate.isValid()
+    assert model.footprint.is_valid
+    assert len(fpg.polygons(model.footprint)) == 2
+
+
 def test_config_and_settings_corner_radius(tmp_path, one_key_layout):
     assert fpg.Settings().corner_radius == 0.0
     assert fpg.Settings(corner_radius=3.0).corner_radius == 3.0

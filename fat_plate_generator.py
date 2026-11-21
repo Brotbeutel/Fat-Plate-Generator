@@ -24,6 +24,7 @@ import trimesh
 from shapely.affinity import affine_transform, rotate, scale, translate
 from shapely.geometry import Polygon, box
 from shapely.ops import unary_union
+from shapely.validation import make_valid
 
 VERSION = "0.25"
 UNIT = 19.05
@@ -1075,9 +1076,11 @@ def rounded_ring_segments(ring, radius):
                    "center": center, "radius": effective_radius}
 
     truncated_count = sum(1 for i in range(n) if i in arcs and scales[i] < 1.0 - 1e-12)
-    ordered = []
-    current = points[0]
-    for i in range(n):
+    first_index = min(arcs)
+    ordered = [arcs[first_index]]
+    current = arcs[first_index]["end"]
+    for step in range(1, n):
+        i = (first_index + step) % n
         arc = arcs.get(i)
         next_i = (i + 1) % n
         if arc is not None:
@@ -1095,11 +1098,10 @@ def rounded_ring_segments(ring, radius):
                 ordered.append({"type": "line", "start": current, "end": line_end})
             current = line_end
 
-    if ordered:
-        first_start = ordered[0]["start"]
-        if math.hypot(current[0] - first_start[0],
-                      current[1] - first_start[1]) > 1e-9:
-            ordered.append({"type": "line", "start": current, "end": first_start})
+    first_start = arcs[first_index]["start"]
+    if math.hypot(current[0] - first_start[0],
+                  current[1] - first_start[1]) > 1e-9:
+        ordered.append({"type": "line", "start": current, "end": first_start})
 
     return ordered, truncated_count, (min_effective if truncated_count else radius)
 
@@ -1155,8 +1157,21 @@ def round_shapely_polygon(poly, radius):
             points.append(points[0])
         return points
 
-    return Polygon(ring_to_polygon_points(poly.exterior),
-                   [ring_to_polygon_points(ring) for ring in poly.interiors])
+    raw = Polygon(ring_to_polygon_points(poly.exterior),
+                  [ring_to_polygon_points(ring) for ring in poly.interiors])
+    if raw.is_valid:
+        return raw
+    repaired = make_valid(raw)
+    if repaired.geom_type == "Polygon":
+        return repaired
+    if repaired.geom_type in {"MultiPolygon", "GeometryCollection"}:
+        valid_parts = [part for part in polygons(repaired)
+                       if part.geom_type == "Polygon"] if repaired.geom_type != "GeometryCollection" else [
+            part for part in repaired.geoms if part.geom_type == "Polygon"
+        ]
+        if valid_parts:
+            return unary_union(valid_parts)
+    raise RuntimeError("The rounded plate polygon could not be made valid.")
 
 
 def round_shapely_footprint(footprint, radius):
