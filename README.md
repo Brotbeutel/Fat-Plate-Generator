@@ -92,12 +92,12 @@ Fat-Plate-Generator
 ├── kle-jsons
 │   ├── keyboard-layout.json
 │   ├── keyboard-layout_040-percent_jd40.json
-    ├── keyboard-layout_100-percent_ansi_104-keys.json
-    ├── keyboard-layout_100-percent-iso-105-keys.json
-    ├── keyboard-layout_100-percent-iso-105-keys_g80-3000.json
-    ├── keyboard-layout_100-percent-iso-105-keys_stepped-capslock-.json
-    ├── keyboard-layout_100-percent-iso-105-keys_stepped-capslock_g80-1800.json
-    ├── keyboard-layout_numpad_21-keys_stars21.json
+│   ├── keyboard-layout_100-percent_ansi_104-keys.json
+│   ├── keyboard-layout_100-percent-iso-105-keys.json
+│   ├── keyboard-layout_100-percent-iso-105-keys_g80-3000.json
+│   ├── keyboard-layout_100-percent-iso-105-keys_stepped-capslock-.json
+│   ├── keyboard-layout_100-percent-iso-105-keys_stepped-capslock_g80-1800.json
+│   ├── keyboard-layout_numpad_21-keys_stars21.json
 │   └── test_stepped-capslock.json
 ├── stl-templates
 │   ├── switch_socket.stl
@@ -293,13 +293,13 @@ The stabilizer template is selected by the key width, not by its label. A
 spacebar is any key with `w >= 6.0`, including a labelled key. The available
 widths are:
 
-| Key width | Template | Status |
-| --- | --- | --- |
-| 2u to under 3u | `stabilizer_2-00u.stl` | available |
-| 3u | `stabilizer_3-00u.stl` | available |
-| 6u | `stabilizer_6-00u_centered.stl` / `stabilizer_6-00u_off-center.stl` | available |
-| 6.25u, 6.5u | `stabilizer_6-25u_centered.stl` / `stabilizer_6-25u_off-center.stl` | available |
-| 7u, 8u | `stabilizer_7-00u_centered.stl` | available |
+| Key width      | Template                                                            | Status    |
+| -------------- | ------------------------------------------------------------------- | --------- |
+| 2u to under 3u | `stabilizer_2-00u.stl`                                              | available |
+| 3u             | `stabilizer_3-00u.stl`                                              | available |
+| 6u             | `stabilizer_6-00u_centered.stl` / `stabilizer_6-00u_off-center.stl` | available |
+| 6.25u, 6.5u    | `stabilizer_6-25u_centered.stl` / `stabilizer_6-25u_off-center.stl` | available |
+| 7u, 8u         | `stabilizer_7-00u_centered.stl`                                     | available |
 
 Off-center positions are supported only for 6u, 6.25u and 6.5u. The left
 position is the exact mirror of the supplied right template. Widths such as
@@ -340,15 +340,15 @@ Caps Lock is intentionally **not** treated as a stabilized key. It always receiv
 
 The outer size of every template is fixed. If you design a new template (for example in Blender), build it inside this cell and do not change the box. All template cells are a whole number of key units wide (a quarter-unit step for 1.75 u and 6.25 u) and exactly 1 u deep.
 
-| Art | Width in u | Width in mm | Depth | Height Z |
-| --- | ----------: | ----------: | ---: | -------- |
-| socket | 1 | 19.05 | 1 u = 19.05 mm | −5.0 … 1.2 mm |
-| wide-caps | 1.75 | 33.3375 | 1 u = 19.05 mm | −5.0 … 1.2 mm |
-| stabilizer-2u | 2 | 38.1 | 1 u = 19.05 mm | −5.0 … 1.2 mm |
-| stabilizer-3u | 3 | 57.15 | 1 u = 19.05 mm | −5.0 … 1.2 mm |
-| spacebar-6u | 6 | 114.3 | 1 u = 19.05 mm | −5.0 … 1.2 mm |
-| spacebar-6-25u | 6.25 | 119.0625 | 1 u = 19.05 mm | −5.0 … 1.2 mm |
-| spacebar-7u | 7 | 133.35 | 1 u = 19.05 mm | −5.0 … 1.2 mm |
+| Art            | Width in u | Width in mm | Depth          | Height Z      |
+| -------------- | ----------:| -----------:| --------------:| ------------- |
+| socket         | 1          | 19.05       | 1 u = 19.05 mm | −5.0 … 1.2 mm |
+| wide-caps      | 1.75       | 33.3375     | 1 u = 19.05 mm | −5.0 … 1.2 mm |
+| stabilizer-2u  | 2          | 38.1        | 1 u = 19.05 mm | −5.0 … 1.2 mm |
+| stabilizer-3u  | 3          | 57.15       | 1 u = 19.05 mm | −5.0 … 1.2 mm |
+| spacebar-6u    | 6          | 114.3       | 1 u = 19.05 mm | −5.0 … 1.2 mm |
+| spacebar-6-25u | 6.25       | 119.0625    | 1 u = 19.05 mm | −5.0 … 1.2 mm |
+| spacebar-7u    | 7          | 133.35      | 1 u = 19.05 mm | −5.0 … 1.2 mm |
 
 The plate is exactly 6.2 mm thick (z from −5.0 to 1.2); this comes from the fixed values, not from a template. 19.05 mm is the pitch of a 1u key; template lengths are therefore exact multiples of 1 u. For Stabilizer and Spacebar templates, lengths follow this rule instead of a measured current-template size.
 
@@ -500,8 +500,8 @@ The stabilizer cutouts can be mirrored: the `stabilizer_2-00u.stl` and `stabiliz
 
 **The spacebar switch reverses:** `--stab-mirror-spacebar` turns around what the switch of its direction does to the spacebar. Alone, it mirrors the spacebar and nothing else. Together with `--stab-mirror-horizontal`, the horizontal stabilizers are mirrored and the spacebar stays as it was (mirrored twice is the original position):
 
-| `--stab-mirror-horizontal` | `--stab-mirror-spacebar` | horizontal stabilizers | spacebar |
-| -------------------------- | ------------------------ | ---------------------- | -------- |
+| `--stab-mirror-horizontal` | `--stab-mirror-spacebar` | horizontal stabilizers | spacebar    |
+| -------------------------- | ------------------------ | ---------------------- | ----------- |
 | off                        | off                      | as designed            | as designed |
 | on                         | off                      | mirrored               | mirrored    |
 | off                        | on                       | as designed            | mirrored    |
@@ -660,33 +660,33 @@ spacebar_6_25u_off_centered = "stl-templates/stabilizer_6-25u_off-center.stl"
 spacebar_7u_centered = "stl-templates/stabilizer_7-00u_centered.stl"
 ```
 
-| Config key | Command line option |
-| --- | --- |
-| `margin` | `--margin` |
-| `stabilizer_min_unit` | `--stabilizer-min-unit` |
-| `single_mesh` | `--single-mesh` / `--no-single-mesh` (default: `true`) |
-| `fuse_f_row` | `--fuse-f-row` / `--no-fuse-f-row` |
-| `spacebar_position` | `--spacebar-position` |
-| `stepped_key` | `--stepped-key` |
-| `orientation.stab_rotation_horizontal` | `--stab-rotation-horizontal` |
-| `orientation.stab_rotation_vertical` | `--stab-rotation-vertical` |
-| `orientation.stab_rotation_spacebar` | `--stab-rotation-spacebar` |
-| `orientation.wide_caps_rotation` | `--wide-caps-rotation` |
-| `orientation.stab_mirror_horizontal` | `--stab-mirror-horizontal` / `--no-stab-mirror-horizontal` |
-| `orientation.stab_mirror_vertical` | `--stab-mirror-vertical` / `--no-stab-mirror-vertical` |
-| `orientation.stab_mirror_spacebar` | `--stab-mirror-spacebar` / `--no-stab-mirror-spacebar` |
-| `orientation.global_transform` | `--global-transform` / `--no-global-transform` |
-| `orientation.global_rotation` | `--global-rotation` |
-| `orientation.global_mirror_x` | `--global-mirror-x` / `--no-global-mirror-x` |
-| `templates.socket` | `--socket` |
-| `templates.wide_caps` | `--socket-wide-caps` |
-| `templates.stabilizer_2u` | `--stabilizer-2u` |
-| `templates.stabilizer_3u` | `--stabilizer-3u` |
-| `templates.spacebar_6u_centered` | config only |
-| `templates.spacebar_6u_off_centered` | config only |
-| `templates.spacebar_6_25u_centered` | config only |
-| `templates.spacebar_6_25u_off_centered` | config only |
-| `templates.spacebar_7u_centered` | config only |
+| Config key                              | Command line option                                        |
+| --------------------------------------- | ---------------------------------------------------------- |
+| `margin`                                | `--margin`                                                 |
+| `stabilizer_min_unit`                   | `--stabilizer-min-unit`                                    |
+| `single_mesh`                           | `--single-mesh` / `--no-single-mesh` (default: `true`)     |
+| `fuse_f_row`                            | `--fuse-f-row` / `--no-fuse-f-row`                         |
+| `spacebar_position`                     | `--spacebar-position`                                      |
+| `stepped_key`                           | `--stepped-key`                                            |
+| `orientation.stab_rotation_horizontal`  | `--stab-rotation-horizontal`                               |
+| `orientation.stab_rotation_vertical`    | `--stab-rotation-vertical`                                 |
+| `orientation.stab_rotation_spacebar`    | `--stab-rotation-spacebar`                                 |
+| `orientation.wide_caps_rotation`        | `--wide-caps-rotation`                                     |
+| `orientation.stab_mirror_horizontal`    | `--stab-mirror-horizontal` / `--no-stab-mirror-horizontal` |
+| `orientation.stab_mirror_vertical`      | `--stab-mirror-vertical` / `--no-stab-mirror-vertical`     |
+| `orientation.stab_mirror_spacebar`      | `--stab-mirror-spacebar` / `--no-stab-mirror-spacebar`     |
+| `orientation.global_transform`          | `--global-transform` / `--no-global-transform`             |
+| `orientation.global_rotation`           | `--global-rotation`                                        |
+| `orientation.global_mirror_x`           | `--global-mirror-x` / `--no-global-mirror-x`               |
+| `templates.socket`                      | `--socket`                                                 |
+| `templates.wide_caps`                   | `--socket-wide-caps`                                       |
+| `templates.stabilizer_2u`               | `--stabilizer-2u`                                          |
+| `templates.stabilizer_3u`               | `--stabilizer-3u`                                          |
+| `templates.spacebar_6u_centered`        | config only                                                |
+| `templates.spacebar_6u_off_centered`    | config only                                                |
+| `templates.spacebar_6_25u_centered`     | config only                                                |
+| `templates.spacebar_6_25u_off_centered` | config only                                                |
+| `templates.spacebar_7u_centered`        | config only                                                |
 
 The input and output file (`--json`, `--output`) are not part of a config file: the same config is meant to serve different layouts.
 
