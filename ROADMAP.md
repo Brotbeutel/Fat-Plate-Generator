@@ -2,11 +2,11 @@
 
 Status: `[ ]` offen, `[~]` in Arbeit, `[x]` erledigt.
 
-Stand: `main` @ `771cdc6` (WP-07 bis WP-18 gemerged; Tests grün: 589 Tests in 6:34 min, vom Planner in einem frischen Clone gemessen).
+Stand: `main` @ `5d7e746` (WP-07 bis WP-20 gemerged); WP-21 liegt auf dem Branch `wp-21-fuse-f-row-gap` (631 Tests grün).
 
 ## Reihenfolge
 
-~~WP-07~~ → … → ~~WP-18~~ → WP-19 → WP-20 → WP-21 → WP-05. WP-21 und WP-05 warten auf Antworten des Nutzers (siehe dort). WP-22 hat niedrige Priorität.
+~~WP-07~~ → … → ~~WP-20~~ → ~~WP-21~~ → WP-23 → WP-24. WP-22 (Parser-Robustheit) hat niedrige Priorität.
 
 ## Arbeitspakete
 
@@ -30,7 +30,7 @@ Stand: `main` @ `771cdc6` (WP-07 bis WP-18 gemerged; Tests grün: 589 Tests in 6
   - Pfeilcluster-Box (gefüllte Ecken)
   - → F-Row als ein Mesh: **WP-12** (erledigt)
   - → Caps-Lock-Optionen (große Aussparung, linksbündig, zentriert): nach **WP-09**, falls dann noch gewünscht
-- [ ] **WP-05** Plattenform: abgerundete/gefaste Ecken (vom Nutzer als Nächstes gewünscht, Spezifikation offen: welche Kanten, Radius/Fase, Konvex und Konkav), Standoffs/Spacer
+- [~] **WP-05** Plattenform: aufgeteilt in **WP-23** (Umrissecken) und **WP-24** (Kanten oben/unten, Rundung und Fase); Standoffs/Spacer bleiben offen
 - [ ] **WP-06** Weitere Stabilizer-Varianten (7 u und 6 u sind mit **WP-15**, 3 u mit **WP-16** erledigt)
 
 ### Neue Arbeitspakete
@@ -77,14 +77,23 @@ Stand: `main` @ `771cdc6` (WP-07 bis WP-18 gemerged; Tests grün: 589 Tests in 6
   - `stab_mirror_horizontal`, `stab_mirror_vertical` und `stab_mirror_spacebar` (Standard aus; CLI `--stab-mirror-horizontal/--no-…`, `--stab-mirror-vertical/--no-…`, `--stab-mirror-spacebar/--no-…`; Config in `[orientation]`). Betroffen sind `KIND_STABILIZED` (2 u und 3 u) und die Spacebar (Nachtrag auf Wunsch des Nutzers, im ursprünglichen WP-18-Prompt war sie ausgenommen): `stab_mirror_horizontal` spiegelt die Spacebar mit (Ausnahme: ein um 90°/270° gedrehter Spacebar-Cutout folgt `stab_mirror_vertical`), `stab_mirror_spacebar` kehrt das für die Spacebar um (allein: nur die Spacebar gespiegelt; zusammen mit `stab_mirror_horizontal`: Horizontale gespiegelt, Spacebar in der Ausgangslage); Wide-Caps und Sockel werden nicht gespiegelt.
   - Spiegelachse: im Koordinatensystem des Templates an der Längsachse, `(x, y) → (x, −y)` (`MIRROR_Y_MATRIX`), vor Grundausrichtung und Rotation. 2 u, 3 u und die zentrierten Spacebars sind links/rechts-symmetrisch, deshalb ist die Spiegelung für sie dasselbe wie 180° mehr Rotation derselben Klasse; die Off-Center-Spacebars sind es nicht (dort bleibt der Schalter an seiner Seite). Die Spiegelung ist nicht `--spacebar-position` (das verschiebt den Schalter). README, Abschnitt „Stabilizer Mirror“.
   - `PlateModel.mirrored` ist für jede gespiegelte Taste `True`; mit Standardeinstellungen bleibt jede STL byte-identisch.
-- [ ] **WP-19** Feste Bounding Boxen als Vielfache von 1 u (Priorität 1)
-  - Auslöser: Der Nutzer hat die Template-Zellen auf Vielfache von 1 u gebaut (`a57f24c`; Wide-Caps 1,75 u, 2 u, 3 u, 6 u, 6,25 u, 7 u, Tiefe 1 u). Der Generator kennt noch die alten Werte und warnt bei jeder Platte mit Spacebar (`stabilizer_6-25u_centered.stl: bounding box x is 119.0620 mm, the fixed size is 114.3015 mm`).
+- [x] **WP-19** Feste Bounding Boxen als Vielfache von 1 u
   - Eine Quelle der Wahrheit: Tabelle in u (`TEMPLATE_WIDTH_UNITS`), die mm-Werte werden daraus berechnet; alle Arten haben eine feste Box, der Sonderfall `None` entfällt; alle neun Template-Dateien laden ohne Warnung. Platten bleiben byte-identisch.
-- [ ] **WP-20** Single Mesh als Standard
+- [x] **WP-20** Single Mesh als Standard
   - `single_mesh = True`; wer getrennte Teile will, nutzt `--no-single-mesh`. Vom Planner geprüft: Für alle Layouts in `kle-jsons/` liefert der Single-Mesh-Umriss ein Polygon, in unter 0,6 s (100 %-Layouts: 9 Teile → 1, Fläche +12 bis +24 %; Ergodox 2 → 1).
   - Folgen: Die Platten ändern sich bei jedem Layout mit mehr als einem Teil; Tests mit „getrennten Teilen“ bekommen `single_mesh=False`; `--fuse-f-row` wirkt nur noch mit `--no-single-mesh`; die Beispiel-STL muss der Nutzer neu erzeugen.
 - [x] **WP-21** F-Reihe: Lückenbegrenzung
-  - `--fuse-f-row` bridgt nur Lücken kleiner als `1,75 u`; Lücken ab `1,75 u` bleiben offen. `--single-mesh` ist davon nicht betroffen. G80-3000 bleibt 5 Teile, G80-1800 hat mit der Option 4 Teile (F12 → Insert bleibt offen), Ergodox 2 Teile.
+  - Festgelegt (Nutzer): `--fuse-f-row` verbindet nur Lücken **kleiner als 1,75 u**; Lücken von 1,75 u oder mehr bleiben offen. `--single-mesh` ist nicht betroffen. G80-3000 bleibt identisch; im G80-1800-Layout (Lücke F12 → Insert genau 1,75 u) entsteht eine Lücke.
+  - Vom Planner mit Prototyp nachgerechnet (Plattenteile ohne Single Mesh, mit `--fuse-f-row`): G80-1800 3 → **4**, Ergodox 1 → **2** (die 10,5-u-Lücke zwischen den Hälften wurde bisher überbrückt); alle anderen Layouts unverändert.
+  - Umsetzung: `gap_bridges(rectangles, max_gap=None)`, Konstante `FUSE_F_ROW_MAX_GAP_UNITS = 1.75`, strikt kleiner mit Toleranz.
+- [ ] **WP-23** Abgerundete Ecken des Plattenumrisses (`--corner-radius`)
+  - Festgelegt (Nutzer): Radius an den senkrechten Ecken des Umrisses (von oben gesehen), konvex **und** konkav, Standard 0 = aus; Cutouts bleiben unberührt.
+  - Umsetzung mit **echten Kreisbögen** im CAD (nicht als Polylinie), `PlateModel.footprint` mit abgetasteten Bögen für Tests und Preview, beides aus einer Funktion. Zu große Radien werden an kurzen Kanten gekürzt, mit Warnung.
+  - Vom Planner im Prototyp geprüft: Volumen stimmt exakt mit `(A − (4 − π)·R²) · Dicke`; der Körper ist gültig.
+- [ ] **WP-24** Plattenkanten oben und unten: Rundung und Fase (`--edge-fillet`, `--edge-chamfer`)
+  - Festgelegt (Nutzer): Kanten runden und anfasen (Fase kommt dazu); was für die obere Kante gilt, gilt für die untere; die Cutouts bleiben unberührt (kommen aus den Templates).
+  - Ein Wert für oben und unten; Fillet und Fase nicht gleichzeitig. Grenzen aus dem Prototyp: Größe < halbe Plattendicke (3,1 mm); bei `corner_radius > 0` muss die Größe kleiner als der Radius sein (Fase = Radius scheitert in OCC). Warnung, wenn die bearbeitete Kante in Cutouts hineinreicht (exakt per Boolean geprüft).
+  - Volumina stimmen im Prototyp bis 1e-15 mit geschlossenen Formeln (Pappus) überein; diese Formeln sind die Tests.
 - [ ] **WP-22** Parser-Robustheit und Aufräumen (Vorschlag, noch nicht beauftragt; hieß zuvor WP-16 und kurz WP-17, diese Nummern gingen an den 3-u-Stabilizer und die Null-Defaults)
   - KLE-Rotation (`r`) für Cavities: Footprint und Switch-Zentrum werden gedreht, die Cavity nicht. **Konkret betroffen:** `kle-jsons/ergodox_split_ergo_67-keys.json` (12 Tasten mit ±30°). Gemessen: 10 von 76 Cavities ragen aus dem Plattenumriss (bis 27 mm²), ohne dass der Generator warnt. Nutzer: Layouts mit diagonalen Teilen sollen möglich sein, niedrige Priorität. Bis dahin mindestens eine Warnung statt stillem Falschbau.
   - Caps-Lock-Ausnahme per Label-Vergleich ersetzen (nach WP-08 nur noch für Caps Lock ab 2 u relevant)
@@ -125,7 +134,7 @@ Frühere Werte (`91b460a5…`, `07c2c64e…`, `71d4c0db…`, `74c0c55c…`, `764
 
 - **CI:** GitHub Actions führt `python -m pytest` auf Linux aus. Der Stand war zweimal unbemerkt rot (Ordnerumstellung, Rename). Linux fängt zusätzlich Groß-/Kleinschreibung in Pfaden ab, die unter Windows nicht auffällt. Am besten direkt nach WP-07.
 
-- Die schweren Tests (100%-Layout) per Marker abtrennbar machen, sodass ein schneller Lauf möglich ist. Die Suite hat jetzt 397 Tests und läuft mehrere Minuten (7 Minuten, als noch andere Prozesse liefen).
+- Die schweren Tests (100%-Layout) per Marker abtrennbar machen, sodass ein schneller Lauf möglich ist. Die Suite hat jetzt 631 Tests und läuft ungefähr 17 Minuten.
 
 - `tools/check_templates.py`: lädt ein Template wie der Generator und listet seine Warnungen, dazu Koordinaten, die fast, aber nicht exakt gleich sind.
 
@@ -141,7 +150,7 @@ Frühere Werte (`91b460a5…`, `07c2c64e…`, `71d4c0db…`, `74c0c55c…`, `764
 | option -> create multiple STL files for separated meshes | WP-04            |
 | option for rectangular arrow box shape (filled corners)  | WP-04            |
 | options for CapsLock: big cutout, left-aligned, centered | WP-04            |
-| option for rounded/beveled corners                       | WP-05            |
+| option for rounded/beveled corners                       | WP-23 / WP-24    |
 | option for standoffs/spacer                              | WP-05            |
 | add more stabilizer options                              | WP-06            |
 
