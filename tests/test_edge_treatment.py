@@ -183,3 +183,30 @@ def test_edge_config_precedence(tmp_path, one_key_layout):
                                   "--json", str(one_key_layout),
                                   "--edge-fillet", "1.5"])
     assert fpg.settings_from_args(cli_args).edge_fillet == 1.5
+
+
+@pytest.fixture
+def three_key_layout(tmp_path):
+    path = tmp_path / "three-key-edge.json"
+    path.write_text('[["Q", "W", "E"]]', encoding="utf-8")
+    return path
+
+
+@pytest.mark.parametrize("kind", ["fillet", "chamfer"])
+def test_every_key_keeps_its_cutout_with_edge_treatment(kind, three_key_layout):
+    """Regression: the edge-warning loop reused the name of the fused cavity, so the
+    plate was cut with the LAST key's cutout only and all other sockets were missing."""
+    import cadquery as cq
+
+    plain = build_model(three_key_layout, single_mesh=False)
+    treated = build_model(
+        three_key_layout, single_mesh=False,
+        edge_fillet=1.0 if kind == "fillet" else 0.0,
+        edge_chamfer=1.0 if kind == "chamfer" else 0.0)
+    assert len(treated.cavities) == len(treated.keys) == 3
+    for cx, cy in treated.centers:
+        assert not treated.plate.isInside(cq.Vector(cx, cy, 0.0)), (cx, cy)
+    # The plate is the plain plate minus the edge material, never more than that.
+    assert treated.plate.Volume() < plain.plate.Volume()
+    removed_by_edges = plain.plate.Volume() - treated.plate.Volume()
+    assert removed_by_edges < 0.1 * plain.plate.Volume()

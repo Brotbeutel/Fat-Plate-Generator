@@ -84,6 +84,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `--edge-fillet` / `--edge-chamfer` no longer drop cutouts: the check whether the edge treatment reaches into a cutout reused the variable name of the fused cavity, so the plate was cut with the cutout of the last key only (a plate with a single socket). With the edge treatment off the check is skipped, which is why the plates were complete then. A test with several keys covers it.
 - The 6.25u spacebar template no longer warns: its fixed width is 119.0625 mm (6.25 u), instead of the obsolete 114.3015 mm value.
 - Keys after `rx` / `ry` lie where the Keyboard Layout Editor shows them. The editor sets the position to `(rx, ry)` when either is given (the one that is not given keeps its last value); `parse_kle()` set only `x` for `rx` and only `y` for `ry`. Examples: Del in `keyboard-layout_065-percent-iso_royal-kludge-rk65.json` was at (15, 6) instead of (15, 1) and now matches the hand-cleaned `…_rk65_clean.json`; the thumb cluster of `ergodox_split_ergo_67-keys.json` (row 23 with `rx` but no `ry`, 6 keys) moved up by 2 u. All other layouts in `kle-jsons/` parse exactly as before.
 - KLE `name` and `author` metadata at the beginning of Raw Data is now ignored instead of being parsed as extra keys.

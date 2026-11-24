@@ -1795,16 +1795,16 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
         removed = plate_before_edges.cut(plate)
         affected = 0
         nearest = float("inf")
-        for cavity, center in zip(cavities, centers):
+        for key_cavity in cavities:
             try:
-                overlap = removed.intersect(cavity)
+                overlap = removed.intersect(key_cavity)
                 overlap_volume = overlap.Volume()
             except Exception:
                 continue
             if overlap_volume > 1e-6:
                 affected += 1
                 try:
-                    bounds = cavity.BoundingBox()
+                    bounds = key_cavity.BoundingBox()
                     cavity_box = box(bounds.xmin, bounds.ymin,
                                      bounds.xmax, bounds.ymax)
                     distance = float(footprint.boundary.distance(cavity_box.boundary))
