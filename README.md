@@ -357,17 +357,18 @@ The box is only **checked**. If a template deviates by more than 0.001 mm, the g
 ## How a template must be built
 
 - The switch center is the origin (0, 0).
-- The cutout is described by closed contours. A contour must not lie inside another contour.
+- The cutout is described by closed contours. A contour must not lie inside another contour (the outer wall of a closed cell excepted, see below).
 - Between two heights a wall is either vertical or one straight slope. Slopes are kept exactly (see below).
-- The mesh should be closed. Defects are reported as warnings.
-- Everything outside the cutout (the outer rim of the cell) is ignored.
+- A template is either an **open shell** (floor, steps, ceiling and the walls of the cutout, without outer walls; the templates in the repository are like this) or a **closed cell** (a body with outer walls around the cutout). Both give the same cutter and the same plate. What counts is that the walls of the cutout form closed contours; the rest of the mesh does not have to be watertight. A defect that breaks a contour (for example a hole in a wall) is reported as a warning.
+- The outer wall of a closed cell is recognised and ignored: in every layer it is the contour that touches the boundary of the whole template on all four sides (the XY extent of the mesh, within 0.000001 mm) and encloses another contour. A contour that fills the whole extent but encloses nothing is a cutout, not a wall. A template without any outer wall works as before.
 
 ## How the generator reads a template
 
-The template is cut at every horizontal plane of the mesh. Between two planes each contour is turned into a ruled loft from its lower to its upper outline. Vertical walls therefore stay vertical and **slanted walls stay slanted**, for the socket as well as for the stabilizers. Every contour of every layer is kept, nothing is left out silently, and nothing is rounded or snapped. The only tolerances are:
+The template is cut at every horizontal plane of the mesh. Between two planes each contour is turned into a ruled loft from its lower to its upper outline. Vertical walls therefore stay vertical and **slanted walls stay slanted**, for the socket as well as for the stabilizers. Every contour of the cutout is kept in every layer (only the outer wall of a closed cell is not part of the cutout and is left out, see above), nothing else is left out silently, and nothing is rounded or snapped. The only tolerances are:
 
 - Heights closer than 0.000001 mm belong to the same plane (the STL stores float32).
 - Contour points closer than 0.000000001 mm are the same point.
+- A contour is the outer wall of a closed cell if its bounding box agrees with the XY extent of the whole template mesh within 0.000001 mm on all four sides and it encloses another contour of the layer. It is left out without a warning.
 - A point in the middle of a flat wall is only a leftover of the triangulation. It is dropped if it lies within 0.00005 mm (50 nm) of the straight wall. For a layer with a defective mesh this is raised in steps up to 0.005 mm, and the generator says so in a warning.
 - A layer whose walls lean or twist by less than 0.005 mm and cannot be lofted because of that is built as a straight prism from its section at half height, and the generator says so in a warning. A real slope is never straightened; that is an error.
 - The bounding box check described above (warning only).
