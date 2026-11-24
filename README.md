@@ -584,6 +584,21 @@ By default the plate is one connected mesh without gaps. The space between two k
 
 the same connected-mesh behavior can be selected explicitly. Parts that are still separate after that are joined with the smallest radius that connects them, and voids that are enclosed by the plate outline are filled as well. Where no key faces another one (for example the step above the numpad of a 100% layout) the outline stays as it was. The key cutouts are not affected. `--no-single-mesh` follows the keys and separates the plate wherever groups are far apart.
 
+### Edges: Fillet and Chamfer
+
+Use `--edge-fillet SIZE` to round the outside edges of the top and bottom faces by `SIZE` millimetres, or `--edge-chamfer SIZE` to cut a bevel of the same size on those faces. Both options apply the same treatment to the top and bottom outer edge. The default is `0` and leaves the STL unchanged. Fillet and chamfer cannot be enabled at the same time.
+
+```powershell
+python .\fat_plate_generator.py --json .\kle-jsons\keyboard-layout_100-percent-iso-105-keys_g80-3000.json --edge-fillet 1.5 --output plate-fillet.stl
+python .\fat_plate_generator.py --json .\kle-jsons\keyboard-layout_100-percent-iso-105-keys_g80-3000.json --edge-chamfer 1.5 --output plate-chamfer.stl
+```
+
+The edge treatment is applied after the plate outline is extruded and before the switch cavities are cut. It affects only the horizontal outer edges at the top and bottom; it does not modify the template cutouts. The size must be smaller than half the plate thickness (`3.1 mm`) and, with `--corner-radius R`, also strictly smaller than `R`. Invalid combinations stop with a clear `ERROR:` message. If the removed edge region reaches a cavity, the generator prints a separate edge-warning section and finishes with `Done, with warnings.`; reduce the edge size or increase `--margin` to move the cutouts away from the plate edge.
+
+The preview still shows a horizontal section at half height, so it does not display the top/bottom edge treatment. Inspect fillets or chamfers in Blender or a slicer.
+
+The config keys are `edge_fillet = 0.0` and `edge_chamfer = 0.0`.
+
 ### Rounded Corners
 
 Use `--corner-radius R` to round the vertical corners of the plate footprint by `R` millimetres. Both convex outer corners and concave (inner) corners are rounded; the switch cutouts and cavities come from the templates and are not changed. The default is `0`, which uses the exact existing outline.

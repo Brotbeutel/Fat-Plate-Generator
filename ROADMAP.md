@@ -30,7 +30,7 @@ Stand: `main` @ `5d7e746` (WP-07 bis WP-20 gemerged); WP-21 liegt auf dem Branch
   - Pfeilcluster-Box (gefüllte Ecken)
   - → F-Row als ein Mesh: **WP-12** (erledigt)
   - → Caps-Lock-Optionen (große Aussparung, linksbündig, zentriert): nach **WP-09**, falls dann noch gewünscht
-- [~] **WP-05** Plattenform: Umrissecken sind mit **WP-23** erledigt; **WP-24** behandelt die Kanten oben/unten (Rundung und Fase), Standoffs/Spacer bleiben offen
+- [x] **WP-05** Plattenform: Umrissecken sind mit **WP-23** und obere/untere Kanten mit **WP-24** erledigt; Standoffs/Spacer bleiben offen
 - [ ] **WP-06** Weitere Stabilizer-Varianten (7 u und 6 u sind mit **WP-15**, 3 u mit **WP-16** erledigt)
 
 ### Neue Arbeitspakete
@@ -90,7 +90,7 @@ Stand: `main` @ `5d7e746` (WP-07 bis WP-20 gemerged); WP-21 liegt auf dem Branch
   - Festgelegt (Nutzer): Radius an den senkrechten Ecken des Umrisses (von oben gesehen), konvex **und** konkav, Standard 0 = aus; Cutouts bleiben unberührt.
   - Umsetzung mit **echten Kreisbögen** im CAD (nicht als Polylinie), `PlateModel.footprint` mit abgetasteten Bögen für Tests und Preview, beides aus einer Funktion. Zu große Radien werden an kurzen Kanten gekürzt, mit Warnung.
   - Vom Planner im Prototyp geprüft: Volumen stimmt exakt mit `(A − (4 − π)·R²) · Dicke`; der Körper ist gültig.
-- [ ] **WP-24** Plattenkanten oben und unten: Rundung und Fase (`--edge-fillet`, `--edge-chamfer`)
+- [x] **WP-24** Plattenkanten oben und unten: Rundung und Fase (`--edge-fillet`, `--edge-chamfer`)
   - Festgelegt (Nutzer): Kanten runden und anfasen (Fase kommt dazu); was für die obere Kante gilt, gilt für die untere; die Cutouts bleiben unberührt (kommen aus den Templates).
   - Ein Wert für oben und unten; Fillet und Fase nicht gleichzeitig. Grenzen aus dem Prototyp: Größe < halbe Plattendicke (3,1 mm); bei `corner_radius > 0` muss die Größe kleiner als der Radius sein (Fase = Radius scheitert in OCC). Warnung, wenn die bearbeitete Kante in Cutouts hineinreicht (exakt per Boolean geprüft).
   - Volumina stimmen im Prototyp bis 1e-15 mit geschlossenen Formeln (Pappus) überein; diese Formeln sind die Tests.

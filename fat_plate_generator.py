@@ -22,7 +22,7 @@ import cadquery as cq
 import numpy as np
 import trimesh
 from shapely.affinity import affine_transform, rotate, scale, translate
-from shapely.geometry import Polygon, box
+from shapely.geometry import Polygon, box, Point
 from shapely.ops import unary_union
 from shapely.validation import make_valid
 
@@ -275,6 +275,8 @@ class Settings:
     single_mesh: bool = True
     fuse_f_row: bool = False
     corner_radius: float = 0.0
+    edge_fillet: float = 0.0
+    edge_chamfer: float = 0.0
     orientation: OrientationConfig = field(default_factory=OrientationConfig)
     templates: TemplateSet = field(default_factory=TemplateSet.defaults)
 
@@ -295,6 +297,27 @@ class Settings:
             raise ValueError(f"corner_radius must be a finite non-negative number, got {self.corner_radius!r}")
         if not np.isfinite(self.corner_radius) or self.corner_radius < 0:
             raise ValueError(f"corner_radius must be finite and non-negative, got {self.corner_radius!r}")
+        for name in ("edge_fillet", "edge_chamfer"):
+            value = getattr(self, name)
+            if not isinstance(value, (int, float)) or isinstance(value, bool):
+                raise ValueError(f"{name} must be a finite non-negative number, got {value!r}")
+            if not np.isfinite(value) or value < 0:
+                raise ValueError(f"{name} must be finite and non-negative, got {value!r}")
+        if self.edge_fillet > 0 and self.edge_chamfer > 0:
+            raise ValueError(
+                f"edge_fillet and edge_chamfer cannot both be set: "
+                f"edge_fillet={self.edge_fillet}, edge_chamfer={self.edge_chamfer}")
+        thickness = PLATE_Z_MAX - PLATE_Z_MIN
+        for name in ("edge_fillet", "edge_chamfer"):
+            size = getattr(self, name)
+            if size >= thickness / 2:
+                raise ValueError(
+                    f"{name} size {size} mm must be smaller than half the plate thickness "
+                    f"{thickness / 2:g} mm")
+            if size > 0 and self.corner_radius > 0 and size >= self.corner_radius:
+                raise ValueError(
+                    f"{name} size {size} mm must be smaller than corner_radius "
+                    f"{self.corner_radius:g} mm")
         if not isinstance(self.orientation, OrientationConfig):
             raise ValueError(f"orientation must be an OrientationConfig, got {self.orientation!r}")
         if not isinstance(self.templates, TemplateSet):
@@ -317,6 +340,8 @@ CONFIG_KEYS = {                   # key -> kind of value
     "single_mesh": "boolean",
     "fuse_f_row": "boolean",
     "corner_radius": "number",
+    "edge_fillet": "number",
+    "edge_chamfer": "number",
     "spacebar_position": "string",
     "stepped_key": "string",
 }
@@ -1362,6 +1387,42 @@ def extruded_footprint(footprint, z, height, corner_radius=0.0):
     return solids[0] if len(solids) == 1 else cq.Compound.makeCompound(solids)
 
 
+def horizontal_outer_edges(solid):
+    found = []
+    for edge in solid.Edges():
+        try:
+            start = edge.startPoint()
+            end = edge.endPoint()
+        except Exception:
+            continue
+        if abs(float(start.z) - float(end.z)) <= 1e-6:
+            z = float(start.z)
+            if abs(z - PLATE_Z_MIN) <= 1e-6 or abs(z - PLATE_Z_MAX) <= 1e-6:
+                found.append(edge)
+    return found
+
+
+def apply_edge_treatment(plate, settings):
+    size = settings.edge_fillet if settings.edge_fillet > 0 else settings.edge_chamfer
+    if size <= 1e-12:
+        return plate, False
+    edges = horizontal_outer_edges(plate)
+    if not edges:
+        raise ValueError(
+            f"No horizontal outer plate edges found for edge "
+            f"{'fillet' if settings.edge_fillet > 0 else 'chamfer'} "
+            f"size {size:g} mm")
+    kind = "fillet" if settings.edge_fillet > 0 else "chamfer"
+    try:
+        if kind == "fillet":
+            return plate.fillet(size, edges), True
+        return plate.chamfer(size, None, edges), True
+    except Exception as exc:
+        raise ValueError(
+            f"{kind} size {size:g} mm failed for corner_radius "
+            f"{settings.corner_radius:g} mm: {exc}") from exc
+
+
 def _ring_wire(points, z):
     return cq.Wire.makePolygon([cq.Vector(float(x), float(y), z) for x, y in points], close=True)
 
@@ -1573,6 +1634,8 @@ class PlateModel:
     templates: dict     # the templates that were used, by kind
     warnings: list      # problems found in the templates
     corner_warnings: list
+    edge_warnings: list
+    edge_warnings: list
     spacebar_path: Path | None
     matrix: tuple       # linear part of the whole-plate transform
     spacebar_left: bool = False  # the spacebar position is off-centered-left (the right template mirrored)
@@ -1680,6 +1743,8 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
 
     plate = extruded_footprint(
         extrusion_footprint, PLATE_Z_MIN, PLATE_Z_MAX - PLATE_Z_MIN, settings.corner_radius)
+    plate_before_edges = plate
+    plate, edge_treated = apply_edge_treatment(plate, settings)
 
     # Socket, stabilizer and spacebar cutouts are built by the same code.  The
     # templates are used exactly as supplied (nothing is scaled); the spacebar
@@ -1725,6 +1790,36 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
     for c in cavities[1:]:
         cavity = cavity.fuse(c)
 
+    edge_warnings = []
+    if settings.edge_fillet > 0 or settings.edge_chamfer > 0:
+        removed = plate_before_edges.cut(plate)
+        affected = 0
+        nearest = float("inf")
+        for key_cavity in cavities:
+            try:
+                overlap = removed.intersect(key_cavity)
+                overlap_volume = overlap.Volume()
+            except Exception:
+                continue
+            if overlap_volume > 1e-6:
+                affected += 1
+                try:
+                    bounds = key_cavity.BoundingBox()
+                    cavity_box = box(bounds.xmin, bounds.ymin,
+                                     bounds.xmax, bounds.ymax)
+                    distance = float(footprint.boundary.distance(cavity_box.boundary))
+                except Exception:
+                    distance = 0.0
+                nearest = min(nearest, distance)
+        if affected:
+            kind = "rounded" if settings.edge_fillet > 0 else "chamfered"
+            size = settings.edge_fillet if settings.edge_fillet > 0 else settings.edge_chamfer
+            nearest_text = f"{nearest:.6f}" if math.isfinite(nearest) else "0.000000"
+            edge_warnings.append(
+                f"the {kind} edge reaches into the cutouts of {affected} key(s) "
+                f"(edge size {size:g} mm, nearest cutout {nearest_text} mm from the outline); "
+                f"reduce the size or increase --margin")
+
     result = plate.cut(cavity)
     if not result.isValid():
         raise RuntimeError("Generated CAD solid is invalid.")
@@ -1735,6 +1830,7 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
                       templates=templates,
                       warnings=[w for t in templates.values() for w in t.warnings],
                       corner_warnings=corner_warnings,
+                      edge_warnings=edge_warnings,
                       spacebar_path=spacebar_path, matrix=gm,
                       spacebar_left=any(position_mirrored))
 
@@ -1829,6 +1925,14 @@ def report_corner_warnings(warnings):
         print(f"  - {warning}", file=sys.stderr)
 
 
+def report_edge_warnings(warnings):
+    if not warnings:
+        return
+    print("\nWARNING: edge treatment reaches into one or more cutouts:", file=sys.stderr)
+    for warning in warnings:
+        print(f"  - {warning}", file=sys.stderr)
+
+
 def report_template_warnings(warnings):
     """Print problems found in the templates; the plate is built from them as they are."""
     if not warnings:
@@ -1895,6 +1999,12 @@ def generate(kle_path: Path, settings: Settings, output: Path = Path(DEFAULT_OUT
         print(f"Corner radius:   {settings.corner_radius:g} mm (convex and concave)")
     else:
         print("Corner radius:   off")
+    if settings.edge_fillet > 1e-12:
+        print(f"Edge treatment:  fillet {settings.edge_fillet:g} mm (top and bottom)")
+    elif settings.edge_chamfer > 1e-12:
+        print(f"Edge treatment:  chamfer {settings.edge_chamfer:g} mm (top and bottom)")
+    else:
+        print("Edge treatment:  off")
     parts = len(polygons(model.footprint))
     if settings.single_mesh:
         print(f"Plate shape:     one connected mesh, {parts} part")
@@ -1942,10 +2052,11 @@ def generate(kle_path: Path, settings: Settings, output: Path = Path(DEFAULT_OUT
     else:
         print("Plate transform: none (--no-global-transform)")
     report_corner_warnings(model.corner_warnings)
+    report_edge_warnings(model.edge_warnings)
     report_template_warnings(model.warnings)
     mesh, problems = check_exported_stl(output, expected_bounds=expected_bounds)
     report_stl_check(mesh, problems, output)
-    print("\nDone." if not (problems or model.warnings or model.corner_warnings)
+    print("\nDone." if not (problems or model.warnings or model.corner_warnings or model.edge_warnings)
           else "\nDone, with warnings.")
 
 
@@ -1985,6 +2096,14 @@ def build_parser():
                         help="round convex and concave vertical plate corners in mm; "
                              "0 keeps the current outline and cutouts unchanged "
                              f"(default: {defaults.corner_radius})")
+    parser.add_argument("--edge-fillet", type=float, default=None,
+                        help="round the top and bottom outer plate edges by this size in mm "
+                             "(applies to both the top and bottom outer edge; "
+                             f"default: {defaults.edge_fillet})")
+    parser.add_argument("--edge-chamfer", type=float, default=None,
+                        help="chamfer the top and bottom outer plate edges by this size in mm "
+                             "(applies to both the top and bottom outer edge; "
+                             f"default: {defaults.edge_chamfer})")
     parser.add_argument("--stabilizer-min-unit", type=float, default=None,
                         help="minimum key width or height for a stabilizer cutout "
                              f"(default: {defaults.stabilizer_min_unit})")
@@ -2087,6 +2206,8 @@ def settings_from_args(args: argparse.Namespace) -> Settings:
         **given(margin=args.margin,
                 stabilizer_min_unit=args.stabilizer_min_unit,
                 corner_radius=args.corner_radius,
+                edge_fillet=args.edge_fillet,
+                edge_chamfer=args.edge_chamfer,
                 spacebar_position=args.spacebar_position,
                 stepped_key=args.stepped_key,
                 single_mesh=args.single_mesh,
