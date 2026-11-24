@@ -1803,11 +1803,11 @@ def build_plate_model(kle_path: Path, settings: Settings) -> PlateModel:
                 continue
             if overlap_volume > 1e-6:
                 affected += 1
-                cx, cy = center
                 try:
-                    distance = float(Polygon([point for point in
-                                             footprint.exterior.coords]).distance(
-                                                 Point(cx, cy)))
+                    bounds = cavity.BoundingBox()
+                    cavity_box = box(bounds.xmin, bounds.ymin,
+                                     bounds.xmax, bounds.ymax)
+                    distance = float(footprint.boundary.distance(cavity_box.boundary))
                 except Exception:
                     distance = 0.0
                 nearest = min(nearest, distance)
