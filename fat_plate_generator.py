@@ -632,8 +632,9 @@ def switch_center(k, second=False):
 # template is fixed (TEMPLATE_WIDTH_UNITS / TEMPLATE_BOUNDING_BOXES, PLATE_Z_MIN/MAX) so that new
 # templates can be designed against it.  The bounding box is only CHECKED: a
 # deviation produces a warning and never changes the geometry.  Only the
-# contour of the cutout is read from the STL; the outer rim of the cell is
-# ignored.  Socket, stabilizer and spacebar are read and built the same way.
+# contour of the cutout is read from the STL; the outer rim of a closed cell
+# (see RIM_TOLERANCE) is ignored, an open shell has none.  Socket, stabilizer and
+# spacebar are read and built the same way.
 PLATE_Z_MIN = -5.0
 PLATE_Z_MAX = 1.2
 # All template cells are a whole number of key units wide (a quarter-unit step for 1.75 u and 6.25 u) and exactly 1 u deep.
@@ -658,6 +659,13 @@ LEVEL_TOLERANCE = 1e-6           # mm
 # Contour points computed from neighbouring triangles are the same point if they
 # agree to floating point noise.  Only used to join them; no coordinate is changed.
 POINT_TOLERANCE = 1e-9           # mm
+# A template may be an open shell or a closed cell with outer walls.  In a closed
+# cell every layer has one more contour: the outer wall, which runs along the
+# boundary of the whole template and encloses the cutout.  A contour is that rim
+# if its bounding box agrees with the XY extent of the whole mesh on all four sides
+# within RIM_TOLERANCE (the STL stores float32, so exact walls agree to about 1e-7)
+# and it encloses another contour.  The rim is left out; nothing is changed.
+RIM_TOLERANCE = 1e-6             # mm
 # The triangles of a flat wall leave contour points in the middle of the wall.
 # They are no corners and would slide along the wall between two heights, so
 # they are dropped.  Douglas-Peucker guarantees that every dropped point lies
@@ -796,14 +804,35 @@ def _wall_movement(ring, z_lo, z_hi):
     return float(lower.hausdorff_distance(upper))
 
 
+def _rim_indices(polygons, vertices):
+    """Indices of the contours of a layer that are the outer wall of a closed cell.
+
+    A contour is the rim if its bounding box agrees with the XY extent of the
+    whole template mesh (``vertices``) on all four sides within RIM_TOLERANCE and
+    it encloses at least one other contour of the layer.  A contour that fills the
+    whole extent but encloses nothing is a cutout and is not returned.
+    """
+    low, high = vertices[:, :2].min(axis=0), vertices[:, :2].max(axis=0)
+    rim = []
+    for i, polygon in enumerate(polygons):
+        x0, y0, x1, y1 = polygon.bounds
+        spans_cell = (abs(x0 - low[0]) <= RIM_TOLERANCE and abs(y0 - low[1]) <= RIM_TOLERANCE
+                      and abs(x1 - high[0]) <= RIM_TOLERANCE and abs(y1 - high[1]) <= RIM_TOLERANCE)
+        if spans_cell and any(i != j and polygon.contains(other)
+                              for j, other in enumerate(polygons)):
+            rim.append(i)
+    return rim
+
+
 def _interval_rings(vertices, faces, z_lo, z_hi, name):
     """Closed contours of the template between two neighbouring levels.
 
     Between two levels no vertex lies inside, so every wall is a planar strip
     from the lower to the upper level.  The contour is read halfway up and
-    chained through the mesh edges it crosses.  Returns ``(rings, dangling)``;
-    ``dangling`` lists contour points that belong to no closed contour (a mesh
-    defect), which are left out.
+    chained through the mesh edges it crosses.  The outer wall of a closed cell
+    (see ``_rim_indices``) is left out without a warning.  Returns
+    ``(rings, dangling, relaxed, straightened)``; ``dangling`` lists contour points
+    that belong to no closed contour (a mesh defect), which are left out.
     """
     z_mid = 0.5 * (z_lo + z_hi)
     z = vertices[:, 2]
@@ -865,6 +894,10 @@ def _interval_rings(vertices, faces, z_lo, z_hi, name):
         orders.append(order)
 
     polygons_found = [Polygon([positions[n] for n in order]) for order in orders]
+    rim = set(_rim_indices(polygons_found, vertices))
+    if rim:
+        orders = [order for i, order in enumerate(orders) if i not in rim]
+        polygons_found = [polygon for i, polygon in enumerate(polygons_found) if i not in rim]
     for i, outer in enumerate(polygons_found):
         for j, inner in enumerate(polygons_found):
             if i != j and outer.contains(inner):

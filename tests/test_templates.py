@@ -127,8 +127,11 @@ def test_every_contour_of_a_layer_is_kept(tmp_path):
 
 
 def test_nested_contours_are_refused(tmp_path):
-    outer, inner = box_mesh(14, 14, -5, 1.2), box_mesh(6, 6, -5, 1.2)
-    path = write_mesh(trimesh.util.concatenate([outer, inner]), tmp_path / "nested.stl")
+    # The 14 mm box has the full extent of the mesh and encloses the 6 mm box, so on its own it
+    # would be the outer wall of a closed cell (see tests/test_closed_templates.py).  A further
+    # box around the cell makes it an ordinary contour again.
+    cell, outer, inner = box_mesh(20, 20, -5, 1.2), box_mesh(14, 14, -5, 1.2), box_mesh(6, 6, -5, 1.2)
+    path = write_mesh(trimesh.util.concatenate([cell, outer, inner]), tmp_path / "nested.stl")
     with pytest.raises(TemplateError, match="nested"):
         fpg.load_template(path, "socket")
 

@@ -6,7 +6,7 @@ Stand: `main` @ `5d7e746` (WP-07 bis WP-20 gemerged); WP-21 liegt auf dem Branch
 
 ## Reihenfolge
 
-~~WP-07~~ → … → ~~WP-20~~ → ~~WP-21~~ → WP-23 → WP-24. WP-22 (Parser-Robustheit) hat niedrige Priorität.
+~~WP-07~~ → … → ~~WP-20~~ → ~~WP-21~~ → WP-23 → WP-24. WP-22 (Parser-Robustheit) hat niedrige Priorität. ~~WP-25~~ (geschlossene Templates) ist von WP-20 bis WP-24 unabhängig.
 
 ## Arbeitspakete
 
@@ -94,6 +94,9 @@ Stand: `main` @ `5d7e746` (WP-07 bis WP-20 gemerged); WP-21 liegt auf dem Branch
   - Festgelegt (Nutzer): Kanten runden und anfasen (Fase kommt dazu); was für die obere Kante gilt, gilt für die untere; die Cutouts bleiben unberührt (kommen aus den Templates).
   - Ein Wert für oben und unten; Fillet und Fase nicht gleichzeitig. Grenzen aus dem Prototyp: Größe < halbe Plattendicke (3,1 mm); bei `corner_radius > 0` muss die Größe kleiner als der Radius sein (Fase = Radius scheitert in OCC). Warnung, wenn die bearbeitete Kante in Cutouts hineinreicht (exakt per Boolean geprüft).
   - Volumina stimmen im Prototyp bis 1e-15 mit geschlossenen Formeln (Pappus) überein; diese Formeln sind die Tests.
+- [x] **WP-25** Templates mit Außenwänden (geschlossene Zellen)
+  - Ein Template darf eine offene Schale (wie die Templates im Repo) oder eine geschlossene Zelle mit Außenwänden sein; beide ergeben denselben Cutter und dieselbe Platte. Der Loader verwirft je Schicht die Randkontur: Sie berührt die XY-Ausdehnung des gesamten Meshes auf allen vier Seiten (`RIM_TOLERANCE`, 1e-6 mm) und umschließt eine andere Kontur. Ohne Warnung; eine Kontur in einer Kontur bleibt sonst ein Fehler.
+  - Geändert: README (Abschnitte zum Template-Aufbau und zum Lesen), CHANGELOG. Keine Template-STL, kein Layout, keine CLI-Option geändert; die Referenz-Hashes bleiben.
 - [ ] **WP-22** Parser-Robustheit und Aufräumen (Vorschlag, noch nicht beauftragt; hieß zuvor WP-16 und kurz WP-17, diese Nummern gingen an den 3-u-Stabilizer und die Null-Defaults)
   - KLE-Rotation (`r`) für Cavities: Footprint und Switch-Zentrum werden gedreht, die Cavity nicht. **Konkret betroffen:** `kle-jsons/ergodox_split_ergo_67-keys.json` (12 Tasten mit ±30°). Gemessen: 10 von 76 Cavities ragen aus dem Plattenumriss (bis 27 mm²), ohne dass der Generator warnt. Nutzer: Layouts mit diagonalen Teilen sollen möglich sein, niedrige Priorität. Bis dahin mindestens eine Warnung statt stillem Falschbau.
   - Caps-Lock-Ausnahme per Label-Vergleich ersetzen (nach WP-08 nur noch für Caps Lock ab 2 u relevant)
@@ -127,8 +130,6 @@ SHA256-Anfang der STLs, mit denen die Implementer „keine Änderung“ nachweis
 Frühere Werte (`91b460a5…`, `07c2c64e…`, `71d4c0db…`, `74c0c55c…`, `7642cc2c…`) galten für die Templates vor `a57f24c`. Der Planner hat nachgewiesen, dass der Generator zwischen WP-15 und WP-18 byte-neutral ist: Der aktuelle Code mit den alten Templates erzeugt den alten Hash `74c0c55c…`. Die neuen Hashes kommen allein von den ersetzten Template-Dateien (Cutout-Konturen unverändert, nur Zellen und Eckenreihenfolge).
 
 ## Vorschläge (nicht beauftragt)
-
-- **README zu „geschlossenen Templates“ klarstellen:** Dort steht „The mesh should be closed“. Tatsächlich haben die Templates keine Außenwände (alle offenen Kanten liegen am Zellrand), und der Loader verlangt nur, dass die Wände der Aussparung geschlossene Konturen bilden; eine Kontur um die Aussparung herum (Außenwände) bricht den Loader mit „nested contours“ ab (geprüft). Nur falls der Nutzer die Templates auch direkt in Blender oder im Slicer als Körper braucht, könnte der Loader die äußerste Zellkontur ignorieren.
 
 - **Layout-Paare als Regressionstests:** Wird ein Layout falsch gelesen, legt der Nutzer den fehlerhaften Export und eine von Hand bereinigte Fassung mit demselben Ergebnis (`…_clean.json`) in `kle-jsons/` ab. Der Implementer ergänzt einen Test, der beide vergleicht. So ist der RK65-Fehler gefunden worden; das Verfahren lohnt sich für jeden weiteren Fall.
 
