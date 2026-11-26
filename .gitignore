@@ -43,3 +43,5 @@ __pycache__/
 
 !switch_socket.stl
 !switch_socket_wide-caps.stl
+
+stl-templates/bak/*
